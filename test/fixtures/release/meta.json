@@ -1,0 +1,43 @@
+{
+  "categories": {
+    "Info": {
+      "name": "Info",
+      "description": "Display additional information",
+      "plugins": [
+        {
+          "filename": "ap-stats.user.js",
+          "id": "ap-stats",
+          "name": "Available AP statistics",
+          "author": "Hollow011",
+          "description": "Displays the per-team AP gains available in the current view.",
+          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
+          "version": "0.4.2"
+        }
+      ]
+    },
+    "Map Tiles": {
+      "name": "Map Tiles",
+      "description": "Alternative map layers",
+      "plugins": [
+        {
+          "filename": "basemap-bing.user.js",
+          "id": "basemap-bing",
+          "name": "Bing maps",
+          "author": "johnd0e",
+          "description": "Add the bing.com map layers.",
+          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
+          "version": "0.3.0"
+        }
+      ]
+    },
+    "Obsolete": {
+      "name": "Obsolete",
+      "description": "Plugins that are no longer recommended, due to being superceded by others or similar"
+    },
+    "Deleted": {
+      "name": "Deleted",
+      "description": "Deleted plugins – listed here for reference only. No download available"
+    }
+  },
+  "iitc_version": "0.32.1"
+}

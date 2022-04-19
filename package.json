@@ -1,0 +1,32 @@
+{
+  "name": "lib-iitc-manager",
+  "version": "2.0.0",
+  "description": "Library for managing IITC plugins",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "mocha --exit",
+    "test_with_webserver": "http-server ./test/fixtures/ -p 31606 -s & sleep 1 && mocha --exit",
+    "webserver": "http-server ./test/fixtures/ -p 31606"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IITC-CE/lib-iitc-manager.git"
+  },
+  "author": "Ingress Intel Total Conversion - Community Edition (\"IITC-CE\")",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/IITC-CE/lib-iitc-manager/issues"
+  },
+  "homepage": "https://github.com/IITC-CE/lib-iitc-manager#readme",
+  "devDependencies": {
+    "chai": "^4.3.6",
+    "http-server": "^14.1.0",
+    "mocha": "^9.2.2"
+  },
+  "dependencies": {
+    "compare-versions": "^4.1.3",
+    "root-require": "^0.3.1",
+    "xhr2": "^0.2.1"
+  }
+}
