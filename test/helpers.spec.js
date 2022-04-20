@@ -51,7 +51,7 @@ describe('parseMeta', function() {
 describe('ajaxGet', function() {
 
     it('download UserScript', async function() {
-        expect(await helpers.ajaxGet('http://localhost:31606/release/total-conversion-build.meta.js')).to.include('==UserScript==');
+        expect(await helpers.ajaxGet('http://127.0.0.1:31606/release/total-conversion-build.meta.js')).to.include('==UserScript==');
     });
 
 });

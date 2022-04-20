@@ -28,10 +28,10 @@ describe('manage.js integration tests', function () {
         const params = {
             storage: storage,
             network_host: {
-                release: 'http://localhost:31606/release',
-                beta: 'http://localhost:31606/beta',
-                test: 'http://localhost:31606/test',
-                local: 'http://localhost:8000'
+                release: 'http://127.0.0.1:31606/release',
+                beta: 'http://127.0.0.1:31606/beta',
+                test: 'http://127.0.0.1:31606/test',
+                local: 'http://127.0.0.1:8000'
             },
             inject_user_script: function callBack(data){
                 expect(data).to.include('// ==UserScript==');
