@@ -21,16 +21,21 @@ describe('test migrations', function () {
                 user: true,
                 category: undefined
             }
-        }
+        },
+        lastversion: '1.7.0'
     });
 
     describe('migrate from v1.7.0', async function() {
-        await migrate(storage, '1.7.0');
+        await migrate(storage);
 
         it('Should replace undefined with "Misc" (fix https://github.com/IITC-CE/IITC-Button/issues/68)', async function() {
             const db_data = await storage.get(['release_plugins_flat']);
             const ext_plugin = db_data['release_plugins_flat']['External+https://github.com/IITC-CE/ingress-intel-total-conversion'];
             expect(ext_plugin['category']).to.equal('Misc');
+        });
+        it('The value of storage_version field has changed', async function() {
+            const db_data = await storage.get(['storage_version']);
+            expect(db_data['storage_version']).to.equal(1);
         });
     });
 

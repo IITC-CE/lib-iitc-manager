@@ -2,8 +2,6 @@
 
 import * as helpers from './helpers.js';
 import * as migrations from './migrations.js';
-import {createRequire} from 'module';
-import {readPackage} from 'read-pkg';
 
 export class Manager {
     constructor(config) {
@@ -27,27 +25,10 @@ export class Manager {
     }
 
     async run() {
-        const package_version = (await readPackage()).version;
-        console.log(package_version);
+        const is_migrated = await migrations.migrate(this.storage);
 
-        const require = createRequire(import.meta.url);
-        const currentVersion = require('root-require')('package.json').version;
-        const lastVersion = await this.storage
-            .get('lastversion')
-            .then(obj => obj['lastversion']);
-
-        if (lastVersion !== currentVersion) {
-            if (lastVersion) {
-                await migrations.migrate(this.storage, lastVersion);
-            }
-            await this.checkUpdates(true);
-            await this._checkExternalUpdates(true);
-
-            this.storage.set({lastversion: currentVersion});
-        } else {
-            await this.checkUpdates();
-            await this._checkExternalUpdates();
-        }
+        await this.checkUpdates(is_migrated);
+        await this._checkExternalUpdates(is_migrated);
     }
 
     async _save(options) {

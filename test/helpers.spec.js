@@ -50,8 +50,19 @@ describe('parseMeta', function() {
 
 describe('ajaxGet', function() {
 
-    it('download UserScript', async function() {
+    it('test plaint', async function() {
         expect(await helpers.ajaxGet('http://127.0.0.1:31606/release/total-conversion-build.meta.js')).to.include('==UserScript==');
+    });
+
+    it('test json', async function() {
+        const response = await helpers.ajaxGet('http://127.0.0.1:31606/release/meta.json', 'parseJSON');
+        expect(response, 'is object').to.be.an.instanceof(Object);
+        expect(response, 'have keys').to.have.all.keys('categories', 'iitc_version');
+    });
+
+    it('test Last-Modified', async function() {
+        const response = await helpers.ajaxGet('http://127.0.0.1:31606/release/meta.json', 'Last-Modified');
+        expect(response, 'matches the pattern').to.match(/^(\w+), (\d+) (\w+) (\d+) (\d+):(\d+):(\d+) (\w+)/);
     });
 
 });
