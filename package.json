@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "test": "mocha --exit",
-    "test_with_webserver": "http-server ./test/fixtures/ -p 31606 -s & sleep 1 && mocha --exit",
+    "test": "NODE_ENV=test mocha --exit",
+    "test_with_webserver": "http-server ./test/fixtures/ -p 31606 -s & sleep 1 && NODE_ENV=test mocha --exit",
     "webserver": "http-server ./test/fixtures/ -p 31606"
   },
   "repository": {

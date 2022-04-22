@@ -47,9 +47,9 @@ export function parseMeta(code) {
 }
 
 export async function ajaxGet(url, variant) {
-    // Using built-in fetch in browser and nodejs >= 18, otherwise import polyfil
+    // Using built-in fetch in browser , otherwise import polyfil
     // eslint-disable-next-line no-undef
-    const c_fetch = (...args) => (typeof fetch !== 'undefined') ?  fetch(...args) : import('node-fetch').then(({default: fetch}) => fetch(...args));
+    const c_fetch = (...args) => (process.env.NODE_ENV !== 'test') ?  fetch(...args) : import('node-fetch').then(({default: fetch}) => fetch(...args));
 
     try {
         const response = await c_fetch(url + '?' + Date.now(), {
