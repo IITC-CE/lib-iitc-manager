@@ -1,12 +1,12 @@
 {
   "name": "lib-iitc-manager",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Library for managing IITC plugins",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "test": "mocha --exit",
-    "test_with_webserver": "http-server ./test/fixtures/ -p 31606 -s & sleep 1 && mocha --exit",
+    "test": "NODE_ENV=test mocha --exit",
+    "test_with_webserver": "http-server ./test/fixtures/ -p 31606 -s & sleep 1 && NODE_ENV=test mocha --exit",
     "webserver": "http-server ./test/fixtures/ -p 31606"
   },
   "repository": {
@@ -22,12 +22,11 @@
   "devDependencies": {
     "chai": "^4.3.6",
     "http-server": "^14.1.0",
-    "mocha": "^9.2.2"
+    "mocha": "^9.2.2",
+    "node-fetch": "^3.2.3"
   },
   "dependencies": {
-    "compare-versions": "^4.1.3",
     "eslint": "^8.13.0",
-    "root-require": "^0.3.1",
     "xhr2": "^0.2.1"
   }
 }

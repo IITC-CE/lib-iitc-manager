@@ -2,7 +2,6 @@
 
 import * as helpers from './helpers.js';
 import * as migrations from './migrations.js';
-import {createRequire} from 'module';
 
 export class Manager {
     constructor(config) {
@@ -26,27 +25,13 @@ export class Manager {
     }
 
     async run() {
-        const require = createRequire(import.meta.url);
-        const currentVersion = require('root-require')('package.json').version;
-        const lastVersion = await this.storage
-            .get('lastversion')
-            .then(obj => obj['lastversion']);
+        const is_migrated = await migrations.migrate(this.storage);
 
-        if (lastVersion !== currentVersion) {
-            if (lastVersion) {
-                await migrations.migrate(this.storage, lastVersion);
-            }
-            await this.checkUpdates(true);
-            await this.#checkExternalUpdates(true);
-
-            this.storage.set({lastversion: currentVersion});
-        } else {
-            await this.checkUpdates();
-            await this.#checkExternalUpdates();
-        }
+        await this.checkUpdates(is_migrated);
+        await this._checkExternalUpdates(is_migrated);
     }
 
-    async #save(options) {
+    async _save(options) {
         const data = {};
         Object.keys(options).forEach(key => {
             if (
@@ -68,7 +53,7 @@ export class Manager {
         await this.storage.set(data);
     }
 
-    async #getUrl(url, variant, retry) {
+    async _getUrl(url, variant, retry) {
         if (retry > 1) {
             let seconds = retry * retry;
             if (seconds > 60 * 60 * 24) seconds = 60 * 60 * 24;
@@ -82,13 +67,13 @@ export class Manager {
 
         clearInterval(this.progress_interval_id);
         this.progress_interval_id = setInterval(async () => {
-            await this.#showProgress(true);
+            await this._showProgress(true);
         }, 300);
         try {
             const response = await helpers.ajaxGet(url, variant);
             if (response) {
                 clearInterval(this.progress_interval_id);
-                await this.#showProgress(false);
+                await this._showProgress(false);
             }
             return response;
         } catch {
@@ -96,11 +81,11 @@ export class Manager {
                 clearInterval(this.progress_interval_id);
                 return null;
             }
-            return await this.#getUrl(url, variant, retry + 1);
+            return await this._getUrl(url, variant, retry + 1);
         }
     }
 
-    async #showProgress(value) {
+    async _showProgress(value) {
         try {
             this.progressbar(value);
         } catch {
@@ -154,7 +139,7 @@ export class Manager {
             helpers.clearWait();
             clearTimeout(this.update_timeout_id);
             this.update_timeout_id = null;
-            await this.#downloadMeta(local, null);
+            await this._downloadMeta(local, null);
         } else {
             const time_delta =
                 Math.floor(Date.now() / 1000) -
@@ -164,18 +149,18 @@ export class Manager {
                 helpers.clearWait();
                 clearTimeout(this.update_timeout_id);
                 this.update_timeout_id = null;
-                const last_modified = await this.#getUrl(
+                const last_modified = await this._getUrl(
                     this.network_host[this.channel] + '/meta.json',
                     'Last-Modified',
                     true
                 );
                 if (last_modified !== local[this.channel + '_last_modified'] || force) {
-                    await this.#downloadMeta(local, last_modified);
+                    await this._downloadMeta(local, last_modified);
                 }
             }
         }
         if (!this.update_timeout_id) {
-            await this.#save({
+            await this._save({
                 last_check_update: Math.floor(Date.now() / 1000)
             });
 
@@ -189,40 +174,40 @@ export class Manager {
         }
     }
 
-    async #downloadMeta(local, last_modified) {
-        const response = await this.#getUrl(
+    async _downloadMeta(local, last_modified) {
+        const response = await this._getUrl(
             this.network_host[this.channel] + '/meta.json',
             'parseJSON',
             true
         );
         if (!response) return;
 
-        let plugins_flat = this.#getPluginsFlat(response);
-        const categories = this.#getCategories(response);
+        let plugins_flat = this._getPluginsFlat(response);
+        const categories = this._getCategories(response);
         let plugins_local = local[this.channel + '_plugins_local'];
         const plugins_user = local[this.channel + '_plugins_user'];
 
         const p_iitc = async () => {
-            const iitc_code = await this.#getUrl(
+            const iitc_code = await this._getUrl(
                 this.network_host[this.channel] + '/total-conversion-build.user.js'
             );
             if (iitc_code) {
-                await this.#save({
+                await this._save({
                     iitc_code: iitc_code
                 });
             }
         };
 
         const p_plugins = async () => {
-            plugins_local = await this.#updateLocalPlugins(plugins_flat, plugins_local);
+            plugins_local = await this._updateLocalPlugins(plugins_flat, plugins_local);
 
-            plugins_flat = this.#rebuildingArrayCategoriesPlugins(
+            plugins_flat = this._rebuildingArrayCategoriesPlugins(
                 categories,
                 plugins_flat,
                 plugins_local,
                 plugins_user
             );
-            await this.#save({
+            await this._save({
                 iitc_version: response['iitc_version'],
                 last_modified: last_modified,
                 categories: categories,
@@ -235,7 +220,7 @@ export class Manager {
         await Promise.all([p_iitc, p_plugins].map(fn => fn()));
     }
 
-    #getCategories(data) {
+    _getCategories(data) {
         if (!('categories' in data)) return {};
         const categories = data['categories'];
 
@@ -248,7 +233,7 @@ export class Manager {
         return categories;
     }
 
-    #getPluginsFlat(data) {
+    _getPluginsFlat(data) {
         if (!('categories' in data)) return {};
         const plugins = {};
         const categories = data['categories'];
@@ -267,7 +252,7 @@ export class Manager {
         return plugins;
     }
 
-    async #checkExternalUpdates(force) {
+    async _checkExternalUpdates(force) {
         const local = await this.storage.get([
             'channel',
             'last_check_external_update',
@@ -292,11 +277,11 @@ export class Manager {
         if (time_delta >= 0 || force) {
             clearTimeout(this.external_update_timeout_id);
             this.external_update_timeout_id = null;
-            await this.#updateExternalPlugins(local);
+            await this._updateExternalPlugins(local);
         }
 
         if (!this.external_update_timeout_id) {
-            await this.#save({
+            await this._save({
                 last_check_external_update: Math.floor(Date.now() / 1000)
             });
 
@@ -310,7 +295,7 @@ export class Manager {
         }
     }
 
-    async #updateExternalPlugins(local) {
+    async _updateExternalPlugins(local) {
         const plugins_user = local[this.channel + '_plugins_user'];
         if (plugins_user) {
             let exist_updates = false;
@@ -321,7 +306,7 @@ export class Manager {
 
                 if (plugin['updateURL'] && plugin['downloadURL']) {
                     // download meta info
-                    const response_meta = await this.#getUrl(plugin['updateURL'] + hash);
+                    const response_meta = await this._getUrl(plugin['updateURL'] + hash);
                     if (response_meta) {
                         let meta = helpers.parseMeta(response_meta);
                         // if new version
@@ -331,7 +316,7 @@ export class Manager {
                             meta['version'] !== plugin['version']
                         ) {
                             // download userscript
-                            let response_code = await this.#getUrl(plugin['updateURL'] + hash);
+                            let response_code = await this._getUrl(plugin['updateURL'] + hash);
                             if (response_code) {
                                 exist_updates = true;
                                 plugins_user[uid] = meta;
@@ -343,14 +328,14 @@ export class Manager {
             }
 
             if (exist_updates) {
-                await this.#save({
+                await this._save({
                     plugins_user: plugins_user
                 });
             }
         }
     }
 
-    async #updateLocalPlugins(plugins_flat, plugins_local) {
+    async _updateLocalPlugins(plugins_flat, plugins_local) {
         // If no plugins installed
         if (plugins_local === null) return {};
 
@@ -359,7 +344,7 @@ export class Manager {
             let filename = plugins_local[uid]['filename'];
 
             if (filename && plugins_flat[uid]) {
-                let code = await this.#getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
+                let code = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
                 if (code) plugins_local[uid]['code'] = code;
             } else {
                 delete plugins_local[uid];
@@ -402,14 +387,14 @@ export class Manager {
                         : plugins_local[uid]['code']
                 );
 
-                await this.#save({
+                await this._save({
                     plugins_flat: plugins_flat,
                     plugins_local: plugins_local,
                     plugins_user: plugins_user
                 });
             } else {
                 let filename = plugins_flat[uid]['filename'];
-                let response = await this.#getUrl(
+                let response = await this._getUrl(
                     `${this.network_host[this.channel]}/plugins/${filename}`
                 );
                 if (response) {
@@ -419,7 +404,7 @@ export class Manager {
 
                     await this.inject_user_script(plugins_local[uid]['code']);
 
-                    await this.#save({
+                    await this._save({
                         plugins_flat: plugins_flat,
                         plugins_local: plugins_local
                     });
@@ -434,7 +419,7 @@ export class Manager {
                 plugins_local[uid]['status'] = 'off';
             }
 
-            await this.#save({
+            await this._save({
                 plugins_flat: plugins_flat,
                 plugins_local: plugins_local,
                 plugins_user: plugins_user
@@ -449,7 +434,7 @@ export class Manager {
             }
             delete plugins_user[uid];
 
-            await this.#save({
+            await this._save({
                 plugins_flat: plugins_flat,
                 plugins_local: plugins_local,
                 plugins_user: plugins_user
@@ -514,7 +499,7 @@ export class Manager {
             plugins_flat[plugin_uid]['user'] = true;
         });
 
-        await this.#save({
+        await this._save({
             categories: categories,
             plugins_flat: plugins_flat,
             plugins_local: plugins_local,
@@ -522,7 +507,7 @@ export class Manager {
         });
     }
 
-    #rebuildingArrayCategoriesPlugins(
+    _rebuildingArrayCategoriesPlugins(
         categories,
         raw_plugins,
         plugins_local,

@@ -1,7 +1,5 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
-import { createRequire } from 'module';
-
 export let wait_timeout_id = null;
 
 const METABLOCK_RE_HEADER = /==UserScript==\s*([\s\S]*)\/\/\s*==\/UserScript==/m; // Note: \s\S to match linebreaks
@@ -48,39 +46,31 @@ export function parseMeta(code) {
     return meta;
 }
 
-export const ajaxGet = (url, variant) =>
-    new Promise((resolve, reject) => {
-        const method = variant === 'Last-Modified' ? 'HEAD' : 'GET';
+export async function ajaxGet(url, variant) {
+    // Using built-in fetch in browser , otherwise import polyfil
+    // eslint-disable-next-line no-undef
+    const c_fetch = (...args) => (process.env.NODE_ENV !== 'test') ?  fetch(...args) : import('node-fetch').then(({default: fetch}) => fetch(...args));
 
-        if (typeof XMLHttpRequest === 'undefined') {
-            const require = createRequire(import.meta.url);
-            var XMLHttpRequest = require('xhr2');
-        }
-
-        const xhr = new XMLHttpRequest();
-        if (!xhr) return null;
-        xhr.timeout = 10 * 1000;
-        xhr.open(method, url + '?' + Date.now(), true);
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-
-                    if (variant === 'Last-Modified') {
-                        resolve(xhr.getResponseHeader('Last-Modified'));
-                    } else {
-                        let response = xhr.responseText;
-                        if (variant === 'parseJSON') {
-                            response = JSON.parse(response);
-                        }
-                        resolve(response);
-                    }
-                } else {
-                    reject(null);
-                }
+    try {
+        const response = await c_fetch(url + '?' + Date.now(), {
+            method: variant === 'Last-Modified' ? 'HEAD' : 'GET',
+            cache: 'no-cache'
+        });
+        if (response.ok) {
+            switch (variant) {
+            case 'Last-Modified':
+                return response.headers.get('Last-Modified');
+            case 'parseJSON':
+                return await response.json();
+            default:
+                return await response.text();
             }
-        };
-        xhr.send(null);
-    });
+        }
+    } catch (error) {
+        console.error('Error in ajaxGet: ', error);
+    }
+    return null;
+}
 
 export function getUniqId(prefix = 'VM') {
     const now = performance.now();
