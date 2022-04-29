@@ -96,15 +96,20 @@ export function getUID(plugin) {
 }
 
 function check_url_match_pattern(url, domain) {
+    if (url.startsWith('/^')) {
+        url = url.replace(/\/\^|\?/g, '').replace(/\\\//g, '/').replace(/\.\*/g, '*').replace(/\\\./g, '.');
+    }
+
     if (
-        (/^(http|https|\*):\/\/intel\.ingress\.com\//.test(url) ||
-            /^(http|https|\*):\/\/(www\.|)ingress\.com\/intel/.test(url)) &&
-        (domain === '<all>' || domain === 'intel.ingress.com')
+        (/^(http|https|\*):\/\/(www|\*)\.ingress\.com\/mission*/.test(url) ||
+         /^(http|https|\*):\/\/missions\.ingress\.com\/*/.test(url)) &&
+        (domain === '<all>' || domain === 'missions.ingress.com')
     ) {return true;}
 
     if (
-        /^(http|https|\*):\/\/missions\.ingress\.com\//.test(url) &&
-        (domain === '<all>' || domain === 'missions.ingress.com')
+        (/^(http|https|\*):\/\/(www\.|\*\.|\*|)ingress\.com(?!.*\/mission*)/.test(url) ||
+         /^(http|https|\*):\/\/intel\.ingress\.com*/.test(url)) &&
+        (domain === '<all>' || domain === 'intel.ingress.com')
     ) {return true;}
 
     return false;
