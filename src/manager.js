@@ -67,13 +67,13 @@ export class Manager {
 
         clearInterval(this.progress_interval_id);
         this.progress_interval_id = setInterval(async () => {
-            await this._showProgress(true);
+            this.progressbar(true);
         }, 300);
         try {
             const response = await ajaxGet(url, variant);
             if (response) {
                 clearInterval(this.progress_interval_id);
-                await this._showProgress(false);
+                this.progressbar(false);
             }
             return response;
         } catch {
@@ -82,14 +82,6 @@ export class Manager {
                 return null;
             }
             return await this._getUrl(url, variant, retry + 1);
-        }
-    }
-
-    async _showProgress(value) {
-        try {
-            this.progressbar(value);
-        } catch {
-            // Ignore if there is no message receiver
         }
     }
 
