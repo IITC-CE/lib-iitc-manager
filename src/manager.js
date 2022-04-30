@@ -1,7 +1,7 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
-import * as helpers from './helpers.js';
 import * as migrations from './migrations.js';
+import {parseMeta, ajaxGet, getUID, wait, clearWait, isSet} from './helpers.js';
 
 export class Manager {
     constructor(config) {
@@ -62,7 +62,7 @@ export class Manager {
             } catch {
                 // Ignore if there is no message receiver
             }
-            await helpers.wait(seconds);
+            await wait(seconds);
         }
 
         clearInterval(this.progress_interval_id);
@@ -70,7 +70,7 @@ export class Manager {
             await this._showProgress(true);
         }, 300);
         try {
-            const response = await helpers.ajaxGet(url, variant);
+            const response = await ajaxGet(url, variant);
             if (response) {
                 clearInterval(this.progress_interval_id);
                 await this._showProgress(false);
@@ -133,10 +133,10 @@ export class Manager {
         if (this.channel === 'local') update_check_interval = 5; // check every 5 seconds
 
         if (
-            local[this.channel + '_last_modified'] === null ||
-            local.last_check_update === null
+            !isSet(local[this.channel + '_last_modified']) ||
+            !isSet(local.last_check_update)
         ) {
-            helpers.clearWait();
+            clearWait();
             clearTimeout(this.update_timeout_id);
             this.update_timeout_id = null;
             await this._downloadMeta(local, null);
@@ -146,7 +146,7 @@ export class Manager {
                 update_check_interval -
                 local.last_check_update;
             if (time_delta >= 0 || force) {
-                helpers.clearWait();
+                clearWait();
                 clearTimeout(this.update_timeout_id);
                 this.update_timeout_id = null;
                 const last_modified = await this._getUrl(
@@ -242,7 +242,7 @@ export class Manager {
             if ('plugins' in categories[cat]) {
                 Object.keys(categories[cat]['plugins']).forEach(id => {
                     const plugin = categories[cat]['plugins'][id];
-                    plugin['uid'] = helpers.getUID(plugin);
+                    plugin['uid'] = getUID(plugin);
                     plugin['status'] = 'off';
                     plugin['category'] = cat;
                     plugins[plugin['uid']] = plugin;
@@ -308,7 +308,7 @@ export class Manager {
                     // download meta info
                     const response_meta = await this._getUrl(plugin['updateURL'] + hash);
                     if (response_meta) {
-                        let meta = helpers.parseMeta(response_meta);
+                        let meta = parseMeta(response_meta);
                         // if new version
                         if (
                             meta &&
@@ -337,7 +337,7 @@ export class Manager {
 
     async _updateLocalPlugins(plugins_flat, plugins_local) {
         // If no plugins installed
-        if (plugins_local === null) return {};
+        if (!isSet(plugins_local)) return {};
 
         // Iteration local plugins
         for (const uid of Object.keys(plugins_local)) {
@@ -365,8 +365,8 @@ export class Manager {
         let plugins_local = local[this.channel + '_plugins_local'];
         let plugins_user = local[this.channel + '_plugins_user'];
 
-        if (plugins_local === null) plugins_local = {};
-        if (plugins_user === null) plugins_user = {};
+        if (!isSet(plugins_local)) plugins_local = {};
+        if (!isSet(plugins_user)) plugins_user = {};
 
         if (action === 'on') {
             if (
@@ -455,13 +455,13 @@ export class Manager {
         let plugins_local = local[this.channel + '_plugins_local'];
         let plugins_user = local[this.channel + '_plugins_user'];
 
-        if (plugins_local === null) plugins_local = {};
-        if (plugins_user === null) plugins_user = {};
+        if (!isSet(plugins_local)) plugins_local = {};
+        if (!isSet(plugins_user)) plugins_user = {};
 
         scripts.forEach(script => {
             let meta = script['meta'];
             const code = script['code'];
-            const plugin_uid = helpers.getUID(meta);
+            const plugin_uid = getUID(meta);
 
             if (plugin_uid === null) throw new Error('The plugin has an incorrect ==UserScript== header');
 
@@ -514,8 +514,8 @@ export class Manager {
         plugins_user
     ) {
         let data = {};
-        if (plugins_local === null) plugins_local = {};
-        if (plugins_user === null) plugins_user = {};
+        if (!isSet(plugins_local)) plugins_local = {};
+        if (!isSet(plugins_user)) plugins_user = {};
 
         if (raw_plugins['Obsolete'] !== undefined) delete raw_plugins['Obsolete'];
         if (raw_plugins['Deleted'] !== undefined) delete raw_plugins['Deleted'];

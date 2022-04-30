@@ -1,5 +1,7 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
+import {isSet} from './helpers.js';
+
 export async function migrate(storage) {
 
     const migrates = [
@@ -13,7 +15,7 @@ export async function migrate(storage) {
         'storage_version'
     ]);
 
-    if (local['storage_version'] === null && local['lastversion'] !== null) {
+    if (!isSet(local['storage_version']) && isSet(local['lastversion'])) {
         local['storage_version'] = 0;
     }
 
@@ -33,7 +35,7 @@ export async function migrate(storage) {
 
 async function migration_0001(local) {
     for (let channel of Object.keys(local)) {
-        if (local[channel] === null) continue;
+        if (!isSet(local[channel])) continue;
 
         for (let plugin of Object.keys(local[channel])) {
             const plugin_obj = local[channel][plugin];
