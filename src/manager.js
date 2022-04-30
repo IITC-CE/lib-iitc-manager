@@ -381,7 +381,7 @@ export class Manager {
                     plugins_local[uid]['status'] = 'on';
                 }
 
-                await this.inject_user_script(
+                this.inject_user_script(
                     plugins_flat[uid]['user'] === true
                         ? plugins_user[uid]['code']
                         : plugins_local[uid]['code']
@@ -402,7 +402,7 @@ export class Manager {
                     plugins_local[uid] = plugins_flat[uid];
                     plugins_local[uid]['code'] = response;
 
-                    await this.inject_user_script(plugins_local[uid]['code']);
+                    this.inject_user_script(plugins_local[uid]['code']);
 
                     await this._save({
                         plugins_flat: plugins_flat,
