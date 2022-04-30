@@ -21,7 +21,3 @@ export {
     wait,
     clearWait
 };
-
-module.exports = {
-    Manager: Manager
-};
