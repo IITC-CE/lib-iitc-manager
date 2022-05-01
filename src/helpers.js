@@ -145,4 +145,8 @@ export function clearWait() {
     wait_timeout_id = null;
 }
 
+export function isSet(value) {
+    return typeof value !== 'undefined' && value !== null;
+}
+
 export const _check_url_match_pattern = check_url_match_pattern;
