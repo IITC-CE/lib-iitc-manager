@@ -17,7 +17,7 @@ jobs:
         with:
           source_dir: ./src
           output_dir: ./out
-          config_file: jsdocconf.json
+          config_file: jsdoc-conf.json
           template: tui-jsdoc-template
           front_page: README.md
 
