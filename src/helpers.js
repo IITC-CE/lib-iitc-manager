@@ -14,9 +14,15 @@ const META_ARRAY_TYPES = [
     'grant'
 ];
 
+/**
+ * Parses code of UserScript and returns an object with data from ==UserScript== header.
+ *
+ * @param {string} code - UserScript plugin with ==UserScript== header.
+ * @return {Object.<string, string>|null}
+ */
 export function parseMeta(code) {
     let header = METABLOCK_RE_HEADER.exec(code);
-    if (header === null) return;
+    if (header === null) return null;
     header = header[1];
     const meta = {};
 
@@ -46,6 +52,17 @@ export function parseMeta(code) {
     return meta;
 }
 
+/**
+ * This is a wrapper over the fetch() API method with pre-built parameters.
+ *
+ * @async
+ * @param {string} url - URL of the resource you want to fetch.
+ * @param {"parseJSON" | "Last-Modified" | null} [variant=null] - Type of request:
+ * "parseJSON" - Load the resource and parse it as a JSON response.
+ * "Last-Modified" - Requests the last modification date of a file.
+ * null - Get resource as text.
+ * @return {Promise<string|object|null>}
+ */
 export async function ajaxGet(url, variant) {
     // Using built-in fetch in browser , otherwise import polyfil
     // eslint-disable-next-line no-undef
@@ -72,6 +89,12 @@ export async function ajaxGet(url, variant) {
     return null;
 }
 
+/**
+ * Generates a unique random string with prefix.
+ *
+ * @param {string} prefix - Prefix string.
+ * @return {string}
+ */
 export function getUniqId(prefix = 'VM') {
     const now = performance.now();
     return (
@@ -81,7 +104,12 @@ export function getUniqId(prefix = 'VM') {
     );
 }
 
-/* exported getUID */
+/**
+ * Returns the unique identifier (UID) of plugin, composed of available plugin fields.
+ *
+ * @param {plugin} plugin - Plugin object.
+ * @return {string|null}
+ */
 export function getUID(plugin) {
     const available_fields = [];
 
@@ -95,7 +123,14 @@ export function getUID(plugin) {
     return available_fields.slice(-2).join('+');
 }
 
-function check_url_match_pattern(url, domain) {
+/**
+ * Checks if the accepted URL matches one or all domains related to Ingress.
+ *
+ * @param {string} url - URL address.
+ * @param {"<all>" | "intel.ingress.com" | "missions.ingress.com"} domain - One or all domains related to Ingress.
+ * @return {boolean}
+ */
+export function check_url_match_pattern(url, domain) {
     if (url.startsWith('/^')) {
         url = url.replace(/\/\^|\?/g, '').replace(/\\\//g, '/').replace(/\.\*/g, '*').replace(/\\\./g, '.');
     }
@@ -115,9 +150,15 @@ function check_url_match_pattern(url, domain) {
     return false;
 }
 
-// A simple check for a match Ingress sites.
-// Far from implementing all the features of userscripts @match/@include ( https://violentmonkey.github.io/api/matching/ ),
-// but sufficient for our needs.
+/**
+ * A simple check for a match Ingress sites.
+ * Far from implementing all the features of userscripts {@link https://violentmonkey.github.io/api/matching/|@match/@include},
+ * but sufficient for our needs.
+ *
+ * @param {plugin} meta - Object with data from ==UserScript== header.
+ * @param {"<all>" | "intel.ingress.com" | "missions.ingress.com"} domain - One or all domains related to Ingress.
+ * @return {boolean}
+ */
 export function check_meta_match_pattern(meta, domain = '<all>') {
     if (meta.match && meta.match.length) {
         for (const url of meta.match) {
@@ -132,6 +173,13 @@ export function check_meta_match_pattern(meta, domain = '<all>') {
     return false;
 }
 
+/**
+ * Sets a timer with a specified number of seconds to wait.
+ *
+ * @async
+ * @param {number} seconds
+ * @return {Promise<void>}
+ */
 export async function wait(seconds) {
     return new Promise(resolve => {
         clearTimeout(wait_timeout_id);
@@ -140,13 +188,22 @@ export async function wait(seconds) {
     });
 }
 
+/**
+ * Stops the timer created in {@link wait}
+ *
+ * @return {void}
+ */
 export function clearWait() {
     clearTimeout(wait_timeout_id);
     wait_timeout_id = null;
 }
 
+/**
+ * Checks if any value is set.
+ *
+ * @param {any} value - Any value.
+ * @return {boolean}
+ */
 export function isSet(value) {
     return typeof value !== 'undefined' && value !== null;
 }
-
-export const _check_url_match_pattern = check_url_match_pattern;

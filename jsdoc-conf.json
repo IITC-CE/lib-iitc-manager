@@ -1,0 +1,21 @@
+{
+  "plugins": ["plugins/markdown"],
+  "markdown": {
+    "parser": "gfm",
+    "hardwrap": false
+  },
+  "templates": {
+    "name": "lib iitc manager",
+    "footerText": "Ingress Intel Total Conversion (Community Edition)",
+    "logo": {
+      "height": "0",
+      "link": "https://github.com/IITC-CE/lib-iitc-manager"
+    }
+  },
+  "opts": {
+    "encoding": "utf8",
+    "private": true,
+    "recurse": true,
+    "package": "package.json"
+  }
+}

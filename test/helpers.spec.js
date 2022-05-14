@@ -8,7 +8,7 @@ import { expect } from 'chai';
 describe('parseMeta', function() {
 
     it('without arguments', function() {
-        expect(helpers.parseMeta()).to.be.undefined;
+        expect(helpers.parseMeta()).to.be.null;
     });
 
     const data1 = '// ==UserScript==\n' +
@@ -162,7 +162,7 @@ describe('check_url_match_pattern', function() {
     describe('match missions.ingress.com - valid', function() {
         for (const url of missions_links) {
             it(url, function() {
-                expect(helpers._check_url_match_pattern(url, 'missions.ingress.com')).to.be.true;
+                expect(helpers.check_url_match_pattern(url, 'missions.ingress.com')).to.be.true;
             });
         }
     });
@@ -170,7 +170,7 @@ describe('check_url_match_pattern', function() {
     describe('match missions.ingress.com - not valid', function() {
         for (const url of intel_links) {
             it(url, function() {
-                expect(helpers._check_url_match_pattern(url, 'missions.ingress.com')).to.be.false;
+                expect(helpers.check_url_match_pattern(url, 'missions.ingress.com')).to.be.false;
             });
         }
     });
@@ -178,7 +178,7 @@ describe('check_url_match_pattern', function() {
     describe('match intel.ingress.com - valid', function() {
         for (const url of intel_links) {
             it(url, function() {
-                expect(helpers._check_url_match_pattern(url, 'intel.ingress.com')).to.be.true;
+                expect(helpers.check_url_match_pattern(url, 'intel.ingress.com')).to.be.true;
             });
         }
     });
@@ -186,7 +186,7 @@ describe('check_url_match_pattern', function() {
     describe('match intel.ingress.com - not valid', function() {
         for (const url of missions_links) {
             it(url, function() {
-                expect(helpers._check_url_match_pattern(url, 'intel.ingress.com')).to.be.false;
+                expect(helpers.check_url_match_pattern(url, 'intel.ingress.com')).to.be.false;
             });
         }
     });
