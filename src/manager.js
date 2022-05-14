@@ -3,7 +3,141 @@
 import * as migrations from './migrations.js';
 import {parseMeta, ajaxGet, getUID, wait, clearWait, isSet} from './helpers.js';
 
+/**
+ * @namespace manager
+ */
+
+/**
+ * @namespace storage
+ */
+
+/**
+ * Environment parameters for an instance of Manager class.
+ * Specifying only the "storage" parameter is enough to run in lightweight form,
+ * but for full functionality you also need to specify callbacks.
+ *
+ * @typedef {Object} config
+ * @memberOf manager
+ * @property {storage.storage} storage - Platform-dependent data storage class.
+ * For example, "browser.storage.local" in webextensions.
+ * @property {boolean} is_daemon=true - In daemon mode, the class does not terminate
+ * and runs a periodic check for updates.
+ * @property {manager.network_host} network_host - URLs of repositories with IITC and plugins for different release branches.
+ * If the parameter is not specified, the default values are used.
+ * @property {manager.message} message - Function for sending an information message to a user.
+ * @property {manager.progressbar} progressbar - Function for controls the display of progress bar.
+ * @property {manager.inject_user_script} inject_user_script - Function for injecting UserScript code
+ * into the Ingress Intel window.
+ */
+
+/**
+ * Platform-dependent data storage class.
+ * For example, when using this library in a browser extension, the
+ * [storage.local API]{@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage}
+ * is compatible.
+ * Other platforms may have other ways of dealing with local storage,
+ * but it is sufficient to create a small layer for storage to have the specified methods.
+ *
+ * @typedef {Object} storage.storage
+ * @memberOf storage
+ * @property {storage.get} get - Retrieves one or more items from the storage area.
+ * @property {storage.set} set - Stores one or more items in the storage area, or update existing items.
+ */
+
+/**
+ * Retrieves one or more items from the storage area.
+ * This method accepts a key (string) or keys (an array of strings) to identify the item(s) to be retrieved from storage.
+ * This is an asynchronous function that returns a Promise that resolves to a results object,
+ * containing every object in keys that was found in the storage area.
+ *
+ * @typedef {Function} storage.get
+ * @memberOf storage
+ * @param {string|string[]} keys
+ * @returns {Promise<storage.data>}
+ */
+
+/**
+ * Stores one or more items in the storage area, or update existing items.
+ * This is an asynchronous function that returns a Promise
+ * that will be fulfilled with no arguments if the operation succeeded.
+ *
+ * @typedef {Function} storage.set
+ * @memberOf storage
+ * @param {storage.data} data
+ * @returns {Promise<null>}
+ */
+
+/**
+ * URLs of repositories with IITC and plugins for different release branches
+ *
+ * @typedef {Object} network_host
+ * @memberOf manager
+ * @property {string} release=https://iitc.app/build/release - Release branch.
+ * @property {string} beta=https://iitc.app/build/beta - Beta branch.
+ * @property {string} test=https://iitc.app/build/test - Test builds branch.
+ * @property {string} local=http://localhost:8000 - Webserver address for local development.
+ */
+
+/**
+ * Sends an information message to user.
+ *
+ * @callback manager.message
+ * @memberOf manager
+ * @param {string} message - The name of the message sent to user.
+ * You then need to map the message name to human-readable text in application.
+ * @param {string|string[]} [args] - A single substitution string, or an array of substitution strings.
+ */
+
+/**
+ * Controls progress bar display.
+ *
+ * @callback manager.progressbar
+ * @memberOf manager
+ * @param {boolean} is_show - Show progress bar.
+ */
+
+/**
+ * Calls a function that injects UserScript code into the Ingress Intel window.
+ *
+ * @callback manager.inject_user_script
+ * @memberOf manager
+ * @param {string} code - UserScript code to run in the Ingress Intel window
+ */
+
+/**
+ * Key-value data in storage
+ *
+ * @memberOf storage
+ * @typedef {Object.<string, string|number|object>} storage.data
+ */
+
+/**
+ * URLs of repositories with IITC and plugins for different release branches
+ *
+ * @typedef {Object} plugin
+ * @property {string} uid - Unique identifier (UID) of plugin. Created by lib-iitc-manager.
+ * @property {string} id
+ * @property {string} name
+ * @property {string} author
+ * @property {string} category
+ * @property {string} version
+ * @property {string} description
+ * @property {string} namespace
+ * @property {string} match
+ * @property {string} include
+ * @property {string} grant
+ */
+
+/**
+ * @classdesc This class contains methods for managing IITC and plugins.
+ */
 export class Manager {
+    /**
+     * Creates an instance of Manager class with the specified parameters
+     *
+     * @param {manager.config} config - Environment parameters for an instance of Manager class.
+     * @return {Promise<void>}
+     */
     constructor(config) {
         this.progress_interval_id = null;
         this.update_timeout_id = null;
@@ -24,6 +158,12 @@ export class Manager {
         this.inject_user_script = config.inject_user_script;
     }
 
+    /**
+     * Running the IITC and plugins manager.
+     * Migrates data storage as needed, then loads or updates UserScripts from the repositories.
+     *
+     * @async
+     */
     async run() {
         const is_migrated = await migrations.migrate(this.storage);
 
@@ -31,6 +171,15 @@ export class Manager {
         await this._checkExternalUpdates(is_migrated);
     }
 
+    /**
+     * Saves passed data to local storage.
+     * Adds the name of release branch before key, if necessary.
+     *
+     * @async
+     * @param {storage.data} options - Key-value data to be saved.
+     * @return {Promise<void>}
+     * @private
+     */
     async _save(options) {
         const data = {};
         Object.keys(options).forEach(key => {
@@ -53,12 +202,24 @@ export class Manager {
         await this.storage.set(data);
     }
 
+    /**
+     * The method requests data from the specified URL.
+     * It is a wrapper over {@link ajaxGet} function, with the addition of retries to load in case of problems
+     * and a message to user about errors.
+     *
+     * @async
+     * @param {string} url - URL of the resource you want to fetch.
+     * @param {"parseJSON" | "Last-Modified" | null} [variant=null] - Type of request (see {@link ajaxGet}).
+     * @param {boolean|number} [retry] - Is retry in case of an error | number of request attempt.
+     * @return {Promise<string|object|null>}
+     * @private
+     */
     async _getUrl(url, variant, retry) {
         if (retry > 1) {
             let seconds = retry * retry;
             if (seconds > 60 * 60 * 24) seconds = 60 * 60 * 24;
             try {
-                this.message('serverNotAvailableRetry', seconds);
+                this.message('serverNotAvailableRetry', String(seconds));
             } catch {
                 // Ignore if there is no message receiver
             }
@@ -85,6 +246,13 @@ export class Manager {
         }
     }
 
+    /**
+     * Runs periodic checks and installs updates for IITC and plugins.
+     *
+     * @async
+     * @param {boolean} [force=false] - Forced to run the update right now.
+     * @return {Promise<void>}
+     */
     async checkUpdates(force) {
         const local = await this.storage.get([
             'channel',
@@ -166,6 +334,15 @@ export class Manager {
         }
     }
 
+    /**
+     * Updates IITC, passes control to {@link _updateLocalPlugins} function to update plugins.
+     *
+     * @async
+     * @param {storage.data} local - Data from storage.
+     * @param {string} last_modified - Last modified date of "meta.json" file.
+     * @return {Promise<void>}
+     * @private
+     */
     async _downloadMeta(local, last_modified) {
         const response = await this._getUrl(
             this.network_host[this.channel] + '/meta.json',
@@ -177,7 +354,9 @@ export class Manager {
         let plugins_flat = this._getPluginsFlat(response);
         const categories = this._getCategories(response);
         let plugins_local = local[this.channel + '_plugins_local'];
-        const plugins_user = local[this.channel + '_plugins_user'];
+        let plugins_user = local[this.channel + '_plugins_user'];
+
+        if (!isSet(plugins_user)) plugins_user = {};
 
         const p_iitc = async () => {
             const iitc_code = await this._getUrl(
@@ -194,7 +373,6 @@ export class Manager {
             plugins_local = await this._updateLocalPlugins(plugins_flat, plugins_local);
 
             plugins_flat = this._rebuildingArrayCategoriesPlugins(
-                categories,
                 plugins_flat,
                 plugins_local,
                 plugins_user
@@ -212,6 +390,13 @@ export class Manager {
         await Promise.all([p_iitc, p_plugins].map(fn => fn()));
     }
 
+    /**
+     * Builds a dictionary from received meta.json file, in which it places names and descriptions of categories.
+     *
+     * @param {Object} data - Data from received meta.json file.
+     * @return {Object.<string, Object.<string, string>>}} - Dictionary with names and descriptions of categories.
+     * @private
+     */
     _getCategories(data) {
         if (!('categories' in data)) return {};
         const categories = data['categories'];
@@ -225,6 +410,13 @@ export class Manager {
         return categories;
     }
 
+    /**
+     * Converting a list of categories with plugins inside into a flat structure.
+     *
+     * @param {Object} data - Data from received meta.json file.
+     * @return {Object.<string, plugin>} - Dictionary of plugin name and plugin data.
+     * @private
+     */
     _getPluginsFlat(data) {
         if (!('categories' in data)) return {};
         const plugins = {};
@@ -244,6 +436,14 @@ export class Manager {
         return plugins;
     }
 
+    /**
+     * Runs periodic checks and installs updates for external plugins.
+     *
+     * @async
+     * @param {boolean} [force=false] - Forced to run the update right now.
+     * @return {Promise<void>}
+     * @private
+     */
     async _checkExternalUpdates(force) {
         const local = await this.storage.get([
             'channel',
@@ -287,6 +487,14 @@ export class Manager {
         }
     }
 
+    /**
+     * Updates external plugins.
+     *
+     * @async
+     * @param {storage.data} local - Data from storage.
+     * @return {Promise<void>}
+     * @private
+     */
     async _updateExternalPlugins(local) {
         const plugins_user = local[this.channel + '_plugins_user'];
         if (plugins_user) {
@@ -327,6 +535,15 @@ export class Manager {
         }
     }
 
+    /**
+     * Updates plugins.
+     *
+     * @async
+     * @param {Object.<string, plugin>} plugins_flat - Data from storage, key "[channel]_plugins_flat".
+     * @param {Object.<string, plugin>} plugins_local - Data from storage, key "[channel]_plugins_local".
+     * @return {Promise<Object.<string, plugin>>}
+     * @private
+     */
     async _updateLocalPlugins(plugins_flat, plugins_local) {
         // If no plugins installed
         if (!isSet(plugins_local)) return {};
@@ -346,6 +563,14 @@ export class Manager {
         return plugins_local;
     }
 
+    /**
+     * Controls the plugin. Allows you to enable, disable and remove the plugin.
+     *
+     * @async
+     * @param {string} uid - Unique identifier of the plugin.
+     * @param {"on" | "off" | "delete"} action - Type of action with the plugin.
+     * @return {Promise<void>}
+     */
     async managePlugin(uid, action) {
         let local = await this.storage.get([
             this.channel + '_plugins_flat',
@@ -434,6 +659,15 @@ export class Manager {
         }
     }
 
+    /**
+     * Allows adding third-party UserScript plugins to IITC.
+     *
+     * @async
+     * @param {Object[]} scripts - Array of UserScripts.
+     * @param {plugin} scripts[].meta - Parsed "meta" object of UserScript.
+     * @param {string} scripts[].code - UserScript code.
+     * @return {Promise<void>}
+     */
     async addUserScripts(scripts) {
         let local = await this.storage.get([
             this.channel + '_categories',
@@ -499,8 +733,16 @@ export class Manager {
         });
     }
 
+    /**
+     * Allows adding third-party UserScript plugins to IITC.
+     *
+     * @param {Object.<string, plugin>} raw_plugins - Dictionary of plugins downloaded from the server.
+     * @param {Object.<string, plugin>} plugins_local - Dictionary of installed plugins from IITC-CE distribution.
+     * @param {Object.<string, plugin>} plugins_user - Dictionary of external UserScripts.
+     * @return {Object<string, plugin>}
+     * @private
+     */
     _rebuildingArrayCategoriesPlugins(
-        categories,
         raw_plugins,
         plugins_local,
         plugins_user
