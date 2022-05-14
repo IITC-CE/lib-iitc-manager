@@ -36,7 +36,18 @@
     },
     "Deleted": {
       "name": "Deleted",
-      "description": "Deleted plugins – listed here for reference only. No download available"
+      "description": "Deleted plugins – listed here for reference only. No download available",
+      "plugins": [
+        {
+          "filename": "basemap-bing.user.js",
+          "id": "deleted-basemap-bing",
+          "name": "Old Bing maps",
+          "author": "johnd0e",
+          "description": "Add the bing.com map layers.",
+          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
+          "version": "0.2.0"
+        }
+      ]
     }
   },
   "iitc_version": "0.32.1"
