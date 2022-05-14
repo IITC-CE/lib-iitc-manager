@@ -475,6 +475,8 @@ export class Manager {
         const categories = data['categories'];
 
         Object.keys(categories).forEach(cat => {
+            if (cat === 'Obsolete' || cat === 'Deleted') return;
+
             if ('plugins' in categories[cat]) {
                 Object.keys(categories[cat]['plugins']).forEach(id => {
                     const plugin = categories[cat]['plugins'][id];
@@ -799,13 +801,9 @@ export class Manager {
         plugins_local,
         plugins_user
     ) {
-        let data = {};
+        let data = {...raw_plugins};
         if (!isSet(plugins_local)) plugins_local = {};
         if (!isSet(plugins_user)) plugins_user = {};
-
-        if (raw_plugins['Obsolete'] !== undefined) delete raw_plugins['Obsolete'];
-        if (raw_plugins['Deleted'] !== undefined) delete raw_plugins['Deleted'];
-        data = {...raw_plugins};
 
         // Build local plugins
         Object.keys(plugins_local).forEach(plugin_uid => {
