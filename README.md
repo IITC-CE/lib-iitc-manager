@@ -1,6 +1,6 @@
 # lib IITC manager
 
-Library for managing IITC and plugins.
+Library for managing [IITC and plugins](https://iitc.app/).
 
 ## Getting started
 
@@ -46,7 +46,7 @@ import { getUniqId } from "lib-iitc-manager";
 const uniqId = getUniqId("tmp");
 ```
 
-[See more in documentation](TODO)
+[See more in documentation](https://iitc-ce.github.io/lib-iitc-manager/)
 
 ## License
 
