@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Home | lib iitc manager</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/bootstrap.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-jsdoc.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/tui-doc.css">
+
+    
+</head>
+<body>
+<nav class="lnb" id="lnb">
+    <div class="logo" style="; height: 0">
+        
+            <a href="https://github.com/IITC-CE/lib-iitc-manager" rel="noopener noreferrer" target="_blank">
+                <img src="img/toast-ui.png" width="100%" height="100%">
+            </a>
+        
+    </div>
+    <div class="title">
+        <h1><a href="index.html" class="link">lib iitc manager</a></h1>
+        
+            <span class="version">v1.0.0</span>
+        
+    </div>
+    <div class="search-container" id="search-container">
+        <input type="text" placeholder="Search">
+        <ul></ul>
+    </div>
+    
+    <div class="lnb-api hidden"><h3>Classes</h3><ul><li><a href="Manager_.html">Manager</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="Manager_sub"><div class="member-type">Methods</div><ul class="inner"><li><a href="Manager_.html#_checkExternalUpdates">_checkExternalUpdates</a></li><li><a href="Manager_.html#_downloadMeta">_downloadMeta</a></li><li><a href="Manager_.html#_getCategories">_getCategories</a></li><li><a href="Manager_.html#_getPluginsFlat">_getPluginsFlat</a></li><li><a href="Manager_.html#_getUrl">_getUrl</a></li><li><a href="Manager_.html#_rebuildingArrayCategoriesPlugins">_rebuildingArrayCategoriesPlugins</a></li><li><a href="Manager_.html#_save">_save</a></li><li><a href="Manager_.html#_updateExternalPlugins">_updateExternalPlugins</a></li><li><a href="Manager_.html#_updateLocalPlugins">_updateLocalPlugins</a></li><li><a href="Manager_.html#addUserScripts">addUserScripts</a></li><li><a href="Manager_.html#checkUpdates">checkUpdates</a></li><li><a href="Manager_.html#managePlugin">managePlugin</a></li><li><a href="Manager_.html#run">run</a></li></ul></div></li></ul></div><div class="lnb-api hidden"><h3>Namespaces</h3><ul><li><a href="manager.html">manager</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="manager_sub"><div class="member-type">Typedef</div><ul class="inner"><li><a href="manager.html#.config">config</a></li><li><a href="manager.html#.inject_user_script">inject_user_script</a></li><li><a href="manager.html#.message">message</a></li><li><a href="manager.html#.network_host">network_host</a></li><li><a href="manager.html#.progressbar">progressbar</a></li></ul></div></li><li><a href="storage.html">storage</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="storage_sub"><div class="member-type">Typedef</div><ul class="inner"><li><a href="storage.html#.data">data</a></li><li><a href="storage.html#.get">get</a></li><li><a href="storage.html#.set">set</a></li><li><a href="storage.html#.storage">storage</a></li></ul></div></li></ul></div><div class="lnb-api hidden"><h3>Global</h3><ul><li><a href="global.html#ajaxGet">ajaxGet</a></li><li><a href="global.html#check_meta_match_pattern">check_meta_match_pattern</a></li><li><a href="global.html#check_url_match_pattern">check_url_match_pattern</a></li><li><a href="global.html#clearWait">clearWait</a></li><li><a href="global.html#getUID">getUID</a></li><li><a href="global.html#getUniqId">getUniqId</a></li><li><a href="global.html#isSet">isSet</a></li><li><a href="global.html#parseMeta">parseMeta</a></li><li class="hidden"><a href="global.html#plugin">plugin</a></li><li><a href="global.html#wait">wait</a></li></ul></div>
+</nav>
+<div id="resizer"></div>
+
+<div class="main" id="main">
+    
+
+
+
+    
+
+
+
+
+
+
+
+
+
+    
+
+
+    <section>
+        <article class="readme"><h1>lib IITC manager</h1>
+<p>Library for managing IITC and plugins.</p>
+<h2>Getting started</h2>
+<pre class="prettyprint source"><code>npm install lib-iitc-manager --save
+</code></pre>
+<h2>Usage</h2>
+<p>Example code to use in WebExtension.
+Imports the library, passes environment parameters and starts loading IITC and plugins.</p>
+<pre class="prettyprint source lang-js"><code>import { Manager } from 'lib-iitc-manager';
+
+const manager = new Manager({
+    storage: browser.storage.local,
+    message: (message, args) => {
+        console.log(&quot;Message for user:&quot;);
+        console.log(message+&quot;, args: &quot;+args);
+    },
+    progressbar: is_show => {
+        if (is_show) {
+            console.log(&quot;Show progress bar&quot;);
+        } else {
+            console.log(&quot;Hide progress bar&quot;);
+        }
+    },
+    inject_user_script: code => {
+        console.log(&quot;Code of UserScript plugin for embedding in a page:&quot;);
+        console.log(code);
+    }
+});
+
+manager.run().then();
+</code></pre>
+<p>Example of use helpers:</p>
+<pre class="prettyprint source lang-js"><code>import { getUniqId } from &quot;lib-iitc-manager&quot;;
+
+const uniqId = getUniqId(&quot;tmp&quot;);
+</code></pre>
+<p><a href="TODO">See more in documentation</a></p>
+<h2>License</h2>
+<p><a href="/LICENSE">GPL-3.0 license</a></p></article>
+    </section>
+
+
+
+
+
+
+</div>
+
+<footer>
+    <img class="logo" src="img/toast-ui.png" style="; height: 0">
+    <div class="footer-text">Ingress Intel Total Conversion (Community Edition)</div>
+</footer>
+<script>prettyPrint();</script>
+<script src="scripts/jquery.min.js"></script>
+<script src="scripts/tui-doc.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+    <script>
+        var id = 'package:lib-iitc-manager_sub'.replace(/"/g, '_');
+        var selectedApi = document.getElementById(id); // do not use jquery selector
+        var $selectedApi = $(selectedApi);
+
+        $selectedApi.removeClass('hidden');
+        $selectedApi.parent().find('.glyphicon').removeClass('glyphicon-plus').addClass('glyphicon-minus');
+        showLnbApi();
+    </script>
+
+</body>
+</html>
