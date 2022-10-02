@@ -166,9 +166,7 @@ export class Manager {
      */
     async run() {
         const is_migrated = await migrations.migrate(this.storage);
-
         await this.checkUpdates(is_migrated);
-        await this._checkExternalUpdates(is_migrated);
     }
 
     /**
@@ -247,13 +245,25 @@ export class Manager {
     }
 
     /**
-     * Runs periodic checks and installs updates for IITC and plugins.
+     * Runs periodic checks and installs updates for IITC, internal and external plugins.
      *
      * @async
      * @param {boolean} [force=false] - Forced to run the update right now.
      * @return {Promise<void>}
      */
     async checkUpdates(force) {
+        await Promise.all([this._checkInternalUpdates(force), this._checkExternalUpdates(force)]);
+    }
+
+    /**
+     * Runs periodic checks and installs updates for IITC and plugins.
+     *
+     * @async
+     * @param {boolean} [force=false] - Forced to run the update right now.
+     * @return {Promise<void>}
+     * @private
+     */
+    async _checkInternalUpdates(force) {
         const local = await this.storage.get([
             'channel',
             'last_check_update',
@@ -326,7 +336,7 @@ export class Manager {
 
             if (this.is_daemon) {
                 this.update_timeout_id = setTimeout(async () => {
-                    await this.checkUpdates();
+                    await this._checkInternalUpdates();
                 }, update_check_interval * 1000);
             } else {
                 this.update_timeout_id = null;
@@ -481,7 +491,7 @@ export class Manager {
 
             if (this.is_daemon) {
                 this.external_update_timeout_id = setTimeout(async () => {
-                    await this.checkUpdates();
+                    await this._checkExternalUpdates();
                 }, update_check_interval * 1000);
             } else {
                 this.external_update_timeout_id = null;

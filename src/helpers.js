@@ -92,7 +92,7 @@ export async function ajaxGet(url, variant) {
 /**
  * Generates a unique random string with prefix.
  *
- * @param {string} prefix - Prefix string.
+ * @param {string} [prefix="VM"] prefix - Prefix string.
  * @return {string}
  */
 export function getUniqId(prefix = 'VM') {
@@ -127,7 +127,7 @@ export function getUID(plugin) {
  * Checks if the accepted URL matches one or all domains related to Ingress.
  *
  * @param {string} url - URL address.
- * @param {"<all>" | "intel.ingress.com" | "missions.ingress.com"} domain - One or all domains related to Ingress.
+ * @param {"<all>" | "intel.ingress.com" | "missions.ingress.com"} [domain="<all>"] domain - One or all domains related to Ingress.
  * @return {boolean}
  */
 export function check_url_match_pattern(url, domain) {
@@ -156,7 +156,7 @@ export function check_url_match_pattern(url, domain) {
  * but sufficient for our needs.
  *
  * @param {plugin} meta - Object with data from ==UserScript== header.
- * @param {"<all>" | "intel.ingress.com" | "missions.ingress.com"} domain - One or all domains related to Ingress.
+ * @param {"<all>" | "intel.ingress.com" | "missions.ingress.com"} [domain="<all>"] domain - One or all domains related to Ingress.
  * @return {boolean}
  */
 export function check_meta_match_pattern(meta, domain = '<all>') {
