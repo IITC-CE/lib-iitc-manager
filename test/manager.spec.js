@@ -55,6 +55,13 @@ describe('manage.js integration tests', function () {
         });
     });
 
+    describe('inject', function() {
+        it('Should not return an error', async function() {
+            const inject = await manager.inject();
+            expect(inject).to.be.undefined;
+        });
+    });
+
     describe('Manage build-in plugins', function() {
         it('Enable first plugin', async function() {
             const run = await manager.managePlugin(first_plugin_uid, 'on');

@@ -170,6 +170,41 @@ export class Manager {
     }
 
     /**
+     * Invokes the injection of IITC and plugins to the page
+     */
+    async inject() {
+        const storage = await this.storage.get([
+            this.channel + '_iitc_code',
+            this.channel + '_plugins_flat',
+            this.channel + '_plugins_local',
+            this.channel + '_plugins_user'
+        ]);
+
+        const iitc_code = storage[this.channel + '_iitc_code'];
+
+        const plugins_local = storage[this.channel + '_plugins_local'];
+        const plugins_user = storage[this.channel + '_plugins_user'];
+
+        if (iitc_code !== undefined) {
+            const userscripts = [];
+
+            const plugins_flat = storage[this.channel + '_plugins_flat'];
+            for (const uid of Object.keys(plugins_flat)) {
+                if (plugins_flat[uid]['status'] === 'on') {
+                    userscripts.push(
+                        plugins_flat[uid]['user'] === true
+                            ? plugins_user[uid]['code']
+                            : plugins_local[uid]['code']
+                    );
+                }
+            }
+            userscripts.push(iitc_code);
+
+            await Promise.all(userscripts.map(code => this.inject_user_script(code)));
+        }
+    }
+
+    /**
      * Saves passed data to local storage.
      * Adds the name of release branch before key, if necessary.
      *
@@ -268,30 +303,12 @@ export class Manager {
             'channel',
             'last_check_update',
             'local_server_host',
-            'release_update_check_interval',
-            'beta_update_check_interval',
-            'test_update_check_interval',
-            'local_update_check_interval',
-            'release_last_modified',
-            'beta_last_modified',
-            'test_last_modified',
-            'local_last_modified',
-            'release_categories',
-            'beta_categories',
-            'test_categories',
-            'local_categories',
-            'release_plugins_flat',
-            'beta_plugins_flat',
-            'test_plugins_flat',
-            'local_plugins_flat',
-            'release_plugins_local',
-            'beta_plugins_local',
-            'test_plugins_local',
-            'local_plugins_local',
-            'release_plugins_user',
-            'beta_plugins_user',
-            'test_plugins_user',
-            'local_plugins_user'
+            this.channel + '_update_check_interval',
+            this.channel + '_last_modified',
+            this.channel + '_categories',
+            this.channel + '_plugins_flat',
+            this.channel + '_plugins_local',
+            this.channel + '_plugins_user'
         ]);
 
         if (local.channel) this.channel = local.channel;
@@ -461,10 +478,7 @@ export class Manager {
             'channel',
             'last_check_external_update',
             'external_update_check_interval',
-            'release_plugins_user',
-            'beta_plugins_user',
-            'test_plugins_user',
-            'local_plugins_user'
+            this.channel + '_plugins_user'
         ]);
 
         if (local.channel) this.channel = local.channel;
