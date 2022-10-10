@@ -159,10 +159,24 @@ export class Manager {
     }
 
     /**
+     * Changes the update channel.
+     *
+     * @async
+     * @param channel
+     * @return {Promise<void>}
+     */
+    async setChannel(channel) {
+        await this._save({ channel: channel, last_check_update: null });
+        this.channel = channel;
+        await this.checkUpdates();
+    }
+
+    /**
      * Running the IITC and plugins manager.
      * Migrates data storage as needed, then loads or updates UserScripts from the repositories.
      *
      * @async
+     * @return {Promise<void>}
      */
     async run() {
         const is_migrated = await migrations.migrate(this.storage);
@@ -287,6 +301,13 @@ export class Manager {
      * @return {Promise<void>}
      */
     async checkUpdates(force) {
+        const storage = await this.storage.get([
+            'channel',
+            'local_server_host',
+        ]);
+        if (storage.channel) this.channel = storage.channel;
+        if (storage.local_server_host) this.network_host['local'] = `http://${storage.local_server_host}`;
+
         await Promise.all([this._checkInternalUpdates(force), this._checkExternalUpdates(force)]);
     }
 
@@ -299,10 +320,8 @@ export class Manager {
      * @private
      */
     async _checkInternalUpdates(force) {
-        const local = await this.storage.get([
-            'channel',
+        const storage = await this.storage.get([
             'last_check_update',
-            'local_server_host',
             this.channel + '_update_check_interval',
             this.channel + '_last_modified',
             this.channel + '_categories',
@@ -311,27 +330,24 @@ export class Manager {
             this.channel + '_plugins_user'
         ]);
 
-        if (local.channel) this.channel = local.channel;
-        if (local.local_server_host) {this.network_host['local'] = `http://${local.local_server_host}`;}
-
         let update_check_interval =
-            local[this.channel + '_update_check_interval'] * 60 * 60;
+            storage[this.channel + '_update_check_interval'] * 60 * 60;
         if (!update_check_interval) update_check_interval = 24 * 60 * 60;
         if (this.channel === 'local') update_check_interval = 5; // check every 5 seconds
 
         if (
-            !isSet(local[this.channel + '_last_modified']) ||
-            !isSet(local.last_check_update)
+            !isSet(storage[this.channel + '_last_modified']) ||
+            !isSet(storage.last_check_update)
         ) {
             clearWait();
             clearTimeout(this.update_timeout_id);
             this.update_timeout_id = null;
-            await this._downloadMeta(local, null);
+            await this._updateInternalIITC(storage, null);
         } else {
             const time_delta =
                 Math.floor(Date.now() / 1000) -
                 update_check_interval -
-                local.last_check_update;
+                storage.last_check_update;
             if (time_delta >= 0 || force) {
                 clearWait();
                 clearTimeout(this.update_timeout_id);
@@ -341,8 +357,8 @@ export class Manager {
                     'Last-Modified',
                     true
                 );
-                if (last_modified !== local[this.channel + '_last_modified'] || force) {
-                    await this._downloadMeta(local, last_modified);
+                if (last_modified !== storage[this.channel + '_last_modified'] || force) {
+                    await this._updateInternalIITC(storage, last_modified);
                 }
             }
         }
@@ -366,11 +382,11 @@ export class Manager {
      *
      * @async
      * @param {storage.data} local - Data from storage.
-     * @param {string} last_modified - Last modified date of "meta.json" file.
+     * @param {string|null} last_modified - Last modified date of "meta.json" file.
      * @return {Promise<void>}
      * @private
      */
-    async _downloadMeta(local, last_modified) {
+    async _updateInternalIITC(local, last_modified) {
         const response = await this._getUrl(
             this.network_host[this.channel] + '/meta.json',
             'parseJSON',

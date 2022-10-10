@@ -27,6 +27,7 @@ describe('manage.js integration tests', function () {
     before(function () {
         const params = {
             storage: storage,
+            channel: 'beta',
             network_host: {
                 release: 'http://127.0.0.1:31606/release',
                 beta: 'http://127.0.0.1:31606/beta',
@@ -52,6 +53,13 @@ describe('manage.js integration tests', function () {
         it('Should not return an error', async function() {
             const run = await manager.run();
             expect(run).to.be.undefined;
+        });
+    });
+
+    describe('setChannel', function() {
+        it('Should not return an error', async function() {
+            const channel = await manager.setChannel('release');
+            expect(channel).to.be.undefined;
         });
     });
 
