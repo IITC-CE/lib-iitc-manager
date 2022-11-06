@@ -18,6 +18,7 @@ import {parseMeta, ajaxGet, getUID, wait, clearWait, isSet} from './helpers.js';
  *
  * @typedef {Object} config
  * @memberOf manager
+ * @property {storage.channel} channel - Update channel for IITC and plugins.
  * @property {storage.storage} storage - Platform-dependent data storage class.
  * For example, "browser.storage.local" in webextensions.
  * @property {boolean} is_daemon=true - In daemon mode, the class does not terminate
@@ -136,26 +137,20 @@ export class Manager {
      * Creates an instance of Manager class with the specified parameters
      *
      * @param {manager.config} config - Environment parameters for an instance of Manager class.
-     * @return {Promise<void>}
+     * @return {void}
      */
     constructor(config) {
+        this.config = config;
         this.progress_interval_id = null;
         this.update_timeout_id = null;
         this.external_update_timeout_id = null;
 
-        this.channel = 'release';
-        this.network_host = (typeof config.network_host !== 'undefined') ? config.network_host : {
-            release: 'https://iitc.app/build/release',
-            beta: 'https://iitc.app/build/beta',
-            test: 'https://iitc.app/build/test',
-            local: 'http://localhost:8000'
-        };
+        this.storage = (typeof this.config.storage !== 'undefined') ? this.config.storage : console.error("config key 'storage' is not set");
+        this.message = this.config.message;
+        this.progressbar = this.config.progressbar;
+        this.inject_user_script = this.config.inject_user_script;
 
-        this.is_daemon = (typeof config.is_daemon !== 'undefined') ? config.is_daemon : true;
-        this.storage = (typeof config.storage !== 'undefined') ? config.storage : console.error("config key 'storage' is not set");
-        this.message = config.message;
-        this.progressbar = config.progressbar;
-        this.inject_user_script = config.inject_user_script;
+        this.init().then();
     }
 
     /**
@@ -169,6 +164,48 @@ export class Manager {
         await this._save({ channel: channel, last_check_update: null });
         this.channel = channel;
         await this.checkUpdates();
+    }
+
+    /**
+     * Set values for the class properties.
+     *
+     * @async
+     * @return {Promise<void>}
+     */
+    async init() {
+        this.channel = await this.syncStorage('channel', 'release', this.config.channel);
+        this.network_host = await this.syncStorage('network_host', {
+            release: 'https://iitc.app/build/release',
+            beta: 'https://iitc.app/build/beta',
+            test: 'https://iitc.app/build/test',
+            local: 'http://localhost:8000'
+        }, this.config.network_host);
+        this.is_daemon = await this.syncStorage('is_daemon', true, this.config.is_daemon);
+    }
+
+    /**
+     * Overwrites the values in the storage and returns the new value.
+     * If the value is not set, the default value is returned.
+     *
+     * @async
+     * @param {string} key - Storage entry key.
+     * @param {string|number|object} defaults - Default value.
+     * @param {string|number|object|undefined} [override=undefined] - Value to override the default value.
+     * @return {Promise<string|number|object>}
+     */
+    async syncStorage(key, defaults, override) {
+        let data;
+        if (typeof override !== 'undefined') {
+            data = override;
+        } else {
+            data = await this.storage.get([key]).then((result) => result[key]);
+        }
+        this[key] = data;
+
+        const save_data = {};
+        save_data[key] = data;
+        await this._save(save_data);
+        return data;
     }
 
     /**
@@ -301,13 +338,6 @@ export class Manager {
      * @return {Promise<void>}
      */
     async checkUpdates(force) {
-        const storage = await this.storage.get([
-            'channel',
-            'local_server_host',
-        ]);
-        if (storage.channel) this.channel = storage.channel;
-        if (storage.local_server_host) this.network_host['local'] = `http://${storage.local_server_host}`;
-
         await Promise.all([this._checkInternalUpdates(force), this._checkExternalUpdates(force)]);
     }
 

@@ -56,6 +56,13 @@ describe('manage.js integration tests', function () {
         });
     });
 
+    describe('Check channel', function() {
+        it('Should return beta', async function() {
+            const channel = await storage.get(['channel']).then((data) => data.channel);
+            expect(channel).to.equal('beta');
+        });
+    });
+
     describe('setChannel', function() {
         it('Should not return an error', async function() {
             const channel = await manager.setChannel('release');
