@@ -157,13 +157,32 @@ export class Manager {
      * Changes the update channel.
      *
      * @async
-     * @param channel
+     * @param {"release" | "beta" | "test" | "local"} channel - Update channel for IITC and plugins.
      * @return {Promise<void>}
      */
     async setChannel(channel) {
         await this._save({ channel: channel, last_check_update: null });
         this.channel = channel;
         await this.checkUpdates();
+    }
+
+    /**
+     * Changes the update check interval. If the interval for the current channel changes, a forced update check is started to apply the new interval.
+     *
+     * @async
+     * @param {number} interval - Update check interval in seconds.
+     * @param {"release" | "beta" | "test" | "local" | undefined} [channel=undefined] - Update channel for IITC and plugins.
+     * If not specified, the current channel is used.
+     * @return {Promise<void>}
+     */
+    async setUpdateCheckInterval(interval, channel) {
+        if (typeof channel === 'undefined') channel = this.channel;
+
+        const data = {};
+        data[channel + '_update_check_interval'] = interval;
+        await this.storage.set(data);
+
+        if (channel === this.channel) await this.checkUpdates(true);
     }
 
     /**

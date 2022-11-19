@@ -70,6 +70,13 @@ describe('manage.js integration tests', function () {
         });
     });
 
+    describe('setUpdateCheckInterval', function() {
+        it('Should not return an error', async function() {
+            const fn = await manager.setUpdateCheckInterval(24 * 60 * 60, 'release');
+            expect(fn).to.be.undefined;
+        });
+    });
+
     describe('inject', function() {
         it('Should not return an error', async function() {
             const inject = await manager.inject();
