@@ -75,8 +75,7 @@ import {parseMeta, ajaxGet, getUID, wait, clearWait, isSet} from './helpers.js';
  * @memberOf manager
  * @property {string} release=https://iitc.app/build/release - Release branch.
  * @property {string} beta=https://iitc.app/build/beta - Beta branch.
- * @property {string} test=https://iitc.app/build/test - Test builds branch.
- * @property {string} local=http://localhost:8000 - Webserver address for local development.
+ * @property {string} custom=http://localhost:8000 - URL address of a custom repository.
  */
 
 /**
@@ -157,7 +156,7 @@ export class Manager {
      * Changes the update channel.
      *
      * @async
-     * @param {"release" | "beta" | "test" | "local"} channel - Update channel for IITC and plugins.
+     * @param {"release" | "beta" | "custom"} channel - Update channel for IITC and plugins.
      * @return {Promise<void>}
      */
     async setChannel(channel) {
@@ -171,7 +170,7 @@ export class Manager {
      *
      * @async
      * @param {number} interval - Update check interval in seconds.
-     * @param {"release" | "beta" | "test" | "local" | undefined} [channel=undefined] - Update channel for IITC and plugins.
+     * @param {"release" | "beta" | "custom" | undefined} [channel=undefined] - Update channel for IITC and plugins.
      * If not specified, the current channel is used.
      * @return {Promise<void>}
      */
@@ -186,6 +185,20 @@ export class Manager {
     }
 
     /**
+     * Changes the URL of the repository with IITC and plugins for the custom channel.
+     *
+     * @async
+     * @param {string} url - URL of the repository.
+     * @return {Promise<void>}
+     */
+    async setCustomChannelUrl(url) {
+        const network_host = await this.storage.get(['network_host']).then((data) => data.network_host);
+        network_host.custom = url;
+        await this.storage.set({ network_host: network_host });
+        this.network_host = network_host;
+    }
+
+    /**
      * Set values for the class properties.
      *
      * @async
@@ -196,8 +209,7 @@ export class Manager {
         this.network_host = await this.syncStorage('network_host', {
             release: 'https://iitc.app/build/release',
             beta: 'https://iitc.app/build/beta',
-            test: 'https://iitc.app/build/test',
-            local: 'http://localhost:8000'
+            custom: 'http://localhost:8000'
         }, this.config.network_host);
         this.is_daemon = await this.syncStorage('is_daemon', true, this.config.is_daemon);
     }
@@ -382,7 +394,6 @@ export class Manager {
         let update_check_interval =
             storage[this.channel + '_update_check_interval'] * 60 * 60;
         if (!update_check_interval) update_check_interval = 24 * 60 * 60;
-        if (this.channel === 'local') update_check_interval = 5; // check every 5 seconds
 
         if (
             !isSet(storage[this.channel + '_last_modified']) ||

@@ -1,7 +1,7 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
 import { describe, it } from 'mocha';
-import { migrate } from '../src/migrations.js';
+import {migrate, number_of_migrations} from '../src/migrations.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
 
@@ -35,7 +35,7 @@ describe('test migrations', function () {
         });
         it('The value of storage_version field has changed', async function() {
             const db_data = await storage.get(['storage_version']);
-            expect(db_data['storage_version']).to.equal(1);
+            expect(db_data['storage_version']).to.equal(number_of_migrations());
         });
     });
 
