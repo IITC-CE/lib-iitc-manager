@@ -18,6 +18,7 @@ import {parseMeta, ajaxGet, getUID, wait, clearWait, isSet} from './helpers.js';
  *
  * @typedef {Object} config
  * @memberOf manager
+ * @property {storage.channel} channel - Update channel for IITC and plugins.
  * @property {storage.storage} storage - Platform-dependent data storage class.
  * For example, "browser.storage.local" in webextensions.
  * @property {boolean} is_daemon=true - In daemon mode, the class does not terminate
@@ -74,8 +75,7 @@ import {parseMeta, ajaxGet, getUID, wait, clearWait, isSet} from './helpers.js';
  * @memberOf manager
  * @property {string} release=https://iitc.app/build/release - Release branch.
  * @property {string} beta=https://iitc.app/build/beta - Beta branch.
- * @property {string} test=https://iitc.app/build/test - Test builds branch.
- * @property {string} local=http://localhost:8000 - Webserver address for local development.
+ * @property {string} custom=http://localhost:8000 - URL address of a custom repository.
  */
 
 /**
@@ -136,39 +136,107 @@ export class Manager {
      * Creates an instance of Manager class with the specified parameters
      *
      * @param {manager.config} config - Environment parameters for an instance of Manager class.
-     * @return {Promise<void>}
+     * @return {void}
      */
     constructor(config) {
+        this.config = config;
         this.progress_interval_id = null;
         this.update_timeout_id = null;
         this.external_update_timeout_id = null;
 
-        this.channel = 'release';
-        this.network_host = (typeof config.network_host !== 'undefined') ? config.network_host : {
-            release: 'https://iitc.app/build/release',
-            beta: 'https://iitc.app/build/beta',
-            test: 'https://iitc.app/build/test',
-            local: 'http://localhost:8000'
-        };
+        this.storage = (typeof this.config.storage !== 'undefined') ? this.config.storage : console.error("config key 'storage' is not set");
+        this.message = this.config.message;
+        this.progressbar = this.config.progressbar;
+        this.inject_user_script = this.config.inject_user_script;
 
-        this.is_daemon = (typeof config.is_daemon !== 'undefined') ? config.is_daemon : true;
-        this.storage = (typeof config.storage !== 'undefined') ? config.storage : console.error("config key 'storage' is not set");
-        this.message = config.message;
-        this.progressbar = config.progressbar;
-        this.inject_user_script = config.inject_user_script;
+        this.init().then();
     }
 
     /**
      * Changes the update channel.
      *
      * @async
-     * @param channel
+     * @param {"release" | "beta" | "custom"} channel - Update channel for IITC and plugins.
      * @return {Promise<void>}
      */
     async setChannel(channel) {
         await this._save({ channel: channel, last_check_update: null });
         this.channel = channel;
         await this.checkUpdates();
+    }
+
+    /**
+     * Changes the update check interval. If the interval for the current channel changes, a forced update check is started to apply the new interval.
+     *
+     * @async
+     * @param {number} interval - Update check interval in seconds.
+     * @param {"release" | "beta" | "custom" | undefined} [channel=undefined] - Update channel for IITC and plugins.
+     * If not specified, the current channel is used.
+     * @return {Promise<void>}
+     */
+    async setUpdateCheckInterval(interval, channel) {
+        if (typeof channel === 'undefined') channel = this.channel;
+
+        const data = {};
+        data[channel + '_update_check_interval'] = interval;
+        await this.storage.set(data);
+
+        if (channel === this.channel) await this.checkUpdates(true);
+    }
+
+    /**
+     * Changes the URL of the repository with IITC and plugins for the custom channel.
+     *
+     * @async
+     * @param {string} url - URL of the repository.
+     * @return {Promise<void>}
+     */
+    async setCustomChannelUrl(url) {
+        const network_host = await this.storage.get(['network_host']).then((data) => data.network_host);
+        network_host.custom = url;
+        await this.storage.set({ network_host: network_host });
+        this.network_host = network_host;
+    }
+
+    /**
+     * Set values for the class properties.
+     *
+     * @async
+     * @return {Promise<void>}
+     */
+    async init() {
+        this.channel = await this.syncStorage('channel', 'release', this.config.channel);
+        this.network_host = await this.syncStorage('network_host', {
+            release: 'https://iitc.app/build/release',
+            beta: 'https://iitc.app/build/beta',
+            custom: 'http://localhost:8000'
+        }, this.config.network_host);
+        this.is_daemon = await this.syncStorage('is_daemon', true, this.config.is_daemon);
+    }
+
+    /**
+     * Overwrites the values in the storage and returns the new value.
+     * If the value is not set, the default value is returned.
+     *
+     * @async
+     * @param {string} key - Storage entry key.
+     * @param {string|number|object} defaults - Default value.
+     * @param {string|number|object|undefined} [override=undefined] - Value to override the default value.
+     * @return {Promise<string|number|object>}
+     */
+    async syncStorage(key, defaults, override) {
+        let data;
+        if (typeof override !== 'undefined') {
+            data = override;
+        } else {
+            data = await this.storage.get([key]).then((result) => result[key]);
+        }
+        this[key] = data;
+
+        const save_data = {};
+        save_data[key] = data;
+        await this._save(save_data);
+        return data;
     }
 
     /**
@@ -301,13 +369,6 @@ export class Manager {
      * @return {Promise<void>}
      */
     async checkUpdates(force) {
-        const storage = await this.storage.get([
-            'channel',
-            'local_server_host',
-        ]);
-        if (storage.channel) this.channel = storage.channel;
-        if (storage.local_server_host) this.network_host['local'] = `http://${storage.local_server_host}`;
-
         await Promise.all([this._checkInternalUpdates(force), this._checkExternalUpdates(force)]);
     }
 
@@ -333,7 +394,6 @@ export class Manager {
         let update_check_interval =
             storage[this.channel + '_update_check_interval'] * 60 * 60;
         if (!update_check_interval) update_check_interval = 24 * 60 * 60;
-        if (this.channel === 'local') update_check_interval = 5; // check every 5 seconds
 
         if (
             !isSet(storage[this.channel + '_last_modified']) ||

@@ -2,11 +2,16 @@
 
 import {isSet} from './helpers.js';
 
-export async function migrate(storage) {
+export function number_of_migrations() {
+    return migrates.length;
+}
 
-    const migrates = [
-        migration_0001
-    ];
+const migrates = [
+    migration_0001,
+    migration_0002
+];
+
+export async function migrate(storage) {
     const local = await storage.get([
         'release_plugins_flat',
         'test_plugins_flat',
@@ -44,5 +49,12 @@ async function migration_0001(local) {
                 plugin_obj['category'] = 'Misc';
             }
         }
+    }
+}
+
+async function migration_0002(local) {
+    if (['test', 'local'].includes(local.channel)) {
+        local.channel = 'release';
+        local.network_host.custom = local.network_host.local;
     }
 }

@@ -15,7 +15,7 @@ const expectThrowsAsync = async (method, errorMessage) => {
     }
     expect(error).to.be.an('Error');
     if (errorMessage) {
-        expect(error.message).to.equal(errorMessage);
+        expect(error['message']).to.equal(errorMessage);
     }
 };
 
@@ -31,8 +31,7 @@ describe('manage.js integration tests', function () {
             network_host: {
                 release: 'http://127.0.0.1:31606/release',
                 beta: 'http://127.0.0.1:31606/beta',
-                test: 'http://127.0.0.1:31606/test',
-                local: 'http://127.0.0.1:8000'
+                custom: 'http://127.0.0.1/',
             },
             inject_user_script: function callBack(data){
                 expect(data).to.include('// ==UserScript==');
@@ -56,10 +55,24 @@ describe('manage.js integration tests', function () {
         });
     });
 
+    describe('Check channel', function() {
+        it('Should return beta', async function() {
+            const channel = await storage.get(['channel']).then((data) => data.channel);
+            expect(channel).to.equal('beta');
+        });
+    });
+
     describe('setChannel', function() {
         it('Should not return an error', async function() {
             const channel = await manager.setChannel('release');
             expect(channel).to.be.undefined;
+        });
+    });
+
+    describe('setUpdateCheckInterval', function() {
+        it('Should not return an error', async function() {
+            const fn = await manager.setUpdateCheckInterval(24 * 60 * 60, 'release');
+            expect(fn).to.be.undefined;
         });
     });
 
@@ -422,6 +435,35 @@ describe('manage.js integration tests', function () {
                 db_data['release_plugins_flat'][external_1_uid]['override'],
                 "release_plugins_flat['override']: " + external_1_uid
             ).to.not.be.true;
+        });
+    });
+
+    describe('Custom repository', function() {
+        const custom_repo = 'http://127.0.0.1:31606/custom';
+
+        it('Setting the URL of the custom repository', async function () {
+            const run = await manager.setCustomChannelUrl(custom_repo);
+            expect(run).to.be.undefined;
+        });
+
+        it('Check the URL of the custom repository', async function () {
+            const network_host = await storage.get(['network_host']).then(data => data.network_host);
+            expect(network_host.custom).to.equal(custom_repo);
+        });
+
+        it('Switching to a custom channel', async function() {
+            const channel = await manager.setChannel('custom');
+            expect(channel).to.be.undefined;
+        });
+
+        it('Check the IITC version', async function() {
+            const script = await storage.get(['custom_iitc_code']).then(data => data['custom_iitc_code']);
+            expect(script).to.include('@version        0.99.0');
+        });
+
+        it('Switching back to the Release channel', async function() {
+            const channel = await manager.setChannel('release');
+            expect(channel).to.be.undefined;
         });
     });
 
