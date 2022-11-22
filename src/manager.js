@@ -231,11 +231,10 @@ export class Manager {
         } else {
             data = await this.storage.get([key]).then((result) => result[key]);
         }
-        this[key] = data;
+        if (typeof data === 'undefined') data = defaults;
 
-        const save_data = {};
-        save_data[key] = data;
-        await this._save(save_data);
+        this[key] = data;
+        await this._save({ [key]: data });
         return data;
     }
 
