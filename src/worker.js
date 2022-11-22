@@ -1,6 +1,6 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
-import {ajaxGet, clearWait, getUID, isSet, parseMeta, wait} from './helpers.js';
+import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js';
 
 /**
  * @namespace manager
@@ -127,7 +127,6 @@ import {ajaxGet, clearWait, getUID, isSet, parseMeta, wait} from './helpers.js';
  * @property {string} grant
  */
 
-
 /**
  * @classdesc This class contains methods for managing IITC and plugins.
  */
@@ -144,7 +143,7 @@ export class Worker {
         this.update_timeout_id = null;
         this.external_update_timeout_id = null;
 
-        this.storage = (typeof this.config.storage !== 'undefined') ? this.config.storage : console.error("config key 'storage' is not set");
+        this.storage = typeof this.config.storage !== 'undefined' ? this.config.storage : console.error("config key 'storage' is not set");
         this.message = this.config.message;
         this.progressbar = this.config.progressbar;
         this.inject_user_script = this.config.inject_user_script;
@@ -161,11 +160,15 @@ export class Worker {
      */
     async _init() {
         this.channel = await this._syncStorage('channel', 'release', this.config.channel);
-        this.network_host = await this._syncStorage('network_host', {
-            release: 'https://iitc.app/build/release',
-            beta: 'https://iitc.app/build/beta',
-            custom: 'http://localhost:8000'
-        }, this.config.network_host);
+        this.network_host = await this._syncStorage(
+            'network_host',
+            {
+                release: 'https://iitc.app/build/release',
+                beta: 'https://iitc.app/build/beta',
+                custom: 'http://localhost:8000',
+            },
+            this.config.network_host
+        );
         this.is_daemon = await this._syncStorage('is_daemon', true, this.config.is_daemon);
     }
 
@@ -205,18 +208,8 @@ export class Worker {
      */
     async _save(options) {
         const data = {};
-        Object.keys(options).forEach(key => {
-            if (
-                [
-                    'iitc_version',
-                    'last_modified',
-                    'iitc_code',
-                    'categories',
-                    'plugins_flat',
-                    'plugins_local',
-                    'plugins_user'
-                ].indexOf(key) !== -1
-            ) {
+        Object.keys(options).forEach((key) => {
+            if (['iitc_version', 'last_modified', 'iitc_code', 'categories', 'plugins_flat', 'plugins_local', 'plugins_user'].indexOf(key) !== -1) {
                 data[this.channel + '_' + key] = options[key];
             } else {
                 data[key] = options[key];
@@ -285,35 +278,24 @@ export class Worker {
             this.channel + '_categories',
             this.channel + '_plugins_flat',
             this.channel + '_plugins_local',
-            this.channel + '_plugins_user'
+            this.channel + '_plugins_user',
         ]);
 
-        let update_check_interval =
-            storage[this.channel + '_update_check_interval'] * 60 * 60;
+        let update_check_interval = storage[this.channel + '_update_check_interval'] * 60 * 60;
         if (!update_check_interval) update_check_interval = 24 * 60 * 60;
 
-        if (
-            !isSet(storage[this.channel + '_last_modified']) ||
-            !isSet(storage.last_check_update)
-        ) {
+        if (!isSet(storage[this.channel + '_last_modified']) || !isSet(storage.last_check_update)) {
             clearWait();
             clearTimeout(this.update_timeout_id);
             this.update_timeout_id = null;
             await this._updateInternalIITC(storage, null);
         } else {
-            const time_delta =
-                Math.floor(Date.now() / 1000) -
-                update_check_interval -
-                storage.last_check_update;
+            const time_delta = Math.floor(Date.now() / 1000) - update_check_interval - storage.last_check_update;
             if (time_delta >= 0 || force) {
                 clearWait();
                 clearTimeout(this.update_timeout_id);
                 this.update_timeout_id = null;
-                const last_modified = await this._getUrl(
-                    this.network_host[this.channel] + '/meta.json',
-                    'Last-Modified',
-                    true
-                );
+                const last_modified = await this._getUrl(this.network_host[this.channel] + '/meta.json', 'Last-Modified', true);
                 if (last_modified !== storage[this.channel + '_last_modified'] || force) {
                     await this._updateInternalIITC(storage, last_modified);
                 }
@@ -321,7 +303,7 @@ export class Worker {
         }
         if (!this.update_timeout_id) {
             await this._save({
-                last_check_update: Math.floor(Date.now() / 1000)
+                last_check_update: Math.floor(Date.now() / 1000),
             });
 
             if (this.is_daemon) {
@@ -344,11 +326,7 @@ export class Worker {
      * @private
      */
     async _updateInternalIITC(local, last_modified) {
-        const response = await this._getUrl(
-            this.network_host[this.channel] + '/meta.json',
-            'parseJSON',
-            true
-        );
+        const response = await this._getUrl(this.network_host[this.channel] + '/meta.json', 'parseJSON', true);
         if (!response) return;
 
         let plugins_flat = this._getPluginsFlat(response);
@@ -359,12 +337,10 @@ export class Worker {
         if (!isSet(plugins_user)) plugins_user = {};
 
         const p_iitc = async () => {
-            const iitc_code = await this._getUrl(
-                this.network_host[this.channel] + '/total-conversion-build.user.js'
-            );
+            const iitc_code = await this._getUrl(this.network_host[this.channel] + '/total-conversion-build.user.js');
             if (iitc_code) {
                 await this._save({
-                    iitc_code: iitc_code
+                    iitc_code: iitc_code,
                 });
             }
         };
@@ -372,22 +348,18 @@ export class Worker {
         const p_plugins = async () => {
             plugins_local = await this._updateLocalPlugins(plugins_flat, plugins_local);
 
-            plugins_flat = this._rebuildingArrayCategoriesPlugins(
-                plugins_flat,
-                plugins_local,
-                plugins_user
-            );
+            plugins_flat = this._rebuildingArrayCategoriesPlugins(plugins_flat, plugins_local, plugins_user);
             await this._save({
                 iitc_version: response['iitc_version'],
                 last_modified: last_modified,
                 categories: categories,
                 plugins_flat: plugins_flat,
                 plugins_local: plugins_local,
-                plugins_user: plugins_user
+                plugins_user: plugins_user,
             });
         };
 
-        await Promise.all([p_iitc, p_plugins].map(fn => fn()));
+        await Promise.all([p_iitc, p_plugins].map((fn) => fn()));
     }
 
     /**
@@ -401,7 +373,7 @@ export class Worker {
         if (!('categories' in data)) return {};
         const categories = data['categories'];
 
-        Object.keys(categories).forEach(cat => {
+        Object.keys(categories).forEach((cat) => {
             if ('plugins' in categories[cat]) {
                 delete categories[cat]['plugins'];
             }
@@ -422,11 +394,11 @@ export class Worker {
         const plugins = {};
         const categories = data['categories'];
 
-        Object.keys(categories).forEach(cat => {
+        Object.keys(categories).forEach((cat) => {
             if (cat === 'Obsolete' || cat === 'Deleted') return;
 
             if ('plugins' in categories[cat]) {
-                Object.keys(categories[cat]['plugins']).forEach(id => {
+                Object.keys(categories[cat]['plugins']).forEach((id) => {
                     const plugin = categories[cat]['plugins'][id];
                     plugin['uid'] = getUID(plugin);
                     plugin['status'] = 'off';
@@ -447,12 +419,7 @@ export class Worker {
      * @private
      */
     async _checkExternalUpdates(force) {
-        const local = await this.storage.get([
-            'channel',
-            'last_check_external_update',
-            'external_update_check_interval',
-            this.channel + '_plugins_user'
-        ]);
+        const local = await this.storage.get(['channel', 'last_check_external_update', 'external_update_check_interval', this.channel + '_plugins_user']);
 
         if (local.channel) this.channel = local.channel;
 
@@ -461,10 +428,7 @@ export class Worker {
             update_check_interval = 24 * 60 * 60;
         }
 
-        const time_delta =
-            Math.floor(Date.now() / 1000) -
-            update_check_interval -
-            local.last_check_external_update;
+        const time_delta = Math.floor(Date.now() / 1000) - update_check_interval - local.last_check_external_update;
         if (time_delta >= 0 || force) {
             clearTimeout(this.external_update_timeout_id);
             this.external_update_timeout_id = null;
@@ -473,7 +437,7 @@ export class Worker {
 
         if (!this.external_update_timeout_id) {
             await this._save({
-                last_check_external_update: Math.floor(Date.now() / 1000)
+                last_check_external_update: Math.floor(Date.now() / 1000),
             });
 
             if (this.is_daemon) {
@@ -509,11 +473,7 @@ export class Worker {
                     if (response_meta) {
                         let meta = parseMeta(response_meta);
                         // if new version
-                        if (
-                            meta &&
-                            meta['version'] &&
-                            meta['version'] !== plugin['version']
-                        ) {
+                        if (meta && meta['version'] && meta['version'] !== plugin['version']) {
                             // download userscript
                             let response_code = await this._getUrl(plugin['updateURL'] + hash);
                             if (response_code) {
@@ -528,7 +488,7 @@ export class Worker {
 
             if (exist_updates) {
                 await this._save({
-                    plugins_user: plugins_user
+                    plugins_user: plugins_user,
                 });
             }
         }
@@ -571,23 +531,19 @@ export class Worker {
      * @return {Object<string, plugin>}
      * @private
      */
-    _rebuildingArrayCategoriesPlugins(
-        raw_plugins,
-        plugins_local,
-        plugins_user
-    ) {
-        let data = {...raw_plugins};
+    _rebuildingArrayCategoriesPlugins(raw_plugins, plugins_local, plugins_user) {
+        let data = { ...raw_plugins };
         if (!isSet(plugins_local)) plugins_local = {};
         if (!isSet(plugins_user)) plugins_user = {};
 
         // Build local plugins
-        Object.keys(plugins_local).forEach(plugin_uid => {
+        Object.keys(plugins_local).forEach((plugin_uid) => {
             data[plugin_uid]['status'] = plugins_local[plugin_uid]['status'];
         });
 
         // Build External plugins
         if (Object.keys(plugins_user).length) {
-            Object.keys(plugins_user).forEach(plugin_uid => {
+            Object.keys(plugins_user).forEach((plugin_uid) => {
                 if (plugin_uid in data) {
                     data[plugin_uid]['status'] = plugins_user[plugin_uid]['status'];
                     data[plugin_uid]['code'] = plugins_user[plugin_uid]['code'];

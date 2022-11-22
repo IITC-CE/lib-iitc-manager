@@ -1,8 +1,8 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
-import {Worker} from './worker.js';
+import { Worker } from './worker.js';
 import * as migrations from './migrations.js';
-import {getUID, isSet} from './helpers.js';
+import { getUID, isSet } from './helpers.js';
 
 /**
  * @classdesc This class contains methods for managing IITC and plugins.
@@ -74,7 +74,7 @@ export class Manager extends Worker {
             this.channel + '_iitc_code',
             this.channel + '_plugins_flat',
             this.channel + '_plugins_local',
-            this.channel + '_plugins_user'
+            this.channel + '_plugins_user',
         ]);
 
         const iitc_code = storage[this.channel + '_iitc_code'];
@@ -88,19 +88,14 @@ export class Manager extends Worker {
             const plugins_flat = storage[this.channel + '_plugins_flat'];
             for (const uid of Object.keys(plugins_flat)) {
                 if (plugins_flat[uid]['status'] === 'on') {
-                    userscripts.push(
-                        plugins_flat[uid]['user'] === true
-                            ? plugins_user[uid]['code']
-                            : plugins_local[uid]['code']
-                    );
+                    userscripts.push(plugins_flat[uid]['user'] === true ? plugins_user[uid]['code'] : plugins_local[uid]['code']);
                 }
             }
             userscripts.push(iitc_code);
 
-            await Promise.all(userscripts.map(code => this.inject_user_script(code)));
+            await Promise.all(userscripts.map((code) => this.inject_user_script(code)));
         }
     }
-
 
     /**
      * Runs periodic checks and installs updates for IITC, internal and external plugins.
@@ -113,7 +108,6 @@ export class Manager extends Worker {
         await Promise.all([this._checkInternalUpdates(force), this._checkExternalUpdates(force)]);
     }
 
-
     /**
      * Controls the plugin. Allows you to enable, disable and remove the plugin.
      *
@@ -123,11 +117,7 @@ export class Manager extends Worker {
      * @return {Promise<void>}
      */
     async managePlugin(uid, action) {
-        let local = await this.storage.get([
-            this.channel + '_plugins_flat',
-            this.channel + '_plugins_local',
-            this.channel + '_plugins_user'
-        ]);
+        let local = await this.storage.get([this.channel + '_plugins_flat', this.channel + '_plugins_local', this.channel + '_plugins_user']);
 
         let plugins_flat = local[this.channel + '_plugins_flat'];
         let plugins_local = local[this.channel + '_plugins_local'];
@@ -137,11 +127,7 @@ export class Manager extends Worker {
         if (!isSet(plugins_user)) plugins_user = {};
 
         if (action === 'on') {
-            if (
-                (plugins_flat[uid]['user'] === false &&
-                    plugins_local[uid] !== undefined) ||
-                plugins_flat[uid]['user'] === true
-            ) {
+            if ((plugins_flat[uid]['user'] === false && plugins_local[uid] !== undefined) || plugins_flat[uid]['user'] === true) {
                 plugins_flat[uid]['status'] = 'on';
                 if (plugins_flat[uid]['user']) {
                     plugins_user[uid]['status'] = 'on';
@@ -149,22 +135,16 @@ export class Manager extends Worker {
                     plugins_local[uid]['status'] = 'on';
                 }
 
-                this.inject_user_script(
-                    plugins_flat[uid]['user'] === true
-                        ? plugins_user[uid]['code']
-                        : plugins_local[uid]['code']
-                );
+                this.inject_user_script(plugins_flat[uid]['user'] === true ? plugins_user[uid]['code'] : plugins_local[uid]['code']);
 
                 await this._save({
                     plugins_flat: plugins_flat,
                     plugins_local: plugins_local,
-                    plugins_user: plugins_user
+                    plugins_user: plugins_user,
                 });
             } else {
                 let filename = plugins_flat[uid]['filename'];
-                let response = await this._getUrl(
-                    `${this.network_host[this.channel]}/plugins/${filename}`
-                );
+                let response = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
                 if (response) {
                     plugins_flat[uid]['status'] = 'on';
                     plugins_local[uid] = plugins_flat[uid];
@@ -174,7 +154,7 @@ export class Manager extends Worker {
 
                     await this._save({
                         plugins_flat: plugins_flat,
-                        plugins_local: plugins_local
+                        plugins_local: plugins_local,
                     });
                 }
             }
@@ -190,12 +170,12 @@ export class Manager extends Worker {
             await this._save({
                 plugins_flat: plugins_flat,
                 plugins_local: plugins_local,
-                plugins_user: plugins_user
+                plugins_user: plugins_user,
             });
         }
         if (action === 'delete') {
             if (plugins_flat[uid]['override']) {
-                plugins_flat[uid] = {...plugins_local[uid]};
+                plugins_flat[uid] = { ...plugins_local[uid] };
                 plugins_flat[uid]['status'] = 'off';
             } else {
                 delete plugins_flat[uid];
@@ -205,7 +185,7 @@ export class Manager extends Worker {
             await this._save({
                 plugins_flat: plugins_flat,
                 plugins_local: plugins_local,
-                plugins_user: plugins_user
+                plugins_user: plugins_user,
             });
         }
     }
@@ -224,7 +204,7 @@ export class Manager extends Worker {
             this.channel + '_categories',
             this.channel + '_plugins_flat',
             this.channel + '_plugins_local',
-            this.channel + '_plugins_user'
+            this.channel + '_plugins_user',
         ]);
 
         let categories = local[this.channel + '_categories'];
@@ -235,7 +215,7 @@ export class Manager extends Worker {
         if (!isSet(plugins_local)) plugins_local = {};
         if (!isSet(plugins_user)) plugins_user = {};
 
-        scripts.forEach(script => {
+        scripts.forEach((script) => {
             let meta = script['meta'];
             const code = script['code'];
             const plugin_uid = getUID(meta);
@@ -245,14 +225,11 @@ export class Manager extends Worker {
             plugins_user[plugin_uid] = Object.assign(meta, {
                 uid: plugin_uid,
                 status: 'on',
-                code: code
+                code: code,
             });
 
             if (plugin_uid in plugins_flat) {
-                if (
-                    plugin_uid in plugins_local &&
-                    plugins_flat[plugin_uid]['status'] !== 'off'
-                ) {
+                if (plugin_uid in plugins_local && plugins_flat[plugin_uid]['status'] !== 'off') {
                     plugins_local[plugin_uid]['status'] = 'off';
                 }
 
@@ -268,10 +245,10 @@ export class Manager extends Worker {
                 if (!(category in categories)) {
                     categories[category] = {
                         name: category,
-                        description: ''
+                        description: '',
                     };
                 }
-                plugins_flat[plugin_uid] = {...plugins_user[plugin_uid]};
+                plugins_flat[plugin_uid] = { ...plugins_user[plugin_uid] };
             }
             plugins_flat[plugin_uid]['user'] = true;
         });
@@ -280,7 +257,7 @@ export class Manager extends Worker {
             categories: categories,
             plugins_flat: plugins_flat,
             plugins_local: plugins_local,
-            plugins_user: plugins_user
+            plugins_user: plugins_user,
         });
     }
 }

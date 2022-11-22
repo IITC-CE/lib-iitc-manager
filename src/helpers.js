@@ -5,14 +5,7 @@ export let wait_timeout_id = null;
 const METABLOCK_RE_HEADER = /==UserScript==\s*([\s\S]*)\/\/\s*==\/UserScript==/m; // Note: \s\S to match linebreaks
 const METABLOCK_RE_ENTRY = /\/\/\s*@(\S+)\s+(.*)$/gm; // example match: "\\ @name some text"
 
-const META_ARRAY_TYPES = [
-    'include',
-    'exclude',
-    'match',
-    'excludeMatch',
-    'require',
-    'grant'
-];
+const META_ARRAY_TYPES = ['include', 'exclude', 'match', 'excludeMatch', 'require', 'grant'];
 
 /**
  * Parses code of UserScript and returns an object with data from ==UserScript== header.
@@ -66,21 +59,21 @@ export function parseMeta(code) {
 export async function ajaxGet(url, variant) {
     // Using built-in fetch in browser , otherwise import polyfil
     // eslint-disable-next-line no-undef
-    const c_fetch = (...args) => (process.env.NODE_ENV !== 'test') ?  fetch(...args) : import('node-fetch').then(({default: fetch}) => fetch(...args));
+    const c_fetch = (...args) => (process.env.NODE_ENV !== 'test' ? fetch(...args) : import('node-fetch').then(({ default: fetch }) => fetch(...args)));
 
     try {
         const response = await c_fetch(url + '?' + Date.now(), {
             method: variant === 'Last-Modified' ? 'HEAD' : 'GET',
-            cache: 'no-cache'
+            cache: 'no-cache',
         });
         if (response.ok) {
             switch (variant) {
-            case 'Last-Modified':
-                return response.headers.get('Last-Modified');
-            case 'parseJSON':
-                return await response.json();
-            default:
-                return await response.text();
+                case 'Last-Modified':
+                    return response.headers.get('Last-Modified');
+                case 'parseJSON':
+                    return await response.json();
+                default:
+                    return await response.text();
             }
         }
     } catch (error) {
@@ -97,11 +90,7 @@ export async function ajaxGet(url, variant) {
  */
 export function getUniqId(prefix = 'VM') {
     const now = performance.now();
-    return (
-        prefix +
-        Math.floor((now - Math.floor(now)) * 1e12).toString(36) +
-        Math.floor(Math.random() * 1e12).toString(36)
-    );
+    return prefix + Math.floor((now - Math.floor(now)) * 1e12).toString(36) + Math.floor(Math.random() * 1e12).toString(36);
 }
 
 /**
@@ -113,12 +102,22 @@ export function getUniqId(prefix = 'VM') {
 export function getUID(plugin) {
     const available_fields = [];
 
-    if (plugin['id']) {available_fields.push(plugin['id']);}
-    if (plugin['filename']) {available_fields.push(plugin['filename']);}
-    if (plugin['name']) {available_fields.push(plugin['name']);}
-    if (plugin['namespace']) {available_fields.push(plugin['namespace']);}
+    if (plugin['id']) {
+        available_fields.push(plugin['id']);
+    }
+    if (plugin['filename']) {
+        available_fields.push(plugin['filename']);
+    }
+    if (plugin['name']) {
+        available_fields.push(plugin['name']);
+    }
+    if (plugin['namespace']) {
+        available_fields.push(plugin['namespace']);
+    }
 
-    if (available_fields.length < 2) {return null;}
+    if (available_fields.length < 2) {
+        return null;
+    }
 
     return available_fields.slice(-2).join('+');
 }
@@ -132,20 +131,26 @@ export function getUID(plugin) {
  */
 export function check_url_match_pattern(url, domain) {
     if (url.startsWith('/^')) {
-        url = url.replace(/\/\^|\?/g, '').replace(/\\\//g, '/').replace(/\.\*/g, '*').replace(/\\\./g, '.');
+        url = url
+            .replace(/\/\^|\?/g, '')
+            .replace(/\\\//g, '/')
+            .replace(/\.\*/g, '*')
+            .replace(/\\\./g, '.');
     }
 
     if (
-        (/^(http|https|\*):\/\/(www|\*)\.ingress\.com\/mission*/.test(url) ||
-         /^(http|https|\*):\/\/missions\.ingress\.com\/*/.test(url)) &&
+        (/^(http|https|\*):\/\/(www|\*)\.ingress\.com\/mission*/.test(url) || /^(http|https|\*):\/\/missions\.ingress\.com\/*/.test(url)) &&
         (domain === '<all>' || domain === 'missions.ingress.com')
-    ) {return true;}
+    ) {
+        return true;
+    }
 
     if (
-        (/^(http|https|\*):\/\/(www\.|\*\.|\*|)ingress\.com(?!.*\/mission*)/.test(url) ||
-         /^(http|https|\*):\/\/intel\.ingress\.com*/.test(url)) &&
+        (/^(http|https|\*):\/\/(www\.|\*\.|\*|)ingress\.com(?!.*\/mission*)/.test(url) || /^(http|https|\*):\/\/intel\.ingress\.com*/.test(url)) &&
         (domain === '<all>' || domain === 'intel.ingress.com')
-    ) {return true;}
+    ) {
+        return true;
+    }
 
     return false;
 }
@@ -181,7 +186,7 @@ export function check_meta_match_pattern(meta, domain = '<all>') {
  * @return {Promise<void>}
  */
 export async function wait(seconds) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
         clearTimeout(wait_timeout_id);
         wait_timeout_id = null;
         wait_timeout_id = setTimeout(resolve, seconds * 1000);
