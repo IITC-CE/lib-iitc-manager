@@ -2,7 +2,6 @@
 
 const store = {};
 export default {
-
     _one_to_array: function (key) {
         if (typeof key === 'string') {
             key = [key];
@@ -10,7 +9,7 @@ export default {
         return key;
     },
     _get_one(key) {
-        const value = (key in store) ? store[key] : null;
+        const value = key in store ? store[key] : null;
 
         if (value === null) return null;
 
@@ -31,7 +30,7 @@ export default {
         keys = this._one_to_array(keys);
         if (Array.isArray(keys)) {
             const data = {};
-            keys.forEach(key => {
+            keys.forEach((key) => {
                 data[key] = this._get_one(key);
             });
             return data;
@@ -41,12 +40,12 @@ export default {
     },
     async set(obj) {
         if (typeof obj === 'object') {
-            Object.entries(obj).forEach(entry => {
+            Object.entries(obj).forEach((entry) => {
                 const [key, value] = entry;
                 this._set_one(key, value);
             });
         } else {
             console.error('Unexpected type of key when trying to set storage value: ' + typeof obj);
         }
-    }
+    },
 };

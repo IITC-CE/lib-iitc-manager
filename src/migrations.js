@@ -1,24 +1,15 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
-import {isSet} from './helpers.js';
+import { isSet } from './helpers.js';
 
 export function number_of_migrations() {
     return migrates.length;
 }
 
-const migrates = [
-    migration_0001,
-    migration_0002
-];
+const migrates = [migration_0001, migration_0002];
 
 export async function migrate(storage) {
-    const local = await storage.get([
-        'release_plugins_flat',
-        'test_plugins_flat',
-        'local_plugins_flat',
-        'lastversion',
-        'storage_version'
-    ]);
+    const local = await storage.get(['release_plugins_flat', 'test_plugins_flat', 'local_plugins_flat', 'lastversion', 'storage_version']);
 
     if (!isSet(local['storage_version']) && isSet(local['lastversion'])) {
         local['storage_version'] = 0;
@@ -27,7 +18,7 @@ export async function migrate(storage) {
     let is_migrated = false;
     for (const migrate of migrates) {
         const index = migrates.indexOf(migrate);
-        if (parseInt(local['storage_version']) < index+1) {
+        if (parseInt(local['storage_version']) < index + 1) {
             await migrate(local);
             is_migrated = true;
         }
