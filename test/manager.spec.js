@@ -213,6 +213,21 @@ describe('manage.js integration tests', function () {
             expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(external_1_uid, external_2_uid);
         });
 
+        it('Check categories before switching channel', async function () {
+            const categories = await storage.get(['release_categories']).then((data) => data['release_categories']);
+            expect(categories).to.have.all.keys('Info', 'Map Tiles', 'Obsolete', 'Deleted', 'Controls', 'Misc');
+        });
+
+        it('Switching to the Beta channel and back to Release', async function () {
+            expect(await manager.setChannel('beta')).to.be.undefined;
+            expect(await manager.setChannel('release')).to.be.undefined;
+        });
+
+        it('Check categories after switching channel', async function () {
+            const categories = await storage.get(['release_categories']).then((data) => data['release_categories']);
+            expect(categories).to.have.all.keys('Info', 'Map Tiles', 'Obsolete', 'Deleted', 'Controls', 'Misc');
+        });
+
         it('Disable external plugin', async function () {
             const run = await manager.managePlugin(external_2_uid, 'off');
             expect(run).to.be.undefined;
