@@ -330,11 +330,12 @@ export class Worker {
         if (!response) return;
 
         let plugins_flat = this._getPluginsFlat(response);
-        const categories = this._getCategories(response);
+        let categories = this._getCategories(response);
         let plugins_local = local[this.channel + '_plugins_local'];
         let plugins_user = local[this.channel + '_plugins_user'];
 
         if (!isSet(plugins_user)) plugins_user = {};
+        categories = this._rebuildingCategories(categories, plugins_user);
 
         const p_iitc = async () => {
             const iitc_code = await this._getUrl(this.network_host[this.channel] + '/total-conversion-build.user.js');
@@ -420,8 +421,6 @@ export class Worker {
      */
     async _checkExternalUpdates(force) {
         const local = await this.storage.get(['channel', 'last_check_external_update', 'external_update_check_interval', this.channel + '_plugins_user']);
-
-        if (local.channel) this.channel = local.channel;
 
         let update_check_interval = local['external_update_check_interval'] * 60 * 60;
         if (!update_check_interval) {
@@ -520,6 +519,31 @@ export class Worker {
         }
 
         return plugins_local;
+    }
+
+    /**
+     * Updates categories by adding custom categories of external plugins.
+     *
+     * @param {Object.<string, Object.<string, string>>} categories - Dictionary with names and descriptions of categories.
+     * @param {Object.<string, plugin>} plugins_user - Dictionary of external UserScripts.
+     * @return {Object.<string, Object.<string, string>>} - Dictionary with names and descriptions of categories.
+     */
+    _rebuildingCategories(categories, plugins_user) {
+        if (Object.keys(plugins_user).length) {
+            Object.keys(plugins_user).forEach((plugin_uid) => {
+                let category = plugins_user[plugin_uid]['category'];
+                if (category === undefined) {
+                    category = 'Misc';
+                }
+                if (!(category in categories)) {
+                    categories[category] = {
+                        name: category,
+                        description: '',
+                    };
+                }
+            });
+        }
+        return categories;
     }
 
     /**
