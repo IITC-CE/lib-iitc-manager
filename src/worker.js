@@ -148,6 +148,7 @@ export class Worker {
         this.progressbar = this.config.progressbar;
         this.inject_user_script = this.config.inject_user_script;
 
+        this.is_initialized = false;
         this._init().then();
     }
 
@@ -170,6 +171,7 @@ export class Worker {
             this.config.network_host
         );
         this.is_daemon = await this._syncStorage('is_daemon', true, this.config.is_daemon);
+        this.is_initialized = true;
     }
 
     /**
