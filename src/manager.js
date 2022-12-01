@@ -62,6 +62,10 @@ export class Manager extends Worker {
      * @return {Promise<void>}
      */
     async run() {
+        if (!this.is_initialized) {
+            await new Promise((resolve) => setTimeout(resolve, 1));
+            return await this.run();
+        }
         const is_migrated = await migrations.migrate(this.storage);
         await this.checkUpdates(is_migrated);
     }
