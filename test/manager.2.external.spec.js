@@ -206,6 +206,51 @@ describe('manage.js external plugins integration tests', function () {
         });
     });
 
+    describe('Re-adding an external plugin', function () {
+        const external_1_uid = 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion';
+
+        it('Double adding an external plugin', async function () {
+            const scripts = [
+                {
+                    meta: {
+                        id: 'bookmarks1',
+                        namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                        name: 'Bookmarks for maps and portals',
+                        category: 'Controls',
+                    },
+                    code: external_code,
+                },
+                {
+                    meta: {
+                        id: 'bookmarks1',
+                        namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                        name: 'Bookmarks for maps and portals',
+                        category: 'Controls',
+                    },
+                    code: external_code,
+                },
+            ];
+            const run = await manager.addUserScripts(scripts);
+            expect(run).to.be.undefined;
+        });
+
+        it('Check external plugin', async function () {
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, external_1_uid);
+            expect(db_data['release_plugins_flat'][external_1_uid]['override']).to.be.undefined;
+            expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(external_1_uid);
+        });
+
+        it('Remove the external plugin', async function () {
+            const run = await manager.managePlugin(external_1_uid, 'delete');
+            expect(run).to.be.undefined;
+
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
+            expect(db_data['release_plugins_user'], 'release_plugins_user').to.be.empty;
+        });
+    });
+
     describe('Manage external plugins that replace built-in plugins', function () {
         const external_1_uid = 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
