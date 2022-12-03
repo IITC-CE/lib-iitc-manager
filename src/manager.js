@@ -216,6 +216,8 @@ export class Manager extends Worker {
         let plugins_local = local[this.channel + '_plugins_local'];
         let plugins_user = local[this.channel + '_plugins_user'];
 
+        if (!isSet(categories)) categories = {};
+        if (!isSet(plugins_flat)) plugins_flat = {};
         if (!isSet(plugins_local)) plugins_local = {};
         if (!isSet(plugins_user)) plugins_user = {};
 
@@ -226,13 +228,14 @@ export class Manager extends Worker {
 
             if (plugin_uid === null) throw new Error('The plugin has an incorrect ==UserScript== header');
 
+            const is_user_plugins = plugins_user[plugin_uid] !== undefined;
             plugins_user[plugin_uid] = Object.assign(meta, {
                 uid: plugin_uid,
                 status: 'on',
                 code: code,
             });
 
-            if (plugin_uid in plugins_flat) {
+            if (plugin_uid in plugins_flat && !is_user_plugins) {
                 if (plugin_uid in plugins_local && plugins_flat[plugin_uid]['status'] !== 'off') {
                     plugins_local[plugin_uid]['status'] = 'off';
                 }
