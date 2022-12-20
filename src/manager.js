@@ -89,13 +89,17 @@ export class Manager extends Worker {
         if (iitc_code !== undefined) {
             const userscripts = [];
 
+            // IITC is injected first, then plugins. This is the correct order, because the initialization of IITC takes some time.
+            // During this time, plugins have time to be added to `window.bootPlugins` and are not started immediately.
+            // In addition, thanks to the injecting of plugins after IITC,
+            // plugins do not throw errors when attempting to access IITC, leaflet, etc. during the execution of the wrapper.
+            userscripts.push(iitc_code);
             const plugins_flat = storage[this.channel + '_plugins_flat'];
             for (const uid of Object.keys(plugins_flat)) {
                 if (plugins_flat[uid]['status'] === 'on') {
                     userscripts.push(plugins_flat[uid]['user'] === true ? plugins_user[uid]['code'] : plugins_local[uid]['code']);
                 }
             }
-            userscripts.push(iitc_code);
 
             await Promise.all(userscripts.map((code) => this.inject_user_script(code)));
         }
