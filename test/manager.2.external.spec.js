@@ -67,8 +67,20 @@ describe('manage.js external plugins integration tests', function () {
                     code: external_code,
                 },
             ];
+            const installed = {
+                'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion': {
+                    uid: 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    id: 'bookmarks1',
+                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    name: 'Bookmarks for maps and portals',
+                    category: 'Controls',
+                    status: 'on',
+                    user: true,
+                    code: external_code,
+                },
+            };
             const run = await manager.addUserScripts(scripts);
-            expect(run).to.be.undefined;
+            expect(run).to.deep.equal(installed);
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
             expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, external_1_uid);
@@ -92,8 +104,20 @@ describe('manage.js external plugins integration tests', function () {
                     code: external_code,
                 },
             ];
+            const installed = {
+                'Bookmarks2 for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion': {
+                    uid: 'Bookmarks2 for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    id: 'bookmarks2',
+                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    name: 'Bookmarks2 for maps and portals',
+                    category: 'Misc',
+                    status: 'on',
+                    user: true,
+                    code: external_code,
+                },
+            };
             const run = await manager.addUserScripts(scripts);
-            expect(run).to.be.undefined;
+            expect(run).to.deep.equal(installed);
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
             expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
@@ -230,8 +254,20 @@ describe('manage.js external plugins integration tests', function () {
                     code: external_code,
                 },
             ];
+            const installed = {
+                'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion': {
+                    uid: 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    id: 'bookmarks1',
+                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    name: 'Bookmarks for maps and portals',
+                    category: 'Controls',
+                    status: 'on',
+                    user: true,
+                    code: external_code,
+                },
+            };
             const run = await manager.addUserScripts(scripts);
-            expect(run).to.be.undefined;
+            expect(run).to.deep.equal(installed);
         });
 
         it('Check external plugin', async function () {
@@ -264,8 +300,25 @@ describe('manage.js external plugins integration tests', function () {
                     code: external_code,
                 },
             ];
+            const installed = {
+                'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion': {
+                    uid: 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    id: 'ap-stats',
+                    author: 'Hollow011',
+                    description: 'Displays the per-team AP gains available in the current view.',
+                    filename: 'ap-stats.user.js',
+                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    name: 'Available AP statistics',
+                    category: 'Info',
+                    status: 'on',
+                    override: true,
+                    user: true,
+                    version: '0.4.2',
+                    code: external_code,
+                },
+            };
             const run = await manager.addUserScripts(scripts);
-            expect(run).to.be.undefined;
+            expect(run).to.deep.equal(installed);
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
             expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
