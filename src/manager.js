@@ -200,12 +200,13 @@ export class Manager extends Worker {
 
     /**
      * Allows adding third-party UserScript plugins to IITC.
+     * Returns the dictionary of installed or updated plugins.
      *
      * @async
      * @param {Object[]} scripts - Array of UserScripts.
      * @param {plugin} scripts[].meta - Parsed "meta" object of UserScript.
      * @param {string} scripts[].code - UserScript code.
-     * @return {Promise<void>}
+     * @return {Promise<Object.<string, plugin>>}
      */
     async addUserScripts(scripts) {
         let local = await this.storage.get([
@@ -225,6 +226,7 @@ export class Manager extends Worker {
         if (!isSet(plugins_local)) plugins_local = {};
         if (!isSet(plugins_user)) plugins_user = {};
 
+        const installed_scripts = {};
         scripts.forEach((script) => {
             let meta = script['meta'];
             const code = script['code'];
@@ -262,6 +264,7 @@ export class Manager extends Worker {
                 plugins_flat[plugin_uid] = { ...plugins_user[plugin_uid] };
             }
             plugins_flat[plugin_uid]['user'] = true;
+            installed_scripts[plugin_uid] = plugins_flat[plugin_uid];
         });
 
         await this._save({
@@ -270,5 +273,19 @@ export class Manager extends Worker {
             plugins_local: plugins_local,
             plugins_user: plugins_user,
         });
+        return installed_scripts;
+    }
+
+    /**
+     * Returns information about requested plugin by UID.
+     *
+     * @async
+     * @param {string} uid - Plugin UID.
+     * @return {Promise<plugin|null>}
+     */
+    async getPluginInfo(uid) {
+        let all_plugins = await this.storage.get([this.channel + '_plugins_flat']).then((data) => data[this.channel + '_plugins_flat']);
+        if (all_plugins === undefined) return null;
+        return all_plugins[uid];
     }
 }

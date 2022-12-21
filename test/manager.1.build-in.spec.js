@@ -84,5 +84,12 @@ describe('manage.js build-in plugins integration tests', function () {
 
             expect(db_data['release_plugins_flat'][second_plugin_uid]['status'], 'release_plugins_flat: ' + second_plugin_uid).to.equal('on');
         });
+
+        it('Info about plugin', async function () {
+            const info = await manager.getPluginInfo(first_plugin_uid);
+            expect(info).to.be.an('object');
+            expect(info['uid']).to.be.equal(first_plugin_uid);
+            expect(info['status']).to.be.equal('off');
+        });
     });
 });
