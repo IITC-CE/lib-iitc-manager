@@ -275,4 +275,17 @@ export class Manager extends Worker {
         });
         return installed_scripts;
     }
+
+    /**
+     * Returns information about requested plugin by UID.
+     *
+     * @async
+     * @param {string} uid - Plugin UID.
+     * @return {Promise<plugin|null>}
+     */
+    async getPluginInfo(uid) {
+        let all_plugins = await this.storage.get([this.channel + '_plugins_flat']).then((data) => data[this.channel + '_plugins_flat']);
+        if (all_plugins === undefined) return null;
+        return all_plugins[uid];
+    }
 }

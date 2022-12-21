@@ -302,7 +302,7 @@ describe('manage.js external plugins integration tests', function () {
             ];
             const installed = {
                 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion': {
-                    uid: 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    uid: external_1_uid,
                     id: 'ap-stats',
                     author: 'Hollow011',
                     description: 'Displays the per-team AP gains available in the current view.',
@@ -329,6 +329,16 @@ describe('manage.js external plugins integration tests', function () {
             expect(db_data['release_plugins_flat'][external_1_uid]['code'], "release_plugins_flat['code']: " + external_1_uid).to.equal(external_code);
 
             expect(db_data['release_plugins_flat'][external_1_uid]['override'], "release_plugins_flat['override']: " + external_1_uid).to.be.true;
+        });
+
+        it('Info about plugin', async function () {
+            const info = await manager.getPluginInfo(external_1_uid);
+            expect(info).to.be.an('object');
+            expect(info['uid']).to.be.equal(external_1_uid);
+            expect(info['status']).to.be.equal('on');
+            expect(info['override']).to.be.true;
+            expect(info['user']).to.be.true;
+            expect(info['code']).to.be.equal(external_code);
         });
 
         it('Disable external plugin', async function () {
