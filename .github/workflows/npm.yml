@@ -4,6 +4,8 @@ name: Publish to NPM
 # no access to secrets
 on:
   push:
+    branches:
+      - master
     paths-ignore:
       - '!.github/**'
 
