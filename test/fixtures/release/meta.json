@@ -12,6 +12,15 @@
           "description": "Displays the per-team AP gains available in the current view.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
           "version": "0.4.2"
+        },
+        {
+          "filename": "missions.user.js",
+          "id": "missions",
+          "name": "Missions",
+          "author": "jonatkins",
+          "description": "View missions. Marking progress on waypoints/missions basis. Showing mission paths on the map.",
+          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
+          "version": "0.3.0"
         }
       ]
     },

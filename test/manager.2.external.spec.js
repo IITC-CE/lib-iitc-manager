@@ -42,6 +42,7 @@ describe('manage.js external plugins integration tests', function () {
 
     const first_plugin_uid = 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
     const second_plugin_uid = 'Bing maps+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    const third_plugin_uid = 'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion';
     const external_code = '// ==UserScript==\nreturn false;';
 
     describe('run', function () {
@@ -83,7 +84,12 @@ describe('manage.js external plugins integration tests', function () {
             expect(run).to.deep.equal(installed);
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, external_1_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+                first_plugin_uid,
+                second_plugin_uid,
+                third_plugin_uid,
+                external_1_uid
+            );
             expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(external_1_uid);
 
             expect(db_data['release_plugins_user'][external_1_uid]['status'], "release_plugins_user['status']: " + external_1_uid).to.equal('on');
@@ -123,6 +129,7 @@ describe('manage.js external plugins integration tests', function () {
             expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
                 first_plugin_uid,
                 second_plugin_uid,
+                third_plugin_uid,
                 external_1_uid,
                 external_2_uid
             );
@@ -154,6 +161,7 @@ describe('manage.js external plugins integration tests', function () {
             expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
                 first_plugin_uid,
                 second_plugin_uid,
+                third_plugin_uid,
                 external_1_uid,
                 external_2_uid
             );
@@ -183,6 +191,7 @@ describe('manage.js external plugins integration tests', function () {
             expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
                 first_plugin_uid,
                 second_plugin_uid,
+                third_plugin_uid,
                 external_1_uid,
                 external_2_uid
             );
@@ -201,6 +210,7 @@ describe('manage.js external plugins integration tests', function () {
             expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
                 first_plugin_uid,
                 second_plugin_uid,
+                third_plugin_uid,
                 external_1_uid,
                 external_2_uid
             );
@@ -216,7 +226,12 @@ describe('manage.js external plugins integration tests', function () {
             expect(run).to.be.undefined;
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, external_1_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+                first_plugin_uid,
+                second_plugin_uid,
+                third_plugin_uid,
+                external_1_uid
+            );
             expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(external_1_uid);
         });
 
@@ -225,7 +240,7 @@ describe('manage.js external plugins integration tests', function () {
             expect(run).to.be.undefined;
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
             expect(db_data['release_plugins_user'], 'release_plugins_user').to.be.empty;
         });
     });
@@ -272,7 +287,12 @@ describe('manage.js external plugins integration tests', function () {
 
         it('Check external plugin', async function () {
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, external_1_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+                first_plugin_uid,
+                second_plugin_uid,
+                third_plugin_uid,
+                external_1_uid
+            );
             expect(db_data['release_plugins_flat'][external_1_uid]['override']).to.be.undefined;
             expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(external_1_uid);
         });
@@ -282,7 +302,7 @@ describe('manage.js external plugins integration tests', function () {
             expect(run).to.be.undefined;
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
             expect(db_data['release_plugins_user'], 'release_plugins_user').to.be.empty;
         });
     });
@@ -321,7 +341,7 @@ describe('manage.js external plugins integration tests', function () {
             expect(run).to.deep.equal(installed);
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
             expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(external_1_uid);
 
             expect(db_data['release_plugins_user'][external_1_uid]['code'], "release_plugins_user['code']: " + external_1_uid).to.equal(external_code);
@@ -346,7 +366,7 @@ describe('manage.js external plugins integration tests', function () {
             expect(run).to.be.undefined;
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
             expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(external_1_uid);
 
             expect(db_data['release_plugins_flat'][external_1_uid]['status'], "release_plugins_flat['status']: " + external_1_uid).to.equal('off');
@@ -359,7 +379,7 @@ describe('manage.js external plugins integration tests', function () {
             expect(run).to.be.undefined;
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
             expect(db_data['release_plugins_user'], 'release_plugins_user').to.be.empty;
 
             expect(db_data['release_plugins_flat'][external_1_uid]['status'], "release_plugins_flat['status']: " + external_1_uid).to.equal('off');
@@ -367,6 +387,72 @@ describe('manage.js external plugins integration tests', function () {
             expect(db_data['release_plugins_flat'][external_1_uid]['code'], "release_plugins_flat['code']: " + external_1_uid).to.have.lengthOf(578);
 
             expect(db_data['release_plugins_flat'][external_1_uid]['override'], "release_plugins_flat['override']: " + external_1_uid).to.not.be.true;
+        });
+    });
+
+    describe('Adding and removing an external plugin that overwrites a built-in plugin', function () {
+        const external_3_uid = 'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion';
+        const external_3_plugin = {
+            meta: {
+                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                name: 'Missions',
+            },
+            code: external_code,
+        };
+
+        it('Add external plugin and replace built-in plugin', async function () {
+            const installed = {
+                'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion': {
+                    uid: external_3_uid,
+                    id: 'missions',
+                    author: 'jonatkins',
+                    description: 'View missions. Marking progress on waypoints/missions basis. Showing mission paths on the map.',
+                    filename: 'missions.user.js',
+                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    name: 'Missions',
+                    category: 'Info',
+                    status: 'on',
+                    override: true,
+                    user: true,
+                    version: '0.3.0',
+                    code: external_code,
+                },
+            };
+            const run = await manager.addUserScripts([external_3_plugin]);
+            expect(run).to.deep.equal(installed);
+
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
+            expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(external_3_uid);
+
+            expect(db_data['release_plugins_user'][external_3_uid]['code'], "release_plugins_user['code']: " + external_3_uid).to.equal(external_code);
+            expect(db_data['release_plugins_flat'][external_3_uid]['code'], "release_plugins_flat['code']: " + external_3_uid).to.equal(external_code);
+            expect(db_data['release_plugins_flat'][external_3_uid]['override'], "release_plugins_flat['override']: " + external_3_uid).to.be.true;
+        });
+
+        it('Remove external plugin and replace it with built-in plugin', async function () {
+            const run = await manager.managePlugin(external_3_uid, 'delete');
+            expect(run).to.be.undefined;
+
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
+            expect(db_data['release_plugins_user'], 'release_plugins_user').to.be.empty;
+
+            expect(db_data['release_plugins_flat'][external_3_uid]['status'], "release_plugins_flat['status']: " + external_3_uid).to.equal('off');
+            expect(db_data['release_plugins_flat'][external_3_uid]['override'], "release_plugins_flat['override']: " + external_3_uid).to.be.false;
+        });
+
+        it('Enable and disable build-in plugin', async function () {
+            const run1 = await manager.managePlugin(external_3_uid, 'on');
+            expect(run1).to.be.undefined;
+
+            const run2 = await manager.managePlugin(external_3_uid, 'off');
+            expect(run2).to.be.undefined;
+
+            const db_data = await storage.get(['release_plugins_flat']);
+            expect(db_data['release_plugins_flat'][external_3_uid]['status'], "release_plugins_flat['status']: " + external_3_uid).to.equal('off');
+            expect(db_data['release_plugins_flat'][external_3_uid]['code'], "release_plugins_flat['code']: " + external_3_uid).to.have.lengthOf(596);
+            expect(db_data['release_plugins_flat'][external_3_uid]['override'], "release_plugins_flat['override']: " + external_3_uid).to.be.false;
         });
     });
 });
