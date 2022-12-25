@@ -30,7 +30,7 @@
     <div class="title">
         <h1><a href="index.html" class="link">lib iitc manager</a></h1>
         
-            <span class="version">v1.4.0</span>
+            <span class="version">v1.4.2</span>
         
     </div>
     <div class="search-container" id="search-container">
@@ -235,7 +235,11 @@ export class Manager extends Worker {
         }
         if (action === 'delete') {
             if (plugins_flat[uid]['override']) {
-                plugins_flat[uid] = { ...plugins_local[uid] };
+                if (plugins_local[uid] !== undefined) {
+                    plugins_flat[uid] = { ...plugins_local[uid] };
+                }
+                plugins_flat[uid]['user'] = false;
+                plugins_flat[uid]['override'] = false;
                 plugins_flat[uid]['status'] = 'off';
             } else {
                 delete plugins_flat[uid];
