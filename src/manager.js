@@ -183,7 +183,11 @@ export class Manager extends Worker {
         }
         if (action === 'delete') {
             if (plugins_flat[uid]['override']) {
-                plugins_flat[uid] = { ...plugins_local[uid] };
+                if (plugins_local[uid] !== undefined) {
+                    plugins_flat[uid] = { ...plugins_local[uid] };
+                }
+                plugins_flat[uid]['user'] = false;
+                plugins_flat[uid]['override'] = false;
                 plugins_flat[uid]['status'] = 'off';
             } else {
                 delete plugins_flat[uid];

@@ -29,6 +29,7 @@ describe('manage.js build-in plugins integration tests', function () {
 
     const first_plugin_uid = 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
     const second_plugin_uid = 'Bing maps+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    const third_plugin_uid = 'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
     describe('run', function () {
         it('Should not return an error', async function () {
@@ -43,7 +44,7 @@ describe('manage.js build-in plugins integration tests', function () {
             expect(run).to.be.undefined;
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
             expect(db_data['release_plugins_local'], 'release_plugins_local').to.have.all.keys(first_plugin_uid);
 
             expect(db_data['release_plugins_local'][first_plugin_uid]['status'], 'release_plugins_local: ' + first_plugin_uid).to.equal('on');
@@ -56,7 +57,7 @@ describe('manage.js build-in plugins integration tests', function () {
             expect(run).to.be.undefined;
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
             expect(db_data['release_plugins_local'], 'release_plugins_local').to.have.all.keys(first_plugin_uid, second_plugin_uid);
 
             expect(db_data['release_plugins_local'][first_plugin_uid]['status'], 'release_plugins_local: ' + first_plugin_uid).to.equal('on');
@@ -73,7 +74,7 @@ describe('manage.js build-in plugins integration tests', function () {
             expect(run).to.be.undefined;
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid);
+            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
             expect(db_data['release_plugins_local'], 'release_plugins_local').to.have.all.keys(first_plugin_uid, second_plugin_uid);
 
             expect(db_data['release_plugins_local'][first_plugin_uid]['status'], 'release_plugins_local: ' + first_plugin_uid).to.equal('off');
