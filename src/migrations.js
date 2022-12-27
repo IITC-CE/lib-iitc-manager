@@ -48,4 +48,7 @@ async function migration_0002(local) {
         local.channel = 'release';
         local.network_host.custom = local.network_host.local;
     }
+    if (!['release', 'beta', 'custom'].includes(local.channel)) {
+        local.channel = 'release';
+    }
 }
