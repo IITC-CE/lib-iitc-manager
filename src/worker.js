@@ -28,6 +28,8 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
  * @property {manager.progressbar} progressbar - Function for controls the display of progress bar.
  * @property {manager.inject_user_script} inject_user_script - Function for injecting UserScript code
  * into the Ingress Intel window.
+ * @property {manager.inject_plugin} inject_plugin - Function for injecting UserScript plugin
+ * into the Ingress Intel window.
  */
 
 /**
@@ -98,9 +100,18 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
 /**
  * Calls a function that injects UserScript code into the Ingress Intel window.
  *
+ * @deprecated since version 1.5.0. Use {@link manager.inject_plugin} instead.
  * @callback manager.inject_user_script
  * @memberOf manager
  * @param {string} code - UserScript code to run in the Ingress Intel window
+ */
+
+/**
+ * Calls a function that injects UserScript plugin into the Ingress Intel window.
+ *
+ * @callback manager.inject_plugin
+ * @memberOf manager
+ * @param {plugin} plugin - UserScript plugin to run in the Ingress Intel window
  */
 
 /**
@@ -149,7 +160,8 @@ export class Worker {
         this.storage = typeof this.config.storage !== 'undefined' ? this.config.storage : console.error("config key 'storage' is not set");
         this.message = this.config.message;
         this.progressbar = this.config.progressbar;
-        this.inject_user_script = this.config.inject_user_script;
+        this.inject_user_script = this.config.inject_user_script || function () {};
+        this.inject_plugin = this.config.inject_plugin || function () {};
 
         this.is_initialized = false;
         this._init().then();

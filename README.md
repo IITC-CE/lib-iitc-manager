@@ -29,9 +29,9 @@ const manager = new Manager({
             console.log("Hide progress bar");
         }
     },
-    inject_user_script: code => {
+    inject_plugin: plugin => {
         console.log("Code of UserScript plugin for embedding in a page:");
-        console.log(code);
+        console.log(plugin['code']);
     }
 });
 
