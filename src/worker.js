@@ -122,9 +122,12 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
  * @property {string} version
  * @property {string} description
  * @property {string} namespace
- * @property {string} match
- * @property {string} include
- * @property {string} grant
+ * @property {string[]} match
+ * @property {string[]} include
+ * @property {string[]} exclude-match
+ * @property {string[]} exclude
+ * @property {string[]} require
+ * @property {string[]} grant
  */
 
 /**
