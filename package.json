@@ -30,7 +30,6 @@
     "prettier": "^2.7.1"
   },
   "dependencies": {
-    "eslint": "^8.13.0",
     "xhr2": "^0.2.1"
   }
 }
