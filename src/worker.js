@@ -226,7 +226,7 @@ export class Worker {
     async _save(options) {
         const data = {};
         Object.keys(options).forEach((key) => {
-            if (['iitc_version', 'last_modified', 'iitc_code', 'categories', 'plugins_flat', 'plugins_local', 'plugins_user'].indexOf(key) !== -1) {
+            if (['iitc_version', 'last_modified', 'iitc_core', 'categories', 'plugins_flat', 'plugins_local', 'plugins_user'].indexOf(key) !== -1) {
                 data[this.channel + '_' + key] = options[key];
             } else {
                 data[key] = options[key];
@@ -357,8 +357,10 @@ export class Worker {
         const p_iitc = async () => {
             const iitc_code = await this._getUrl(this.network_host[this.channel] + '/total-conversion-build.user.js');
             if (iitc_code) {
+                const iitc_core = parseMeta(iitc_code);
+                iitc_core['code'] = iitc_code;
                 await this._save({
-                    iitc_code: iitc_code,
+                    iitc_core: iitc_core,
                 });
             }
         };

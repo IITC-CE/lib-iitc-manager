@@ -56,7 +56,7 @@ describe('manage.js custom repo integration tests', function () {
         });
 
         it('Check the IITC version', async function () {
-            const script = await storage.get(['custom_iitc_code']).then((data) => data['custom_iitc_code']);
+            const script = await storage.get(['custom_iitc_core']).then((data) => data['custom_iitc_core']['code']);
             expect(script).to.include('@version        0.99.0');
         });
 

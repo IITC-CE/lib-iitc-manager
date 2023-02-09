@@ -75,30 +75,24 @@ export class Manager extends Worker {
      */
     async inject() {
         const storage = await this.storage.get([
-            this.channel + '_iitc_code',
+            this.channel + '_iitc_core',
             this.channel + '_plugins_flat',
             this.channel + '_plugins_local',
             this.channel + '_plugins_user',
         ]);
 
-        const iitc_code = storage[this.channel + '_iitc_code'];
-        // TODO: save iitc meta in storage
-        const iitc_as_plugin = {
-            match: ['https://intel.ingress.com/*', 'https://intel-x.ingress.com/*'],
-            code: iitc_code,
-        };
-
+        const iitc_core = storage[this.channel + '_iitc_core'];
         const plugins_local = storage[this.channel + '_plugins_local'];
         const plugins_user = storage[this.channel + '_plugins_user'];
 
-        if (iitc_code !== undefined) {
+        if (iitc_core !== undefined && iitc_core['code'] !== undefined) {
             const plugins_to_inject = [];
 
             // IITC is injected first, then plugins. This is the correct order, because the initialization of IITC takes some time.
             // During this time, plugins have time to be added to `window.bootPlugins` and are not started immediately.
             // In addition, thanks to the injecting of plugins after IITC,
             // plugins do not throw errors when attempting to access IITC, leaflet, etc. during the execution of the wrapper.
-            plugins_to_inject.push(iitc_as_plugin);
+            plugins_to_inject.push(iitc_core);
             const plugins_flat = storage[this.channel + '_plugins_flat'];
             for (const uid of Object.keys(plugins_flat)) {
                 if (plugins_flat[uid]['status'] === 'on') {
