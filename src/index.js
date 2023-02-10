@@ -2,5 +2,6 @@
 
 import { Manager } from './manager.js';
 import { parseMeta, ajaxGet, getUniqId, getUID, check_meta_match_pattern, wait, clearWait } from './helpers.js';
+import { check_matching } from './matching.js';
 
-export { Manager, parseMeta, ajaxGet, getUniqId, getUID, check_meta_match_pattern, wait, clearWait };
+export { Manager, parseMeta, ajaxGet, getUniqId, getUID, check_meta_match_pattern, wait, clearWait, check_matching };

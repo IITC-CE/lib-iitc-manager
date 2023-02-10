@@ -32,6 +32,9 @@ describe('manage.js external plugins integration tests', function () {
             inject_user_script: function callBack(data) {
                 expect(data).to.include('// ==UserScript==');
             },
+            inject_plugin: function callBack(data) {
+                expect(data['code']).to.include('// ==UserScript==');
+            },
             progressbar: function callBack(is_show) {
                 expect(is_show).to.be.oneOf([true, false]);
             },

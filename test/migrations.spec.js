@@ -5,9 +5,12 @@ import { migrate, number_of_migrations } from '../src/migrations.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
 
+const iitc_code = '// ==UserScript==\n// @author jonatkins\n// ==/UserScript==';
+
 describe('test migrations', function () {
     before(async function () {
         await storage.set({
+            release_iitc_code: iitc_code,
             release_plugins_flat: {
                 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion': {
                     id: 'bookmarks',
@@ -52,6 +55,12 @@ describe('test migrations', function () {
         it('The value of storage_version field has changed', async function () {
             const db_data = await storage.get(['storage_version']);
             expect(db_data['storage_version']).to.equal(number_of_migrations());
+        });
+        it('Should create `iitc_core` object', async function () {
+            const db_data = await storage.get(['release_iitc_core']);
+            expect(db_data['release_iitc_core']).to.be.an('object');
+            expect(db_data['release_iitc_core']['author']).to.equal('jonatkins');
+            expect(db_data['release_iitc_core']['code']).to.to.include('jonatkins');
         });
     });
 });

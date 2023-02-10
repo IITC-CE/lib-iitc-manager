@@ -1,6 +1,6 @@
 {
   "name": "lib-iitc-manager",
-  "version": "1.4.4",
+  "version": "1.5.0",
   "description": "Library for managing IITC plugins",
   "main": "src/index.js",
   "type": "module",
@@ -30,7 +30,6 @@
     "prettier": "^2.7.1"
   },
   "dependencies": {
-    "eslint": "^8.13.0",
     "xhr2": "^0.2.1"
   }
 }

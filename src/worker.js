@@ -28,6 +28,8 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
  * @property {manager.progressbar} progressbar - Function for controls the display of progress bar.
  * @property {manager.inject_user_script} inject_user_script - Function for injecting UserScript code
  * into the Ingress Intel window.
+ * @property {manager.inject_plugin} inject_plugin - Function for injecting UserScript plugin
+ * into the Ingress Intel window.
  */
 
 /**
@@ -98,9 +100,18 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
 /**
  * Calls a function that injects UserScript code into the Ingress Intel window.
  *
+ * @deprecated since version 1.5.0. Use {@link manager.inject_plugin} instead.
  * @callback manager.inject_user_script
  * @memberOf manager
  * @param {string} code - UserScript code to run in the Ingress Intel window
+ */
+
+/**
+ * Calls a function that injects UserScript plugin into the Ingress Intel window.
+ *
+ * @callback manager.inject_plugin
+ * @memberOf manager
+ * @param {plugin} plugin - UserScript plugin to run in the Ingress Intel window
  */
 
 /**
@@ -122,9 +133,12 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
  * @property {string} version
  * @property {string} description
  * @property {string} namespace
- * @property {string} match
- * @property {string} include
- * @property {string} grant
+ * @property {string[]} match
+ * @property {string[]} include
+ * @property {string[]} exclude-match
+ * @property {string[]} exclude
+ * @property {string[]} require
+ * @property {string[]} grant
  */
 
 /**
@@ -146,7 +160,8 @@ export class Worker {
         this.storage = typeof this.config.storage !== 'undefined' ? this.config.storage : console.error("config key 'storage' is not set");
         this.message = this.config.message;
         this.progressbar = this.config.progressbar;
-        this.inject_user_script = this.config.inject_user_script;
+        this.inject_user_script = this.config.inject_user_script || function () {};
+        this.inject_plugin = this.config.inject_plugin || function () {};
 
         this.is_initialized = false;
         this._init().then();
@@ -211,7 +226,7 @@ export class Worker {
     async _save(options) {
         const data = {};
         Object.keys(options).forEach((key) => {
-            if (['iitc_version', 'last_modified', 'iitc_code', 'categories', 'plugins_flat', 'plugins_local', 'plugins_user'].indexOf(key) !== -1) {
+            if (['iitc_version', 'last_modified', 'iitc_core', 'categories', 'plugins_flat', 'plugins_local', 'plugins_user'].indexOf(key) !== -1) {
                 data[this.channel + '_' + key] = options[key];
             } else {
                 data[key] = options[key];
@@ -342,8 +357,10 @@ export class Worker {
         const p_iitc = async () => {
             const iitc_code = await this._getUrl(this.network_host[this.channel] + '/total-conversion-build.user.js');
             if (iitc_code) {
+                const iitc_core = parseMeta(iitc_code);
+                iitc_core['code'] = iitc_code;
                 await this._save({
-                    iitc_code: iitc_code,
+                    iitc_core: iitc_core,
                 });
             }
         };

@@ -1,14 +1,15 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
-import { isSet, getUID } from './helpers.js';
+import { isSet, getUID, parseMeta } from './helpers.js';
 
 export function number_of_migrations() {
     return migrates.length;
 }
 
-const migrates = [migration_0001, migration_0002, migration_0003];
+const migrates = [migration_0001, migration_0002, migration_0003, migration_0004];
 
 export async function migrate(storage) {
+    const storage_iitc_code = await storage.get(['release_iitc_code', 'beta_iitc_code', 'custom_iitc_code']);
     const storage_plugins_flat = await storage.get([
         'release_plugins_flat',
         'beta_plugins_flat',
@@ -33,17 +34,17 @@ export async function migrate(storage) {
     for (const migrate of migrates) {
         const index = migrates.indexOf(migrate);
         if (parseInt(storage_misc['storage_version']) < index + 1) {
-            await migrate(storage_plugins_flat, storage_plugins_user, storage_misc);
+            await migrate(storage_iitc_code, storage_plugins_flat, storage_plugins_user, storage_misc);
             is_migrated = true;
         }
     }
 
     storage_misc['storage_version'] = migrates.length;
-    await storage.set({ ...storage_plugins_flat, ...storage_plugins_user, ...storage_misc });
+    await storage.set({ ...storage_iitc_code, ...storage_plugins_flat, ...storage_plugins_user, ...storage_misc });
     return is_migrated;
 }
 
-async function migration_0001(storage_plugins_flat) {
+async function migration_0001(storage_iitc_code, storage_plugins_flat) {
     for (let channel of Object.keys(storage_plugins_flat)) {
         if (!isSet(storage_plugins_flat[channel])) continue;
 
@@ -59,7 +60,7 @@ async function migration_0001(storage_plugins_flat) {
 
 async function migration_0002() {}
 
-async function migration_0003(storage_plugins_flat, storage_plugins_user, storage_misc) {
+async function migration_0003(storage_iitc_code, storage_plugins_flat, storage_plugins_user, storage_misc) {
     if (['test', 'local'].includes(storage_misc.channel)) {
         storage_misc.channel = 'release';
         storage_misc.network_host.custom = storage_misc.network_host.local;
@@ -79,6 +80,19 @@ async function migration_0003(storage_plugins_flat, storage_plugins_user, storag
             if (plugin_obj['status'] === undefined) {
                 plugin_obj['status'] = 'off';
             }
+        }
+    }
+}
+
+async function migration_0004(storage_iitc_code) {
+    for (let channel_iitc_code of Object.keys(storage_iitc_code)) {
+        const code = storage_iitc_code[channel_iitc_code];
+        const channel = channel_iitc_code.replace('_iitc_code', '');
+        delete storage_iitc_code[channel_iitc_code];
+
+        if (isSet(code)) {
+            storage_iitc_code[channel + 'iitc_core'] = parseMeta(code);
+            storage_iitc_code[channel + 'iitc_core']['code'] = code;
         }
     }
 }
