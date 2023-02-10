@@ -1,8 +1,10 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Home | lib iitc manager</title>
+    <title>Source: matching.js | lib iitc manager</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -46,61 +48,123 @@
 
 
     
-
-
-
-
-
-
-
-
-
-    
-
-
     <section>
-        <article class="readme"><h1>lib IITC manager</h1>
-<p>Library for managing <a href="https://iitc.app/">IITC and plugins</a>.</p>
-<h2>Getting started</h2>
-<pre class="prettyprint source"><code>npm install lib-iitc-manager --save
-</code></pre>
-<h2>Usage</h2>
-<p>Example code to use in WebExtension.
-Imports the library, passes environment parameters and starts loading IITC and plugins.</p>
-<pre class="prettyprint source lang-js"><code>import { Manager } from 'lib-iitc-manager';
+        <article>
+            <pre class="prettyprint source linenums"><code>// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3
 
-const manager = new Manager({
-    storage: browser.storage.local,
-    message: (message, args) => {
-        console.log(&quot;Message for user:&quot;);
-        console.log(message+&quot;, args: &quot;+args);
-    },
-    progressbar: is_show => {
-        if (is_show) {
-            console.log(&quot;Show progress bar&quot;);
-        } else {
-            console.log(&quot;Hide progress bar&quot;);
+const CACHE = {};
+const RE_URL = /(.*?):\/\/([^/]*)\/(.*)/;
+
+/**
+ * Checks the URL for match/include plugin.
+ *
+ * @param {plugin} meta - Object with data from ==UserScript== header.
+ * @param {string} url - Page URL.
+ * @return {boolean}
+ */
+export function check_matching(meta, url) {
+    const match = meta.match || [];
+    const include = meta.include || [];
+    const match_exclude = meta['exclude-match'] || [];
+    const exclude = meta.exclude || [];
+
+    // match all if no @match or @include rule and set url === '&lt;all_ingress>'
+    let ok = !match.length &amp;&amp; !include.length &amp;&amp; url === '&lt;all_ingress>';
+    // @match
+    ok = ok || testMatch(url, match);
+    // @include
+    ok = ok || testInclude(url, include);
+    // @exclude-match
+    ok = ok &amp;&amp; !testMatch(url, match_exclude);
+    // @exclude
+    ok = ok &amp;&amp; !testInclude(url, exclude);
+    return ok;
+}
+
+function str2RE(str) {
+    const re = str.replace(/([.?/])/g, '\\$1').replace(/\*/g, '.*?');
+    return RegExp(`^${re}$`);
+}
+
+/**
+ * Test glob rules like `@include` and `@exclude`.
+ */
+export function testInclude(url, rules) {
+    return rules.some((rule) => {
+        const key = `re:${rule}`;
+        let re = CACHE[key];
+        if (!re) {
+            re = makeIncludeRegExp(rule);
+            CACHE[key] = re;
         }
-    },
-    inject_plugin: plugin => {
-        console.log(&quot;Code of UserScript plugin for embedding in a page:&quot;);
-        console.log(plugin['code']);
+        return re.test(url);
+    });
+}
+
+function makeIncludeRegExp(str) {
+    if (str.length > 1 &amp;&amp; str[0] === '/' &amp;&amp; str[str.length - 1] === '/') {
+        return RegExp(str.slice(1, -1)); // Regular-expression
     }
-});
+    return str2RE(str); // Wildcard
+}
 
-manager.run().then();
-</code></pre>
-<p>Example of use helpers:</p>
-<pre class="prettyprint source lang-js"><code>import { getUniqId } from &quot;lib-iitc-manager&quot;;
+/**
+ * Test match rules like `@match` and `@exclude_match`.
+ */
+export function testMatch(url, rules) {
+    return rules.some((rule) => {
+        const key = `match:${rule}`;
+        let matcher = CACHE[key];
+        if (!matcher) {
+            matcher = makeMatchRegExp(rule);
+            CACHE[key] = matcher;
+        }
+        return matcher.test(url);
+    });
+}
 
-const uniqId = getUniqId(&quot;tmp&quot;);
+function makeMatchRegExp(rule) {
+    let test;
+    if (rule === '&lt;all_urls>') test = () => true;
+    else {
+        const ruleParts = rule.match(RE_URL);
+        test = (url) => {
+            const parts = url.match(RE_URL);
+            return !!ruleParts &amp;&amp; !!parts &amp;&amp; matchScheme(ruleParts[1], parts[1]) &amp;&amp; matchHost(ruleParts[2], parts[2]) &amp;&amp; matchPath(ruleParts[3], parts[3]);
+        };
+    }
+    return { test };
+}
+
+function matchScheme(rule, data) {
+    // exact match
+    if (rule === data) return 1;
+    // * = http | https
+    if (rule === '*' &amp;&amp; /^https?$/i.test(data)) return 1;
+    return 0;
+}
+
+function matchHost(rule, data) {
+    // * matches all
+    if (rule === '*') return 1;
+    // exact match
+    if (rule === data) return 1;
+    // *.example.com
+    if (/^\*\.[^*]*$/.test(rule)) {
+        // matches the specified domain
+        if (rule.slice(2) === data) return 1;
+        // matches subdomains
+        if (str2RE(rule).test(data)) return 1;
+    }
+    return 0;
+}
+
+function matchPath(rule, data) {
+    return str2RE(rule).test(data);
+}
 </code></pre>
-<p><a href="https://iitc-ce.github.io/lib-iitc-manager/">See more in documentation</a></p>
-<h2>License</h2>
-<p><a href="/LICENSE">GPL-3.0 license</a></p></article>
+        </article>
     </section>
-
-
 
 
 
@@ -117,7 +181,7 @@ const uniqId = getUniqId(&quot;tmp&quot;);
 <script src="scripts/linenumber.js"></script>
 
     <script>
-        var id = 'package:lib-iitc-manager_sub'.replace(/"/g, '_');
+        var id = '_sub'.replace(/"/g, '_');
         var selectedApi = document.getElementById(id); // do not use jquery selector
         var $selectedApi = $(selectedApi);
 
