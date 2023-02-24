@@ -1,7 +1,7 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
 import { describe, it } from 'mocha';
-import { check_matching } from '../src/matching.js';
+import { check_matching, humanize_match } from '../src/matching.js';
 import { expect } from 'chai';
 
 describe('scheme', function () {
@@ -119,5 +119,33 @@ describe('<all_ingress>', function () {
         const script = {};
         expect(check_matching(script, 'https://intel.ingress.com/'), 'not match real url').to.be.false;
         expect(check_matching(script, '<all_ingress>'), 'should match keyword `<all_ingress>`').to.be.true;
+    });
+});
+
+describe('testing humanize_match() function', function () {
+    it('return null if @match and @include are not set', function () {
+        const script = {};
+        expect(humanize_match(script), 'should return null').to.be.null;
+    });
+    it('return <all_urls> if @match or @include are set to <all_urls> or domain contains *', function () {
+        const script1 = {
+            match: ['*://*/*'],
+            include: ['*://*/*'],
+        };
+        const script2 = {
+            include: ['<all_urls>'],
+        };
+        const script3 = {
+            include: ['http://www.example.com/*', '<all_urls>'],
+        };
+        expect(humanize_match(script1), 'should return <all_urls>').to.be.equal('<all_urls>');
+        expect(humanize_match(script2), 'should return <all_urls>').to.be.equal('<all_urls>');
+        expect(humanize_match(script3), 'should return <all_urls>').to.be.equal('<all_urls>');
+    });
+    it('return list of domains', function () {
+        const script = {
+            match: ['http://www.example.com/*', 'http://www.example2.com/*'],
+        };
+        expect(humanize_match(script), 'should return list of domains').deep.equal(['www.example.com', 'www.example2.com']);
     });
 });
