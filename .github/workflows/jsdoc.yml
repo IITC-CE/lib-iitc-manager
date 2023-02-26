@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+  pull_request:
+    paths-ignore:
+      - '!.github/**'
 
 jobs:
   deploy:
@@ -22,6 +25,7 @@ jobs:
           front_page: README.md
 
       - name: Deploy
+        if: github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@v3
         with:
           deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
