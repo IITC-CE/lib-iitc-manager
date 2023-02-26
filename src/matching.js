@@ -110,3 +110,32 @@ function matchHost(rule, data) {
 function matchPath(rule, data) {
     return str2RE(rule).test(data);
 }
+
+/**
+ * Returns information about the domains for which the script will be enabled.
+ * Returns null if @match and @include are not specified
+ * Returns <all_urls> if the script will be run for all domains. Additional URL Scheme and Path filters are not taken into account.
+ * Otherwise, it returns a list of strings with domains.
+ *
+ * @param {plugin} meta - Object with data from ==UserScript== header.
+ * @return {null|string|[]}
+ */
+export function humanize_match(meta) {
+    const match = meta.match || [];
+    const include = meta.include || [];
+    const matches = match.concat(include);
+
+    if (!matches.length) return null;
+    if (matches.includes('<all_urls>')) return '<all_urls>';
+
+    const domains = [];
+    for (const item of matches) {
+        const parts = item.match(RE_URL);
+        if (!parts) continue;
+
+        const [, , domain] = parts;
+        if (domain === '*') return '<all_urls>';
+        if (!domains.includes(domain)) domains.push(domain);
+    }
+    return domains;
+}
