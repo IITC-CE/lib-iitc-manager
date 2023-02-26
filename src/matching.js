@@ -118,7 +118,7 @@ function matchPath(rule, data) {
  * Otherwise, it returns a list of strings with domains.
  *
  * @param {plugin} meta - Object with data from ==UserScript== header.
- * @return {null|string|[]}
+ * @return {null|string|Array.<string>}
  */
 export function humanize_match(meta) {
     const match = meta.match || [];
