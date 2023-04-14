@@ -77,23 +77,24 @@ export class Manager extends Worker {
     async inject() {
         const storage = await this.storage.get([
             this.channel + '_iitc_core',
+            this.channel + '_iitc_core_user',
             this.channel + '_plugins_flat',
             this.channel + '_plugins_local',
             this.channel + '_plugins_user',
         ]);
 
-        const iitc_core = storage[this.channel + '_iitc_core'];
         const plugins_local = storage[this.channel + '_plugins_local'];
         const plugins_user = storage[this.channel + '_plugins_user'];
 
-        if (iitc_core !== undefined && iitc_core['code'] !== undefined) {
+        let iitc_script = await this.getIITCCore(storage);
+        if (iitc_script !== null) {
             const plugins_to_inject = [];
 
             // IITC is injected first, then plugins. This is the correct order, because the initialization of IITC takes some time.
             // During this time, plugins have time to be added to `window.bootPlugins` and are not started immediately.
             // In addition, thanks to the injecting of plugins after IITC,
             // plugins do not throw errors when attempting to access IITC, leaflet, etc. during the execution of the wrapper.
-            plugins_to_inject.push(iitc_core);
+            plugins_to_inject.push(iitc_script);
             const plugins_flat = storage[this.channel + '_plugins_flat'];
             for (const uid of Object.keys(plugins_flat)) {
                 if (plugins_flat[uid]['status'] === 'on') {
@@ -189,23 +190,29 @@ export class Manager extends Worker {
             });
         }
         if (action === 'delete') {
-            if (plugins_flat[uid]['override']) {
-                if (plugins_local[uid] !== undefined) {
-                    plugins_flat[uid] = { ...plugins_local[uid] };
-                }
-                plugins_flat[uid]['user'] = false;
-                plugins_flat[uid]['override'] = false;
-                plugins_flat[uid]['status'] = 'off';
+            if (uid === this.iitc_main_script_uid) {
+                await this._save({
+                    iitc_core_user: {},
+                });
             } else {
-                delete plugins_flat[uid];
-            }
-            delete plugins_user[uid];
+                if (plugins_flat[uid]['override']) {
+                    if (plugins_local[uid] !== undefined) {
+                        plugins_flat[uid] = { ...plugins_local[uid] };
+                    }
+                    plugins_flat[uid]['user'] = false;
+                    plugins_flat[uid]['override'] = false;
+                    plugins_flat[uid]['status'] = 'off';
+                } else {
+                    delete plugins_flat[uid];
+                }
+                delete plugins_user[uid];
 
-            await this._save({
-                plugins_flat: plugins_flat,
-                plugins_local: plugins_local,
-                plugins_user: plugins_user,
-            });
+                await this._save({
+                    plugins_flat: plugins_flat,
+                    plugins_local: plugins_local,
+                    plugins_user: plugins_user,
+                });
+            }
         }
     }
 
@@ -221,12 +228,14 @@ export class Manager extends Worker {
      */
     async addUserScripts(scripts) {
         let local = await this.storage.get([
+            this.channel + '_iitc_core_user',
             this.channel + '_categories',
             this.channel + '_plugins_flat',
             this.channel + '_plugins_local',
             this.channel + '_plugins_user',
         ]);
 
+        let iitc_core_user = local[this.channel + '_iitc_core_user'];
         let categories = local[this.channel + '_categories'];
         let plugins_flat = local[this.channel + '_plugins_flat'];
         let plugins_local = local[this.channel + '_plugins_local'];
@@ -245,40 +254,49 @@ export class Manager extends Worker {
 
             if (plugin_uid === null) throw new Error('The plugin has an incorrect ==UserScript== header');
 
-            const is_user_plugins = plugins_user[plugin_uid] !== undefined;
-            plugins_user[plugin_uid] = Object.assign(meta, {
-                uid: plugin_uid,
-                status: 'on',
-                code: code,
-            });
-
-            if (plugin_uid in plugins_flat && !is_user_plugins) {
-                if (plugin_uid in plugins_local && plugins_flat[plugin_uid]['status'] !== 'off') {
-                    plugins_local[plugin_uid]['status'] = 'off';
-                }
-
-                plugins_flat[plugin_uid]['status'] = 'on';
-                plugins_flat[plugin_uid]['code'] = code;
-                plugins_flat[plugin_uid]['override'] = true;
+            if (plugin_uid === this.iitc_main_script_uid) {
+                iitc_core_user = Object.assign(meta, {
+                    uid: plugin_uid,
+                    code: code,
+                });
+                installed_scripts[plugin_uid] = iitc_core_user;
             } else {
-                let category = plugins_user[plugin_uid]['category'];
-                if (category === undefined) {
-                    category = 'Misc';
-                    plugins_user[plugin_uid]['category'] = category;
+                const is_user_plugins = plugins_user[plugin_uid] !== undefined;
+                plugins_user[plugin_uid] = Object.assign(meta, {
+                    uid: plugin_uid,
+                    status: 'on',
+                    code: code,
+                });
+
+                if (plugin_uid in plugins_flat && !is_user_plugins) {
+                    if (plugin_uid in plugins_local && plugins_flat[plugin_uid]['status'] !== 'off') {
+                        plugins_local[plugin_uid]['status'] = 'off';
+                    }
+
+                    plugins_flat[plugin_uid]['status'] = 'on';
+                    plugins_flat[plugin_uid]['code'] = code;
+                    plugins_flat[plugin_uid]['override'] = true;
+                } else {
+                    let category = plugins_user[plugin_uid]['category'];
+                    if (category === undefined) {
+                        category = 'Misc';
+                        plugins_user[plugin_uid]['category'] = category;
+                    }
+                    if (!(category in categories)) {
+                        categories[category] = {
+                            name: category,
+                            description: '',
+                        };
+                    }
+                    plugins_flat[plugin_uid] = { ...plugins_user[plugin_uid] };
                 }
-                if (!(category in categories)) {
-                    categories[category] = {
-                        name: category,
-                        description: '',
-                    };
-                }
-                plugins_flat[plugin_uid] = { ...plugins_user[plugin_uid] };
+                plugins_flat[plugin_uid]['user'] = true;
+                installed_scripts[plugin_uid] = plugins_flat[plugin_uid];
             }
-            plugins_flat[plugin_uid]['user'] = true;
-            installed_scripts[plugin_uid] = plugins_flat[plugin_uid];
         });
 
         await this._save({
+            iitc_core_user: iitc_core_user,
             categories: categories,
             plugins_flat: plugins_flat,
             plugins_local: plugins_local,
@@ -298,6 +316,32 @@ export class Manager extends Worker {
         let all_plugins = await this.storage.get([this.channel + '_plugins_flat']).then((data) => data[this.channel + '_plugins_flat']);
         if (all_plugins === undefined) return null;
         return all_plugins[uid];
+    }
+
+    /**
+     * Returns IITC core script.
+     *
+     * @async
+     * @param {Object|undefined} [storage=undefined] - Storage object with keys `channel_iitc_core` and `channel_iitc_core_user`.
+     * If not specified, the data is queried from the storage.
+     * @return {Promise<plugin|null>}
+     */
+    async getIITCCore(storage) {
+        if (storage === undefined || !isSet(storage[this.channel + '_iitc_core'])) {
+            storage = await this.storage.get([this.channel + '_iitc_core', this.channel + '_iitc_core_user']);
+        }
+
+        const iitc_core = storage[this.channel + '_iitc_core'];
+        const iitc_core_user = storage[this.channel + '_iitc_core_user'];
+
+        let iitc_script = null;
+        if (isSet(iitc_core_user) && isSet(iitc_core_user['code'])) {
+            iitc_script = iitc_core_user;
+            iitc_script['override'] = true;
+        } else if (isSet(iitc_core) && isSet(iitc_core['code'])) {
+            iitc_script = iitc_core;
+        }
+        return iitc_script;
     }
 
     /**

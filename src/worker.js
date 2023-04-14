@@ -165,6 +165,7 @@ export class Worker {
         this.progress_interval_id = null;
         this.update_timeout_id = null;
         this.external_update_timeout_id = null;
+        this.iitc_main_script_uid = 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
         this.storage = typeof this.config.storage !== 'undefined' ? this.config.storage : console.error("config key 'storage' is not set");
         this.message = this.config.message;
@@ -235,7 +236,10 @@ export class Worker {
     async _save(options) {
         const data = {};
         Object.keys(options).forEach((key) => {
-            if (['iitc_version', 'last_modified', 'iitc_core', 'categories', 'plugins_flat', 'plugins_local', 'plugins_user'].indexOf(key) !== -1) {
+            if (
+                ['iitc_version', 'last_modified', 'iitc_core', 'iitc_core_user', 'categories', 'plugins_flat', 'plugins_local', 'plugins_user'].indexOf(key) !==
+                -1
+            ) {
                 data[this.channel + '_' + key] = options[key];
             } else {
                 data[key] = options[key];

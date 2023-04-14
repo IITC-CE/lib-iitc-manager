@@ -461,4 +461,55 @@ describe('manage.js external plugins integration tests', function () {
             expect(db_data['release_plugins_flat'][external_3_uid]['override'], "release_plugins_flat['override']: " + external_3_uid).to.be.false;
         });
     });
+
+    describe('Adding and removing custom IITC core script', function () {
+        const iitc_custom_uid = 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
+        const iitc_custom = {
+            meta: {
+                author: 'jonatkins',
+                name: 'IITC: Ingress intel map total conversion',
+                version: '0.99.0',
+                description: 'Total conversion for the ingress intel map.',
+                id: 'total-conversion-build',
+                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+            },
+            code: external_code,
+        };
+        it('Add custom IITC core script', async function () {
+            const run = await manager.addUserScripts([iitc_custom]);
+            expect(run).to.have.all.keys(iitc_custom_uid);
+
+            const db_data = await storage.get(['release_iitc_core_user']);
+            expect(db_data['release_iitc_core_user']['code'], "iitc_core_user['code']").to.equal(external_code);
+        });
+        it('Check getIITCCore() for custom IITC', async function () {
+            const script = await manager.getIITCCore();
+            expect(script, 'getIITCCore()').to.have.all.keys('author', 'code', 'description', 'id', 'name', 'namespace', 'override', 'uid', 'version');
+            expect(script['override'], "getIITCCore() object must have the 'override' parameter set to true").to.be.true;
+        });
+        it('Remove custom IITC core script', async function () {
+            const run = await manager.managePlugin(iitc_custom_uid, 'delete');
+            expect(run).to.be.undefined;
+
+            const db_data = await storage.get(['release_iitc_core_user']);
+            expect(db_data['release_iitc_core_user'], 'iitc_core_user must be empty object').to.deep.equal({});
+        });
+        it('Check getIITCCore() for standard IITC', async function () {
+            const script = await manager.getIITCCore();
+            expect(script, 'getIITCCore()').to.have.all.keys(
+                'author',
+                'code',
+                'description',
+                'downloadURL',
+                'grant',
+                'id',
+                'match',
+                'name',
+                'namespace',
+                'runAt',
+                'updateURL',
+                'version'
+            );
+        });
+    });
 });
