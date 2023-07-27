@@ -48,4 +48,9 @@ export default {
             console.error('Unexpected type of key when trying to set storage value: ' + typeof obj);
         }
     },
+    resetStorage() {
+        for (const key in store) {
+            delete store[key];
+        }
+    },
 };

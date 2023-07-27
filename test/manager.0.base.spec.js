@@ -8,6 +8,7 @@ import { expect } from 'chai';
 describe('manage.js base integration tests', function () {
     let manager = null;
     before(function () {
+        storage.resetStorage();
         const params = {
             storage: storage,
             channel: 'beta',

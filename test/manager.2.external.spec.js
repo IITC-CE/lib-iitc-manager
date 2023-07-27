@@ -21,6 +21,7 @@ const expectThrowsAsync = async (method, errorMessage) => {
 describe('manage.js external plugins integration tests', function () {
     let manager = null;
     before(function () {
+        storage.resetStorage();
         const params = {
             storage: storage,
             channel: 'release',
@@ -387,7 +388,9 @@ describe('manage.js external plugins integration tests', function () {
 
             expect(db_data['release_plugins_flat'][external_1_uid]['status'], "release_plugins_flat['status']: " + external_1_uid).to.equal('off');
 
-            expect(db_data['release_plugins_flat'][external_1_uid]['code'], "release_plugins_flat['code']: " + external_1_uid).to.have.lengthOf(578);
+            expect(db_data['release_plugins_flat'][external_1_uid]['code'], "release_plugins_flat['code']: " + external_1_uid).to.have.lengthOf(
+                external_code.length
+            );
 
             expect(db_data['release_plugins_flat'][external_1_uid]['override'], "release_plugins_flat['override']: " + external_1_uid).to.not.be.true;
         });
