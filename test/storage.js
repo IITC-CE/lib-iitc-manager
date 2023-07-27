@@ -52,7 +52,11 @@ export default {
      */
     async get(keys) {
         if (keys === null) {
-            return { ...store }; // Return a copy of all data in the store
+            const data = {};
+            for (const key in store) {
+                data[key] = this._get_one(key);
+            }
+            return data;
         }
         keys = this._one_to_array(keys);
         if (Array.isArray(keys)) {
