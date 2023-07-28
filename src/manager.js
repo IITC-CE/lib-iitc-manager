@@ -3,6 +3,7 @@
 import { Worker } from './worker.js';
 import * as migrations from './migrations.js';
 import { getUID, isSet } from './helpers.js';
+import * as backup from './backup.js';
 
 /**
  * @classdesc This class contains methods for managing IITC and plugins.
@@ -297,5 +298,60 @@ export class Manager extends Worker {
         let all_plugins = await this.storage.get([this.channel + '_plugins_flat']).then((data) => data[this.channel + '_plugins_flat']);
         if (all_plugins === undefined) return null;
         return all_plugins[uid];
+    }
+
+    /**
+     * Asynchronously retrieves backup data based on the specified parameters.
+     *
+     * @async
+     * @param {BackupParams} params - The parameters for the backup data retrieval.
+     * @return {Promise<object>} A promise that resolves to the backup data.
+     */
+    async getBackupData(params) {
+        // Process the input parameters using the 'paramsProcessing' function from the 'backup' module.
+        params = backup.paramsProcessing(params);
+
+        // Initialize the backup_data object with its properties.
+        const backup_data = {
+            external_plugins: {},
+            data: {
+                iitc_settings: {},
+                plugins_data: {},
+                app: 'IITC Button',
+            },
+        };
+
+        // Retrieve all_storage using the 'get' method of 'storage' module.
+        const all_storage = await this.storage.get(null);
+
+        if (params.settings) backup_data.data.iitc_settings = backup.exportIitcSettings(all_storage);
+        if (params.data) backup_data.data.plugins_data = backup.exportPluginsSettings(all_storage);
+        if (params.external) backup_data.external_plugins = backup.exportExternalPlugins(all_storage);
+
+        // Return the backup_data object.
+        return backup_data;
+    }
+
+    /**
+     * Asynchronously sets backup data based on the specified parameters.
+     *
+     * This function takes the provided parameters and backup data object and sets the data
+     * accordingly. The input parameters are processed using the 'paramsProcessing' function
+     * from the 'backup' module. Depending on the parameters, the function imports IITC settings,
+     * plugin data, and external plugins into the 'this' object using appropriate functions from
+     * the 'backup' module.
+     *
+     * @async
+     * @param {BackupParams} params - The parameters for setting the backup data.
+     * @param {object} backup_data - The backup data object containing the data to be set.
+     * @return {Promise<void>} A promise that resolves when the backup data is set.
+     */
+    async setBackupData(params, backup_data) {
+        // Process the input parameters using the 'paramsProcessing' function from the 'backup' module.
+        params = backup.paramsProcessing(params);
+
+        if (params.settings) await backup.importIitcSettings(this, backup_data.data.iitc_settings);
+        if (params.data) await backup.importPluginsSettings(this, backup_data.data.plugins_data);
+        if (params.external) await backup.importExternalPlugins(this, backup_data.external_plugins);
     }
 }
