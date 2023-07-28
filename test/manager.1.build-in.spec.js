@@ -8,6 +8,7 @@ import { expect } from 'chai';
 describe('manage.js build-in plugins integration tests', function () {
     let manager = null;
     before(function () {
+        storage.resetStorage();
         const params = {
             storage: storage,
             channel: 'release',

@@ -142,6 +142,15 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
  */
 
 /**
+ * Parameters for retrieving backup data.
+ *
+ * @typedef {Object} BackupParams
+ * @property {boolean} settings - Whether to import/export IITC settings.
+ * @property {boolean} data - Whether to import/export plugins' data.
+ * @property {boolean} external - Whether to import/export external plugins.
+ */
+
+/**
  * @classdesc This class contains methods for managing IITC and plugins.
  */
 export class Worker {
