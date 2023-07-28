@@ -1,6 +1,6 @@
 {
   "name": "lib-iitc-manager",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Library for managing IITC plugins",
   "main": "src/index.js",
   "type": "module",
