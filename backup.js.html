@@ -1,0 +1,294 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Source: backup.js | lib iitc manager</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/bootstrap.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-jsdoc.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/tui-doc.css">
+
+    
+</head>
+<body>
+<nav class="lnb" id="lnb">
+    <div class="logo" style="; height: 0">
+        
+            <a href="https://github.com/IITC-CE/lib-iitc-manager" rel="noopener noreferrer" target="_blank">
+                <img src="img/toast-ui.png" width="100%" height="100%">
+            </a>
+        
+    </div>
+    <div class="title">
+        <h1><a href="index.html" class="link">lib iitc manager</a></h1>
+        
+            <span class="version">v1.7.0</span>
+        
+    </div>
+    <div class="search-container" id="search-container">
+        <input type="text" placeholder="Search">
+        <ul></ul>
+    </div>
+    
+    <div class="lnb-api hidden"><h3>Classes</h3><ul><li><a href="Manager.html">Manager</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="Manager_sub"><div class="member-type">Methods</div><ul class="inner"><li><a href="Manager.html#addUserScripts">addUserScripts</a></li><li><a href="Manager.html#checkUpdates">checkUpdates</a></li><li><a href="Manager.html#getBackupData">getBackupData</a></li><li><a href="Manager.html#getPluginInfo">getPluginInfo</a></li><li><a href="Manager.html#inject">inject</a></li><li><a href="Manager.html#managePlugin">managePlugin</a></li><li><a href="Manager.html#run">run</a></li><li><a href="Manager.html#setBackupData">setBackupData</a></li><li><a href="Manager.html#setChannel">setChannel</a></li><li><a href="Manager.html#setCustomChannelUrl">setCustomChannelUrl</a></li><li><a href="Manager.html#setUpdateCheckInterval">setUpdateCheckInterval</a></li></ul></div></li><li><a href="Worker.html">Worker</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="Worker_sub"><div class="member-type">Methods</div><ul class="inner"><li><a href="Worker.html#_checkExternalUpdates">_checkExternalUpdates</a></li><li><a href="Worker.html#_checkInternalUpdates">_checkInternalUpdates</a></li><li><a href="Worker.html#_getCategories">_getCategories</a></li><li><a href="Worker.html#_getPluginsFlat">_getPluginsFlat</a></li><li><a href="Worker.html#_getUrl">_getUrl</a></li><li><a href="Worker.html#_init">_init</a></li><li><a href="Worker.html#_rebuildingArrayCategoriesPlugins">_rebuildingArrayCategoriesPlugins</a></li><li><a href="Worker.html#_rebuildingCategories">_rebuildingCategories</a></li><li><a href="Worker.html#_save">_save</a></li><li><a href="Worker.html#_syncStorage">_syncStorage</a></li><li><a href="Worker.html#_updateExternalPlugins">_updateExternalPlugins</a></li><li><a href="Worker.html#_updateInternalIITC">_updateInternalIITC</a></li><li><a href="Worker.html#_updateLocalPlugins">_updateLocalPlugins</a></li></ul></div></li></ul></div><div class="lnb-api hidden"><h3>Namespaces</h3><ul><li><a href="manager_.html">manager</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="manager_sub"><div class="member-type">Typedef</div><ul class="inner"><li><a href="manager_.html#.config">config</a></li><li><a href="manager_.html#.inject_plugin">inject_plugin</a></li><li><a href="manager_.html#.inject_user_script">inject_user_script</a></li><li><a href="manager_.html#.message">message</a></li><li><a href="manager_.html#.network_host">network_host</a></li><li><a href="manager_.html#.progressbar">progressbar</a></li></ul></div></li><li><a href="storage.html">storage</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="storage_sub"><div class="member-type">Typedef</div><ul class="inner"><li><a href="storage.html#.data">data</a></li><li><a href="storage.html#.get">get</a></li><li><a href="storage.html#.set">set</a></li><li><a href="storage.html#.storage">storage</a></li></ul></div></li></ul></div><div class="lnb-api hidden"><h3>Global</h3><ul><li><a href="global.html#ajaxGet">ajaxGet</a></li><li class="hidden"><a href="global.html#BackupParams">BackupParams</a></li><li><a href="global.html#check_matching">check_matching</a></li><li><a href="global.html#check_meta_match_pattern">check_meta_match_pattern</a></li><li><a href="global.html#check_url_match_pattern">check_url_match_pattern</a></li><li><a href="global.html#clearWait">clearWait</a></li><li><a href="global.html#exportExternalPlugins">exportExternalPlugins</a></li><li><a href="global.html#exportIitcSettings">exportIitcSettings</a></li><li><a href="global.html#exportPluginsSettings">exportPluginsSettings</a></li><li><a href="global.html#getUID">getUID</a></li><li><a href="global.html#getUniqId">getUniqId</a></li><li><a href="global.html#humanize_match">humanize_match</a></li><li><a href="global.html#importExternalPlugins">importExternalPlugins</a></li><li><a href="global.html#importIitcSettings">importIitcSettings</a></li><li><a href="global.html#importPluginsSettings">importPluginsSettings</a></li><li><a href="global.html#isSet">isSet</a></li><li><a href="global.html#paramsProcessing">paramsProcessing</a></li><li><a href="global.html#parseMeta">parseMeta</a></li><li class="hidden"><a href="global.html#plugin">plugin</a></li><li><a href="global.html#testInclude">testInclude</a></li><li><a href="global.html#testMatch">testMatch</a></li><li><a href="global.html#wait">wait</a></li></ul></div>
+</nav>
+<div id="resizer"></div>
+
+<div class="main" id="main">
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3
+
+import { parseMeta } from './helpers.js';
+import deepmerge from '@bundled-es-modules/deepmerge';
+
+/**
+ * Processes the input parameters for backup data retrieval.
+ *
+ * This function takes an input object containing parameters for backup data retrieval
+ * and returns a new object with processed parameters. If the input parameters are not
+ * an object, an empty object is used as the default value. The function combines the
+ * input parameters with default parameters to ensure all required properties are present.
+ *
+ * @param {BackupParams} params - The parameters for setting the backup data.
+ * @returns {Object} The processed parameters object.
+ */
+export function paramsProcessing(params) {
+    if (typeof params !== 'object') params = {};
+
+    // Default parameters
+    const default_params = {
+        settings: false,
+        data: false,
+        external: false,
+    };
+
+    // Combine the default parameters with the input parameters using spread syntax
+    return { ...default_params, ...params };
+}
+
+/**
+ * Exports specific IITC settings from the provided storage object.
+ *
+ * This function takes a storage object and extracts specific IITC settings based on
+ * predefined keys. It creates a new object containing only the specified IITC settings
+ * and returns it.
+ *
+ * @param {Object} all_storage - The storage object containing all data.
+ * @returns {Object} An object containing specific IITC settings.
+ */
+export const exportIitcSettings = (all_storage) => {
+    const iitc_settings = {};
+
+    // An array of predefined keys for IITC settings
+    const storage_keys = ['channel', 'network_host', 'release_update_check_interval', 'beta_update_check_interval', 'custom_update_check_interval'];
+
+    // Loop through all_storage and check if the keys are present in storage_keys
+    // If present, add them to the iitc_settings object
+    for (const key in all_storage) {
+        if (storage_keys.includes(key)) {
+            iitc_settings[key] = all_storage[key];
+        }
+    }
+    return iitc_settings;
+};
+
+/**
+ * Exports specific plugin settings from the provided storage object.
+ *
+ * This function takes a storage object and extracts plugin settings that have keys starting
+ * with the prefix 'VMin'. It creates a new object containing only the plugin settings
+ * and returns it.
+ *
+ * @param {Object} all_storage - The storage object containing all data.
+ * @returns {Object} An object containing specific plugin settings.
+ */
+export const exportPluginsSettings = (all_storage) => {
+    const plugins_storage = {};
+
+    // Loop through all_storage and check if the keys start with the prefix 'VMin'
+    // If so, add them to the plugins_storage object
+    for (const key in all_storage) {
+        if (key.startsWith('VMin')) {
+            plugins_storage[key] = all_storage[key];
+        }
+    }
+    return plugins_storage;
+};
+
+/**
+ * Exports external plugins from the provided storage object.
+ *
+ * This function takes a storage object and extracts external plugins based on predefined keys.
+ * It creates a new object containing the external plugins organized by their channels and filenames,
+ * and returns it.
+ *
+ * @param {Object} all_storage - The storage object containing all data.
+ * @returns {Object} An object containing external plugins organized by channels and filenames.
+ */
+export const exportExternalPlugins = (all_storage) => {
+    const external_plugins = {};
+
+    // An array of predefined keys for external plugins
+    const storage_keys = ['release_plugins_user', 'beta_plugins_user', 'custom_plugins_user'];
+
+    // Loop through all_storage and check if the keys are present in storage_keys
+    // If present, process and add the external plugins to the external_plugins object
+    for (const key in all_storage) {
+        if (storage_keys.includes(key)) {
+            // Extract the channel name from the key by splitting at '_'
+            const channel = key.split('_')[0];
+            external_plugins[channel] = {};
+
+            // Loop through each plugin UID in the current key's storage data
+            for (const plugin_uid in all_storage[key]) {
+                // Get the plugin's filename and code from the storage data and add to the external_plugins object
+                const plugin_filename = all_storage[key][plugin_uid]['filename'];
+                external_plugins[channel][plugin_filename] = all_storage[key][plugin_uid]['code'];
+            }
+        }
+    }
+
+    return external_plugins;
+};
+
+/**
+ * Imports IITC settings from the provided backup object.
+ *
+ * @async
+ * @param {Object} self - IITC manager object.
+ * @param {Object} backup - The backup object containing IITC settings to import.
+ * @returns {Promise&lt;void>} A promise that resolves when the import is complete.
+ */
+export const importIitcSettings = async (self, backup) => {
+    const backup_obj = Object.assign({}, backup);
+    const default_channel = self.channel;
+
+    // Set the IITC settings from the backup object into the storage
+    await self.storage.set(backup_obj);
+
+    // Check if the channel in the backup object is different from the original channel
+    const set_channel = backup_obj.channel;
+    if (set_channel !== default_channel) {
+        await self.setChannel(set_channel);
+    }
+};
+
+/**
+ * Imports plugin settings from the provided backup object.
+ *
+ * The function first retrieves all data from the storage object
+ * using `self.storage.get(null)` and filters out the records with keys starting with 'VMin'
+ * to create a new object `vMinRecords` containing only plugin-related data. The function then
+ * merges the `vMinRecords` object with the provided backup object using the `deepmerge` library,
+ * resulting in a new storage object `new_storage` that contains updated plugin settings. Finally,
+ * the updated storage object is set into the 'self' object using `self.storage.set()`.
+ *
+ * @async
+ * @param {Object} self - IITC manager object.
+ * @param {Object} backup - The backup object containing plugin settings to import.
+ * @returns {Promise&lt;void>} A promise that resolves when the import is complete.
+ */
+export const importPluginsSettings = async (self, backup) => {
+    const all_storage = await self.storage.get(null);
+
+    // Create a new object containing only plugin-related data (keys starting with 'VMin')
+    const vMinRecords = {};
+    Object.keys(all_storage).forEach((key) => {
+        if (key.startsWith('VMin')) {
+            vMinRecords[key] = all_storage[key];
+        }
+    });
+
+    // Merge the 'vMinRecords' object with the provided backup object and set into storage
+    const new_storage = deepmerge(vMinRecords, backup);
+    await self.storage.set(new_storage);
+};
+
+/**
+ * Imports external plugins from the provided backup object.
+ *
+ * The function iterates through each channel in the backup object,
+ * sets the current channel using `self.setChannel()`, and then extracts the plugin information
+ * (metadata and code) for each plugin in the channel. The plugin information is added to the 'scripts'
+ * array, which is then passed to `self.addUserScripts()` to add the external plugins. After processing
+ * all channels, the function sets the default channel using `self.setChannel()` if it was changed during
+ * the import process.
+ *
+ * @async
+ * @param {Object} self - IITC manager object.
+ * @param {Object} backup - The backup object containing external plugins to import.
+ * @returns {Promise&lt;void>} A promise that resolves when the import is complete.
+ */
+export const importExternalPlugins = async (self, backup) => {
+    const default_channel = self.channel;
+
+    // Iterate through each channel in the backup object
+    for (const channel of Object.keys(backup)) {
+        // Initialize an empty array to store the plugin information (metadata and code)
+        const scripts = [];
+        await self.setChannel(channel);
+
+        // Iterate through each plugin in the current channel and extract plugin information
+        for (const [filename, code] of Object.entries(backup[channel])) {
+            // Parse the metadata from the plugin code using the 'parseMeta()' function
+            const meta = parseMeta(code);
+            meta['filename'] = filename;
+
+            // Push the plugin information (metadata and code) to the 'scripts' array
+            scripts.push({ meta: meta, code: code });
+        }
+
+        // Add the external plugins using the 'self.addUserScripts()' method
+        await self.addUserScripts(scripts);
+    }
+
+    // If the current channel is different from the default channel,
+    // set the default channel using the 'self.setChannel()' method
+    if (self.channel !== default_channel) {
+        await self.setChannel(default_channel);
+    }
+};
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<footer>
+    <img class="logo" src="img/toast-ui.png" style="; height: 0">
+    <div class="footer-text">Ingress Intel Total Conversion (Community Edition)</div>
+</footer>
+<script>prettyPrint();</script>
+<script src="scripts/jquery.min.js"></script>
+<script src="scripts/tui-doc.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+    <script>
+        var id = '_sub'.replace(/"/g, '_');
+        var selectedApi = document.getElementById(id); // do not use jquery selector
+        var $selectedApi = $(selectedApi);
+
+        $selectedApi.removeClass('hidden');
+        $selectedApi.parent().find('.glyphicon').removeClass('glyphicon-plus').addClass('glyphicon-minus');
+        showLnbApi();
+    </script>
+
+</body>
+</html>
