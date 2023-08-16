@@ -216,7 +216,7 @@ export class Worker {
         } else {
             data = await this.storage.get([key]).then((result) => result[key]);
         }
-        if (typeof data === 'undefined') data = defaults;
+        if (!isSet(data)) data = defaults;
 
         this[key] = data;
         await this._save({ [key]: data });
