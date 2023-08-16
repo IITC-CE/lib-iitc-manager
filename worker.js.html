@@ -30,7 +30,7 @@
     <div class="title">
         <h1><a href="index.html" class="link">lib iitc manager</a></h1>
         
-            <span class="version">v1.7.0</span>
+            <span class="version">v1.7.1</span>
         
     </div>
     <div class="search-container" id="search-container">
@@ -268,7 +268,7 @@ export class Worker {
         } else {
             data = await this.storage.get([key]).then((result) => result[key]);
         }
-        if (typeof data === 'undefined') data = defaults;
+        if (!isSet(data)) data = defaults;
 
         this[key] = data;
         await this._save({ [key]: data });
