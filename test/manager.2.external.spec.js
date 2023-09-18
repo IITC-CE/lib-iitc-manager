@@ -497,6 +497,7 @@ describe('manage.js external plugins integration tests', function () {
         it('Check getIITCCore() for standard IITC', async function () {
             const script = await manager.getIITCCore();
             expect(script, 'getIITCCore()').to.have.all.keys(
+                'uid',
                 'author',
                 'code',
                 'description',
