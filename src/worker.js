@@ -371,6 +371,7 @@ export class Worker {
             const iitc_code = await this._getUrl(this.network_host[this.channel] + '/total-conversion-build.user.js');
             if (iitc_code) {
                 const iitc_core = parseMeta(iitc_code);
+                iitc_core['uid'] = getUID(iitc_core);
                 iitc_core['code'] = iitc_code;
                 await this._save({
                     iitc_core: iitc_core,
@@ -603,6 +604,7 @@ export class Worker {
                 if (plugin_uid in data) {
                     data[plugin_uid]['status'] = plugins_user[plugin_uid]['status'];
                     data[plugin_uid]['code'] = plugins_user[plugin_uid]['code'];
+                    data[plugin_uid]['user'] = true;
                     data[plugin_uid]['override'] = true;
                 } else {
                     data[plugin_uid] = plugins_user[plugin_uid];
