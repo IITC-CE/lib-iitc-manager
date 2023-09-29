@@ -1,6 +1,6 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
-import { parseMeta } from './helpers.js';
+import { isSet, parseMeta } from './helpers.js';
 import deepmerge from '@bundled-es-modules/deepmerge';
 
 /**
@@ -78,9 +78,9 @@ export const exportPluginsSettings = (all_storage) => {
 };
 
 /**
- * Exports external plugins from the provided storage object.
+ * Exports external IITC core and plugins from the provided storage object.
  *
- * This function takes a storage object and extracts external plugins based on predefined keys.
+ * This function takes a storage object and extracts external IITC core and plugins based on predefined keys.
  * It creates a new object containing the external plugins organized by their channels and filenames,
  * and returns it.
  *
@@ -91,7 +91,14 @@ export const exportExternalPlugins = (all_storage) => {
     const external_plugins = {};
 
     // An array of predefined keys for external plugins
-    const storage_keys = ['release_plugins_user', 'beta_plugins_user', 'custom_plugins_user'];
+    const storage_keys = [
+        'release_iitc_core_user',
+        'beta_iitc_core_user',
+        'custom_iitc_core_user',
+        'release_plugins_user',
+        'beta_plugins_user',
+        'custom_plugins_user',
+    ];
 
     // Loop through all_storage and check if the keys are present in storage_keys
     // If present, process and add the external plugins to the external_plugins object
@@ -99,7 +106,19 @@ export const exportExternalPlugins = (all_storage) => {
         if (storage_keys.includes(key)) {
             // Extract the channel name from the key by splitting at '_'
             const channel = key.split('_')[0];
-            external_plugins[channel] = {};
+            const variant = key.split('_')[1];
+
+            // Create a channel if it doesn't exist
+            if (!(channel in external_plugins)) {
+                external_plugins[channel] = {};
+            }
+
+            // Add a custom IITC core to the external_plugins object
+            if (variant === 'iitc' && isSet(all_storage[key]) && isSet(all_storage[key]['code'])) {
+                const plugin_filename = 'total-conversion-build.user.js';
+                external_plugins[channel][plugin_filename] = all_storage[key]['code'];
+                continue;
+            }
 
             // Loop through each plugin UID in the current key's storage data
             for (const plugin_uid in all_storage[key]) {
