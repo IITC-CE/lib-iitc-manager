@@ -647,14 +647,14 @@ export class Worker {
 
         // Build local plugins
         Object.keys(plugins_local).forEach((plugin_uid) => {
-            data[plugin_uid]['status'] = plugins_local[plugin_uid]['status'];
+            data[plugin_uid]['status'] = plugins_local[plugin_uid]['status'] || 'off';
         });
 
         // Build External plugins
         if (Object.keys(plugins_user).length) {
             Object.keys(plugins_user).forEach((plugin_uid) => {
                 if (plugin_uid in data) {
-                    data[plugin_uid]['status'] = plugins_user[plugin_uid]['status'];
+                    data[plugin_uid]['status'] = plugins_user[plugin_uid]['status'] || 'off';
                     data[plugin_uid]['code'] = plugins_user[plugin_uid]['code'];
                     data[plugin_uid]['user'] = true;
                     data[plugin_uid]['override'] = true;
