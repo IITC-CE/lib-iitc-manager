@@ -34,6 +34,7 @@ describe('test migrations', function () {
                     category: 'Controls',
                 },
             },
+            release_update_check_interval: 6,
             lastversion: '1.7.0',
             storage_version: 0,
         });
@@ -61,6 +62,10 @@ describe('test migrations', function () {
             expect(db_data['release_iitc_core']).to.be.an('object');
             expect(db_data['release_iitc_core']['author']).to.equal('jonatkins');
             expect(db_data['release_iitc_core']['code']).to.to.include('jonatkins');
+        });
+        it('Should change _update_check_interval from hours to seconds', async function () {
+            const db_data = await storage.get(['release_update_check_interval']);
+            expect(db_data['release_update_check_interval']).to.be.equal(6 * 60 * 60);
         });
     });
 });

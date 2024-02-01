@@ -47,7 +47,7 @@ export const exportIitcSettings = (all_storage) => {
     // Loop through all_storage and check if the keys are present in storage_keys
     // If present, add them to the iitc_settings object
     for (const key in all_storage) {
-        if (storage_keys.includes(key)) {
+        if (storage_keys.includes(key) && isSet(all_storage[key])) {
             iitc_settings[key] = all_storage[key];
         }
     }

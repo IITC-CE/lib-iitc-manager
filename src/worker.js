@@ -263,7 +263,7 @@ export class Worker {
     async _getUrl(url, variant, retry) {
         if (retry > 1) {
             let seconds = retry * retry;
-            if (seconds > 60 * 60 * 24) seconds = 60 * 60 * 24;
+            if (seconds > 30 * 60) seconds = 30 * 60; // maximum is 30 minutes
             try {
                 this.message('serverNotAvailableRetry', String(seconds));
             } catch {
@@ -311,7 +311,7 @@ export class Worker {
             this.channel + '_plugins_user',
         ]);
 
-        let update_check_interval = storage[this.channel + '_update_check_interval'] * 60 * 60;
+        let update_check_interval = storage[this.channel + '_update_check_interval'];
         if (!update_check_interval) update_check_interval = 24 * 60 * 60;
 
         if (!isSet(storage[this.channel + '_last_modified']) || !isSet(storage.last_check_update)) {
@@ -455,7 +455,7 @@ export class Worker {
     async _checkExternalUpdates(force) {
         const local = await this.storage.get(['channel', 'last_check_external_update', 'external_update_check_interval', this.channel + '_plugins_user']);
 
-        let update_check_interval = local['external_update_check_interval'] * 60 * 60;
+        let update_check_interval = local['external_update_check_interval'];
         if (!update_check_interval) {
             update_check_interval = 24 * 60 * 60;
         }
