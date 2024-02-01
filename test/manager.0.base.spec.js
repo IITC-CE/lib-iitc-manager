@@ -57,6 +57,10 @@ describe('manage.js base integration tests', function () {
             const fn = await manager.setUpdateCheckInterval(24 * 60 * 60, 'release');
             expect(fn).to.be.undefined;
         });
+        it('Should set correct interval in seconds', async function () {
+            const interval = await storage.get(['release_update_check_interval']).then((data) => data.release_update_check_interval);
+            expect(interval).to.equal(24 * 60 * 60);
+        });
     });
 
     describe('inject', function () {

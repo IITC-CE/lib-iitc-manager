@@ -6,7 +6,7 @@ export function number_of_migrations() {
     return migrates.length;
 }
 
-const migrates = [migration_0001, migration_0002, migration_0003, migration_0004];
+const migrates = [migration_0001, migration_0002, migration_0003, migration_0004, migration_0005];
 
 export async function migrate(storage) {
     const storage_iitc_code = await storage.get(['release_iitc_code', 'beta_iitc_code', 'custom_iitc_code']);
@@ -25,6 +25,12 @@ export async function migrate(storage) {
         'local_plugins_user',
     ]);
     const storage_misc = await storage.get(['channel', 'network_host', 'lastversion', 'storage_version']);
+    const update_check_interval = await storage.get([
+        'release_update_check_interval',
+        'beta_update_check_interval',
+        'custom_update_check_interval',
+        'external_update_check_interval',
+    ]);
 
     if (!isSet(storage_misc['storage_version']) && isSet(storage_misc['lastversion'])) {
         storage_misc['storage_version'] = 0;
@@ -34,13 +40,13 @@ export async function migrate(storage) {
     for (const migrate of migrates) {
         const index = migrates.indexOf(migrate);
         if (parseInt(storage_misc['storage_version']) < index + 1) {
-            await migrate(storage_iitc_code, storage_plugins_flat, storage_plugins_user, storage_misc);
+            await migrate(storage_iitc_code, storage_plugins_flat, storage_plugins_user, storage_misc, update_check_interval);
             is_migrated = true;
         }
     }
 
     storage_misc['storage_version'] = migrates.length;
-    await storage.set({ ...storage_iitc_code, ...storage_plugins_flat, ...storage_plugins_user, ...storage_misc });
+    await storage.set({ ...storage_iitc_code, ...storage_plugins_flat, ...storage_plugins_user, ...storage_misc, ...update_check_interval });
     return is_migrated;
 }
 
@@ -93,6 +99,19 @@ async function migration_0004(storage_iitc_code) {
         if (isSet(code)) {
             storage_iitc_code[channel + 'iitc_core'] = parseMeta(code);
             storage_iitc_code[channel + 'iitc_core']['code'] = code;
+        }
+    }
+}
+
+async function migration_0005(storage_iitc_code, storage_plugins_flat, storage_plugins_user, storage_misc, update_check_interval) {
+    for (let channel of Object.keys(update_check_interval)) {
+        const interval = update_check_interval[channel];
+        if (!isSet(interval)) {
+            delete update_check_interval[channel];
+            continue;
+        }
+        if (interval !== 24 * 60 * 60) {
+            update_check_interval[channel] = interval * 60 * 60;
         }
     }
 }
