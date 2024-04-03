@@ -30,6 +30,8 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
  * into the Ingress Intel window.
  * @property {manager.inject_plugin} inject_plugin - Function for injecting UserScript plugin
  * into the Ingress Intel window.
+ * @property {manager.plugin_event} plugin_event - The function is called when the plugin status changes
+ * (enabled/disabled, updated).
  */
 
 /**
@@ -115,6 +117,22 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
  */
 
 /**
+ * Called to handle changes in plugin status for multiple plugins at once, such as enabling, disabling, or updating.
+ * This function is invoked with detailed information about the plugin events, encapsulating the changes in a single call.
+ * The input object contains the type of event and a mapping of unique identifiers (UIDs) to plugin data, enabling
+ * batch processing of plugin state changes.
+ *
+ * @callback manager.plugin_event
+ * @memberOf manager
+ * @param {Object} plugin_event - An object containing the event type and a mapping of plugin data.
+ * @param {'add'|'update'|'remove'} plugin_event.event - The type of event that occurred,
+ *        indicating the action being taken on the plugins.
+ * @param {Object.<string, Object|{}>} plugin_event.plugins - A mapping of plugin UIDs to their respective data objects.
+ *        For 'add' and 'update' events, these objects contain the relevant plugin data.
+ *        For 'remove' events, the corresponding data object will be an empty object ({}).
+ */
+
+/**
  * Key-value data in storage
  *
  * @memberOf storage
@@ -172,6 +190,7 @@ export class Worker {
         this.progressbar = this.config.progressbar;
         this.inject_user_script = this.config.inject_user_script || function () {};
         this.inject_plugin = this.config.inject_plugin || function () {};
+        this.plugin_event = this.config.plugin_event || function () {};
 
         this.is_initialized = false;
         this._init().then();
@@ -376,6 +395,7 @@ export class Worker {
                 await this._save({
                     iitc_core: iitc_core,
                 });
+                await this._sendPluginsEvent([iitc_core['uid']], 'update', 'local');
             }
         };
 
@@ -495,6 +515,7 @@ export class Worker {
         if (plugins_user) {
             let exist_updates = false;
             const hash = `?${Date.now()}`;
+            const updated_uids = [];
 
             for (const uid of Object.keys(plugins_user)) {
                 const plugin = plugins_user[uid];
@@ -512,6 +533,7 @@ export class Worker {
                                 exist_updates = true;
                                 plugins_user[uid] = meta;
                                 plugins_user[uid]['code'] = response_code;
+                                updated_uids.push(uid);
                             }
                         }
                     }
@@ -522,6 +544,7 @@ export class Worker {
                 await this._save({
                     plugins_user: plugins_user,
                 });
+                await this._sendPluginsEvent(updated_uids, 'update', 'user');
             }
         }
     }
@@ -539,17 +562,27 @@ export class Worker {
         // If no plugins installed
         if (!isSet(plugins_local)) return {};
 
+        const updated_uids = [];
+        const removed_uids = [];
+
         // Iteration local plugins
         for (const uid of Object.keys(plugins_local)) {
             let filename = plugins_local[uid]['filename'];
 
             if (filename && plugins_flat[uid]) {
                 let code = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
-                if (code) plugins_local[uid]['code'] = code;
+                if (code) {
+                    plugins_local[uid]['code'] = code;
+                    updated_uids.push(uid);
+                }
             } else {
                 delete plugins_local[uid];
+                removed_uids.push(uid);
             }
         }
+
+        if (updated_uids.length) await this._sendPluginsEvent(updated_uids, 'update', 'local');
+        if (removed_uids.length) await this._sendPluginsEvent(removed_uids, 'remove', 'local');
 
         return plugins_local;
     }
@@ -614,5 +647,61 @@ export class Worker {
         }
 
         return data;
+    }
+
+    /**
+     * Asynchronously sends an event for a list of plugins based on the given parameters.
+     * It calls `plugin_event` once with the event type and a map of the selected plugins.
+     * If the action is "remove", the plugins are represented by empty objects.
+     *
+     * @async
+     * @param {string[]} uids - Array of unique identifiers (UID) of plugins.
+     * @param {'add'|'update'|'remove'} event - The type of event to handle.
+     * @param {'local'|'user'} [update_type] - Specifies the update type to determine which plugin versions to use.
+     * When set to 'local', actions with plugins marked as "user" are ignored, and vice versa.
+     * This parameter is intended to ignore updates from 'local' plugins when a 'user' plugin is used, and vice versa.
+     * If not specified, no ignoring logic is applied, and the function attempts to process the plugin event
+     * based on available data.
+     * @returns {Promise<void>} A promise that resolves when the event has been processed.
+     */
+    async _sendPluginsEvent(uids, event, update_type) {
+        const validEvents = ['add', 'update', 'remove'];
+        if (!validEvents.includes(event)) return;
+
+        const plugins = {};
+
+        for (const uid of uids) {
+            const isCore = uid === this.iitc_main_script_uid;
+            if (isCore && event !== 'update') continue;
+
+            const storageKeys = isCore
+                ? [`${this.channel}_iitc_core`, `${this.channel}_iitc_core_user`]
+                : [`${this.channel}_plugins_local`, `${this.channel}_plugins_user`];
+            const storage = await this.storage.get(storageKeys);
+
+            let plugin_local = isCore ? storage[`${this.channel}_iitc_core`] : storage[`${this.channel}_plugins_local`]?.[uid];
+            let plugin_user = isCore ? storage[`${this.channel}_iitc_core_user`] : storage[`${this.channel}_plugins_user`]?.[uid];
+
+            if (event === 'remove' || (!isSet(plugin_local) && !isSet(plugin_user))) {
+                plugins[uid] = {};
+                continue;
+            }
+
+            const useLocal = !isSet(plugin_user) && (update_type === undefined || update_type === 'local');
+            const useUser = isSet(plugin_user) && (update_type === undefined || update_type === 'user');
+
+            if (useLocal) {
+                plugins[uid] = plugin_local || {};
+            } else if (useUser) {
+                plugins[uid] = plugin_user || {};
+            }
+        }
+
+        if (Object.keys(plugins).length) {
+            this.plugin_event({
+                event,
+                plugins,
+            });
+        }
     }
 }

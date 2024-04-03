@@ -10,15 +10,24 @@ import * as backup from './backup.js';
  */
 export class Manager extends Worker {
     /**
-     * Changes the update channel.
+     * Changes the update channel and calls for an update.
      *
      * @async
      * @param {"release" | "beta" | "custom"} channel - Update channel for IITC and plugins.
      * @return {Promise<void>}
      */
     async setChannel(channel) {
+        // Get currently enabled plugins and signal their removal
+        await this._sendPluginsEvent(Object.keys(await this.getEnabledPlugins()), 'remove');
+
+        // Update the channel and reset last check for updates
         await this._save({ channel: channel, last_check_update: null });
         this.channel = channel;
+
+        // After changing the channel, get the new set of enabled plugins and signal their addition
+        await this._sendPluginsEvent(Object.keys(await this.getEnabledPlugins()), 'add');
+
+        // Finally, check for updates in the new channel
         await this.checkUpdates();
     }
 
@@ -72,9 +81,12 @@ export class Manager extends Worker {
     }
 
     /**
-     * Invokes the injection of IITC and plugins to the page
+     * Returns an object of all enabled plugins, including IITC core, with plugin UID as the key and plugin data as the value.
+     *
+     * @async
+     * @returns {Promise<Object>} A promise that resolves to an object containing enabled plugins and IITC core data.
      */
-    async inject() {
+    async getEnabledPlugins() {
         const storage = await this.storage.get([
             this.channel + '_iitc_core',
             this.channel + '_iitc_core_user',
@@ -83,31 +95,52 @@ export class Manager extends Worker {
             this.channel + '_plugins_user',
         ]);
 
-        const plugins_local = storage[this.channel + '_plugins_local'];
-        const plugins_user = storage[this.channel + '_plugins_user'];
+        const plugins_local = storage[this.channel + '_plugins_local'] || {};
+        const plugins_user = storage[this.channel + '_plugins_user'] || {};
 
+        const enabled_plugins = {};
         let iitc_script = await this.getIITCCore(storage);
         if (iitc_script !== null) {
-            const plugins_to_inject = [];
+            enabled_plugins[this.iitc_main_script_uid] = iitc_script;
 
-            // IITC is injected first, then plugins. This is the correct order, because the initialization of IITC takes some time.
-            // During this time, plugins have time to be added to `window.bootPlugins` and are not started immediately.
-            // In addition, thanks to the injecting of plugins after IITC,
-            // plugins do not throw errors when attempting to access IITC, leaflet, etc. during the execution of the wrapper.
-            plugins_to_inject.push(iitc_script);
-            const plugins_flat = storage[this.channel + '_plugins_flat'];
+            const plugins_flat = storage[this.channel + '_plugins_flat'] || {};
             for (const uid of Object.keys(plugins_flat)) {
                 if (plugins_flat[uid]['status'] === 'on') {
-                    plugins_to_inject.push(plugins_flat[uid]['user'] === true ? plugins_user[uid] : plugins_local[uid]);
+                    // If the plugin is marked as 'user', use its 'user' version; otherwise, use its 'local' version
+                    enabled_plugins[uid] = plugins_flat[uid]['user'] === true ? plugins_user[uid] || {} : plugins_local[uid] || {};
                 }
             }
+        }
+        return enabled_plugins;
+    }
 
-            await Promise.all(
-                plugins_to_inject.map((pl) => {
-                    this.inject_user_script(pl['code']);
-                    this.inject_plugin(pl);
-                })
-            );
+    /**
+     * Invokes the injection of IITC core script and plugins to the page.
+     * IITC core is injected first to ensure it initializes before any plugins. This is crucial because
+     * the initialization of IITC takes some time, and during this time, plugins can be added to `window.bootPlugins`
+     * without being started immediately. Injecting IITC first also prevents plugins from throwing errors
+     * when attempting to access IITC, leaflet, or other dependencies during their initialization.
+     *
+     * @async
+     * @returns {Promise<void>}
+     */
+    async inject() {
+        const plugins = await this.getEnabledPlugins();
+
+        // Ensure IITC core is injected first
+        if (plugins[this.iitc_main_script_uid]) {
+            this.inject_user_script(plugins[this.iitc_main_script_uid].code);
+            this.inject_plugin(plugins[this.iitc_main_script_uid]);
+            delete plugins[this.iitc_main_script_uid]; // Remove IITC core from the list to avoid re-injecting
+        }
+
+        // Now inject the rest of the plugins
+        for (const uid in plugins) {
+            const plugin = plugins[uid];
+            if (plugin && plugin.code) {
+                this.inject_user_script(plugin.code);
+                this.inject_plugin(plugin);
+            }
         }
     }
 
@@ -141,22 +174,24 @@ export class Manager extends Worker {
         if (!isSet(plugins_user)) plugins_user = {};
 
         if (action === 'on') {
-            if ((plugins_flat[uid]['user'] === false && plugins_local[uid] !== undefined) || plugins_flat[uid]['user'] === true) {
+            const isUserPlugin = plugins_flat[uid]['user'];
+            if ((isUserPlugin === false && plugins_local[uid] !== undefined) || isUserPlugin === true) {
                 plugins_flat[uid]['status'] = 'on';
-                if (plugins_flat[uid]['user']) {
+                if (isUserPlugin) {
                     plugins_user[uid]['status'] = 'on';
                 } else {
                     plugins_local[uid]['status'] = 'on';
                 }
 
-                this.inject_user_script(plugins_flat[uid]['user'] === true ? plugins_user[uid]['code'] : plugins_local[uid]['code']);
-                this.inject_plugin(plugins_flat[uid]['user'] === true ? plugins_user[uid] : plugins_local[uid]);
+                this.inject_user_script(isUserPlugin === true ? plugins_user[uid]['code'] : plugins_local[uid]['code']);
+                this.inject_plugin(isUserPlugin === true ? plugins_user[uid] : plugins_local[uid]);
 
                 await this._save({
                     plugins_flat: plugins_flat,
                     plugins_local: plugins_local,
                     plugins_user: plugins_user,
                 });
+                await this._sendPluginsEvent([uid], 'add');
             } else {
                 let filename = plugins_flat[uid]['filename'];
                 let response = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
@@ -172,6 +207,7 @@ export class Manager extends Worker {
                         plugins_flat: plugins_flat,
                         plugins_local: plugins_local,
                     });
+                    await this._sendPluginsEvent([uid], 'add');
                 }
             }
         }
@@ -188,13 +224,16 @@ export class Manager extends Worker {
                 plugins_local: plugins_local,
                 plugins_user: plugins_user,
             });
+            await this._sendPluginsEvent([uid], 'remove');
         }
         if (action === 'delete') {
             if (uid === this.iitc_main_script_uid) {
                 await this._save({
                     iitc_core_user: {},
                 });
+                await this._sendPluginsEvent([uid], 'update');
             } else {
+                const isEnabled = plugins_flat[uid]['status'] === true;
                 if (plugins_flat[uid]['override']) {
                     if (plugins_local[uid] !== undefined) {
                         plugins_flat[uid] = { ...plugins_local[uid] };
@@ -212,6 +251,9 @@ export class Manager extends Worker {
                     plugins_local: plugins_local,
                     plugins_user: plugins_user,
                 });
+                if (isEnabled) {
+                    await this._sendPluginsEvent([uid], 'remove');
+                }
             }
         }
     }
@@ -246,6 +288,8 @@ export class Manager extends Worker {
         if (!isSet(plugins_local)) plugins_local = {};
         if (!isSet(plugins_user)) plugins_user = {};
 
+        const added_uids = [];
+        const updated_uids = [];
         const installed_scripts = {};
         scripts.forEach((script) => {
             let meta = script['meta'];
@@ -259,6 +303,7 @@ export class Manager extends Worker {
                     uid: plugin_uid,
                     code: code,
                 });
+                updated_uids.push(plugin_uid);
                 installed_scripts[plugin_uid] = iitc_core_user;
             } else {
                 const is_user_plugins = plugins_user[plugin_uid] !== undefined;
@@ -276,6 +321,7 @@ export class Manager extends Worker {
                     plugins_flat[plugin_uid]['status'] = 'on';
                     plugins_flat[plugin_uid]['code'] = code;
                     plugins_flat[plugin_uid]['override'] = true;
+                    updated_uids.push(plugin_uid);
                 } else {
                     let category = plugins_user[plugin_uid]['category'];
                     if (category === undefined) {
@@ -289,6 +335,7 @@ export class Manager extends Worker {
                         };
                     }
                     plugins_flat[plugin_uid] = { ...plugins_user[plugin_uid] };
+                    added_uids.push(plugin_uid);
                 }
                 plugins_flat[plugin_uid]['user'] = true;
                 installed_scripts[plugin_uid] = plugins_flat[plugin_uid];
@@ -302,6 +349,10 @@ export class Manager extends Worker {
             plugins_local: plugins_local,
             plugins_user: plugins_user,
         });
+
+        if (added_uids.length) await this._sendPluginsEvent(added_uids, 'add');
+        if (updated_uids.length) await this._sendPluginsEvent(updated_uids, 'update');
+
         return installed_scripts;
     }
 

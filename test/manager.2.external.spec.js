@@ -20,6 +20,13 @@ const expectThrowsAsync = async (method, errorMessage) => {
 
 describe('manage.js external plugins integration tests', function () {
     let manager = null;
+    const iitc_main_script_uid = 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    let plugin_event_callback = (data) => {
+        expect(data).to.have.all.keys('event', 'plugins');
+        expect(data['event']).to.equal('update');
+        expect(data['plugins']).to.have.all.keys(iitc_main_script_uid);
+        expect(data['plugins'][iitc_main_script_uid]['uid']).to.equal(iitc_main_script_uid);
+    };
     before(function () {
         storage.resetStorage();
         const params = {
@@ -35,6 +42,9 @@ describe('manage.js external plugins integration tests', function () {
             },
             inject_plugin: function callBack(data) {
                 expect(data['code']).to.include('// ==UserScript==');
+            },
+            plugin_event: (data) => {
+                plugin_event_callback(data);
             },
             progressbar: function callBack(is_show) {
                 expect(is_show).to.be.oneOf([true, false]);
@@ -61,6 +71,12 @@ describe('manage.js external plugins integration tests', function () {
         const external_2_uid = 'Bookmarks2 for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
         it('Add external plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('add');
+                expect(data['plugins']).to.have.all.keys(external_1_uid);
+                expect(data['plugins'][external_1_uid]['uid']).to.equal(external_1_uid);
+            };
             const scripts = [
                 {
                     meta: {
@@ -72,17 +88,16 @@ describe('manage.js external plugins integration tests', function () {
                     code: external_code,
                 },
             ];
-            const installed = {
-                'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion': {
-                    uid: 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    id: 'bookmarks1',
-                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    name: 'Bookmarks for maps and portals',
-                    category: 'Controls',
-                    status: 'on',
-                    user: true,
-                    code: external_code,
-                },
+            const installed = {};
+            installed[external_1_uid] = {
+                uid: external_1_uid,
+                id: 'bookmarks1',
+                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                name: 'Bookmarks for maps and portals',
+                category: 'Controls',
+                status: 'on',
+                user: true,
+                code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
             expect(run).to.deep.equal(installed);
@@ -104,6 +119,13 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Add external plugin without category', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('add');
+                expect(data['plugins']).to.have.all.keys(external_2_uid);
+                expect(data['plugins'][external_2_uid]['uid']).to.equal(external_2_uid);
+            };
+
             const scripts = [
                 {
                     meta: {
@@ -114,17 +136,16 @@ describe('manage.js external plugins integration tests', function () {
                     code: external_code,
                 },
             ];
-            const installed = {
-                'Bookmarks2 for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion': {
-                    uid: 'Bookmarks2 for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    id: 'bookmarks2',
-                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    name: 'Bookmarks2 for maps and portals',
-                    category: 'Misc',
-                    status: 'on',
-                    user: true,
-                    code: external_code,
-                },
+            const installed = {};
+            installed[external_2_uid] = {
+                uid: external_2_uid,
+                id: 'bookmarks2',
+                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                name: 'Bookmarks2 for maps and portals',
+                category: 'Misc',
+                status: 'on',
+                user: true,
+                code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
             expect(run).to.deep.equal(installed);
@@ -178,7 +199,25 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Switching to the Beta channel and back to Release', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('remove');
+                expect(data['plugins']).to.have.all.keys(external_1_uid, external_2_uid);
+                expect(data['plugins'][external_1_uid]).to.be.empty;
+            };
             expect(await manager.setChannel('beta')).to.be.undefined;
+
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.be.oneOf(['add', 'update']);
+                if (data['event'] === 'add') {
+                    expect(data['plugins']).to.have.all.keys(external_1_uid, external_2_uid);
+                    expect(data['plugins'][external_2_uid]['uid']).to.equal(external_2_uid);
+                } else {
+                    expect(data['plugins']).to.have.all.keys(iitc_main_script_uid);
+                    expect(data['plugins'][iitc_main_script_uid]['uid']).to.equal(iitc_main_script_uid);
+                }
+            };
             expect(await manager.setChannel('release')).to.be.undefined;
         });
 
@@ -188,6 +227,13 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Disable external plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('remove');
+                expect(data['plugins']).to.have.all.keys(external_2_uid);
+                expect(data['plugins'][external_2_uid]).to.be.empty;
+            };
+
             const run = await manager.managePlugin(external_2_uid, 'off');
             expect(run).to.be.undefined;
 
@@ -207,6 +253,13 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Enable external plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('add');
+                expect(data['plugins']).to.have.all.keys(external_2_uid);
+                expect(data['plugins'][external_2_uid]['uid']).to.equal(external_2_uid);
+            };
+
             const run = await manager.managePlugin(external_2_uid, 'on');
             expect(run).to.be.undefined;
 
@@ -226,6 +279,13 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Remove the first external plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('remove');
+                expect(data['plugins']).to.have.all.keys(external_2_uid);
+                expect(data['plugins'][external_2_uid]).to.be.empty;
+            };
+
             const run = await manager.managePlugin(external_2_uid, 'delete');
             expect(run).to.be.undefined;
 
@@ -240,6 +300,13 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Remove the second external plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('remove');
+                expect(data['plugins']).to.have.all.keys(external_1_uid);
+                expect(data['plugins'][external_1_uid]).to.be.empty;
+            };
+
             const run = await manager.managePlugin(external_1_uid, 'delete');
             expect(run).to.be.undefined;
 
@@ -253,6 +320,13 @@ describe('manage.js external plugins integration tests', function () {
         const external_1_uid = 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
         it('Double adding an external plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('add');
+                expect(data['plugins']).to.have.all.keys(external_1_uid);
+                expect(data['plugins'][external_1_uid]['uid']).to.equal(external_1_uid);
+            };
+
             const scripts = [
                 {
                     meta: {
@@ -273,17 +347,16 @@ describe('manage.js external plugins integration tests', function () {
                     code: external_code,
                 },
             ];
-            const installed = {
-                'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion': {
-                    uid: 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    id: 'bookmarks1',
-                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    name: 'Bookmarks for maps and portals',
-                    category: 'Controls',
-                    status: 'on',
-                    user: true,
-                    code: external_code,
-                },
+            const installed = {};
+            installed[external_1_uid] = {
+                uid: 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
+                id: 'bookmarks1',
+                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                name: 'Bookmarks for maps and portals',
+                category: 'Controls',
+                status: 'on',
+                user: true,
+                code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
             expect(run).to.deep.equal(installed);
@@ -302,6 +375,13 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Remove the external plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('remove');
+                expect(data['plugins']).to.have.all.keys(external_1_uid);
+                expect(data['plugins'][external_1_uid]).to.be.empty;
+            };
+
             const run = await manager.managePlugin(external_1_uid, 'delete');
             expect(run).to.be.undefined;
 
@@ -315,6 +395,13 @@ describe('manage.js external plugins integration tests', function () {
         const external_1_uid = 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
         it('Add external plugin and replace built-in plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('update');
+                expect(data['plugins']).to.have.all.keys(external_1_uid);
+                expect(data['plugins'][external_1_uid]['uid']).to.equal(external_1_uid);
+            };
+
             const scripts = [
                 {
                     meta: {
@@ -324,22 +411,21 @@ describe('manage.js external plugins integration tests', function () {
                     code: external_code,
                 },
             ];
-            const installed = {
-                'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion': {
-                    uid: external_1_uid,
-                    id: 'ap-stats',
-                    author: 'Hollow011',
-                    description: 'Displays the per-team AP gains available in the current view.',
-                    filename: 'ap-stats.user.js',
-                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    name: 'Available AP statistics',
-                    category: 'Info',
-                    status: 'on',
-                    override: true,
-                    user: true,
-                    version: '0.4.2',
-                    code: external_code,
-                },
+            const installed = {};
+            installed[external_1_uid] = {
+                uid: external_1_uid,
+                id: 'ap-stats',
+                author: 'Hollow011',
+                description: 'Displays the per-team AP gains available in the current view.',
+                filename: 'ap-stats.user.js',
+                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                name: 'Available AP statistics',
+                category: 'Info',
+                status: 'on',
+                override: true,
+                user: true,
+                version: '0.4.2',
+                code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
             expect(run).to.deep.equal(installed);
@@ -366,6 +452,13 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Disable external plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('remove');
+                expect(data['plugins']).to.have.all.keys(external_1_uid);
+                expect(data['plugins'][external_1_uid]).to.be.empty;
+            };
+
             const run = await manager.managePlugin(external_1_uid, 'off');
             expect(run).to.be.undefined;
 
@@ -379,6 +472,10 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Remove external plugin and replace it with built-in plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.be.empty;
+            };
+
             const run = await manager.managePlugin(external_1_uid, 'delete');
             expect(run).to.be.undefined;
 
@@ -407,22 +504,28 @@ describe('manage.js external plugins integration tests', function () {
         };
 
         it('Add external plugin and replace built-in plugin', async function () {
-            const installed = {
-                'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion': {
-                    uid: external_3_uid,
-                    id: 'missions',
-                    author: 'jonatkins',
-                    description: 'View missions. Marking progress on waypoints/missions basis. Showing mission paths on the map.',
-                    filename: 'missions.user.js',
-                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    name: 'Missions',
-                    category: 'Info',
-                    status: 'on',
-                    override: true,
-                    user: true,
-                    version: '0.3.0',
-                    code: external_code,
-                },
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('update');
+                expect(data['plugins']).to.have.all.keys(external_3_uid);
+                expect(data['plugins'][external_3_uid]['uid']).to.equal(external_3_uid);
+            };
+
+            const installed = {};
+            installed[external_3_uid] = {
+                uid: external_3_uid,
+                id: 'missions',
+                author: 'jonatkins',
+                description: 'View missions. Marking progress on waypoints/missions basis. Showing mission paths on the map.',
+                filename: 'missions.user.js',
+                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                name: 'Missions',
+                category: 'Info',
+                status: 'on',
+                override: true,
+                user: true,
+                version: '0.3.0',
+                code: external_code,
             };
             const run = await manager.addUserScripts([external_3_plugin]);
             expect(run).to.deep.equal(installed);
@@ -437,6 +540,13 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Remove external plugin and replace it with built-in plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('remove');
+                expect(data['plugins']).to.have.all.keys(external_3_uid);
+                expect(data['plugins'][external_3_uid]).to.be.empty;
+            };
+
             const run = await manager.managePlugin(external_3_uid, 'delete');
             expect(run).to.be.undefined;
 
@@ -449,8 +559,22 @@ describe('manage.js external plugins integration tests', function () {
         });
 
         it('Enable and disable build-in plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('add');
+                expect(data['plugins']).to.have.all.keys(external_3_uid);
+                expect(data['plugins'][external_3_uid]['uid']).to.equal(external_3_uid);
+            };
+
             const run1 = await manager.managePlugin(external_3_uid, 'on');
             expect(run1).to.be.undefined;
+
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('remove');
+                expect(data['plugins']).to.have.all.keys(external_3_uid);
+                expect(data['plugins'][external_3_uid]).to.be.empty;
+            };
 
             const run2 = await manager.managePlugin(external_3_uid, 'off');
             expect(run2).to.be.undefined;
@@ -476,6 +600,13 @@ describe('manage.js external plugins integration tests', function () {
             code: external_code,
         };
         it('Add custom IITC core script', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('update');
+                expect(data['plugins']).to.have.all.keys(iitc_custom_uid);
+                expect(data['plugins'][iitc_custom_uid]['uid']).to.equal(iitc_custom_uid);
+            };
+
             const run = await manager.addUserScripts([iitc_custom]);
             expect(run).to.have.all.keys(iitc_custom_uid);
 
@@ -488,6 +619,13 @@ describe('manage.js external plugins integration tests', function () {
             expect(script['override'], "getIITCCore() object must have the 'override' parameter set to true").to.be.true;
         });
         it('Remove custom IITC core script', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('update');
+                expect(data['plugins']).to.have.all.keys(iitc_custom_uid);
+                expect(data['plugins'][iitc_custom_uid]).to.be.empty;
+            };
+
             const run = await manager.managePlugin(iitc_custom_uid, 'delete');
             expect(run).to.be.undefined;
 

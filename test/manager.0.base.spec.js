@@ -23,6 +23,13 @@ describe('manage.js base integration tests', function () {
             inject_plugin: function callBack(data) {
                 expect(data['code']).to.include('// ==UserScript==');
             },
+            plugin_event: (data) => {
+                const iitc_main_script_uid = 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('update');
+                expect(data['plugins']).to.have.all.keys(iitc_main_script_uid);
+                expect(data['plugins'][iitc_main_script_uid]['uid']).to.equal(iitc_main_script_uid);
+            },
             progressbar: function callBack(is_show) {
                 expect(is_show).to.be.oneOf([true, false]);
             },
