@@ -7,6 +7,13 @@ import { expect } from 'chai';
 
 describe('manage.js build-in plugins integration tests', function () {
     let manager = null;
+    let plugin_event_callback = (data) => {
+        const iitc_main_script_uid = 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
+        expect(data).to.have.all.keys('event', 'plugins');
+        expect(data['event']).to.equal('update');
+        expect(data['plugins']).to.have.all.keys(iitc_main_script_uid);
+        expect(data['plugins'][iitc_main_script_uid]['uid']).to.equal(iitc_main_script_uid);
+    };
     before(function () {
         storage.resetStorage();
         const params = {
@@ -22,6 +29,9 @@ describe('manage.js build-in plugins integration tests', function () {
             },
             inject_plugin: function callBack(data) {
                 expect(data['code']).to.include('// ==UserScript==');
+            },
+            plugin_event: (data) => {
+                plugin_event_callback(data);
             },
             progressbar: function callBack(is_show) {
                 expect(is_show).to.be.oneOf([true, false]);
@@ -44,6 +54,13 @@ describe('manage.js build-in plugins integration tests', function () {
 
     describe('Manage build-in plugins', function () {
         it('Enable first plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('add');
+                expect(data['plugins']).to.have.all.keys(first_plugin_uid);
+                expect(data['plugins'][first_plugin_uid]['uid']).to.equal(first_plugin_uid);
+            };
+
             const run = await manager.managePlugin(first_plugin_uid, 'on');
             expect(run).to.be.undefined;
 
@@ -57,6 +74,13 @@ describe('manage.js build-in plugins integration tests', function () {
         });
 
         it('Enable second plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('add');
+                expect(data['plugins']).to.have.all.keys(second_plugin_uid);
+                expect(data['plugins'][second_plugin_uid]['uid']).to.equal(second_plugin_uid);
+            };
+
             const run = await manager.managePlugin(second_plugin_uid, 'on');
             expect(run).to.be.undefined;
 
@@ -74,6 +98,13 @@ describe('manage.js build-in plugins integration tests', function () {
         });
 
         it('Disable plugin', async function () {
+            plugin_event_callback = (data) => {
+                expect(data).to.have.all.keys('event', 'plugins');
+                expect(data['event']).to.equal('remove');
+                expect(data['plugins']).to.have.all.keys(first_plugin_uid);
+                expect(data['plugins'][first_plugin_uid]).to.be.empty;
+            };
+
             const run = await manager.managePlugin(first_plugin_uid, 'off');
             expect(run).to.be.undefined;
 
