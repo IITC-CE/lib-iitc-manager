@@ -30,7 +30,7 @@
     <div class="title">
         <h1><a href="index.html" class="link">lib iitc manager</a></h1>
         
-            <span class="version">v1.9.0</span>
+            <span class="version">v1.9.1</span>
         
     </div>
     <div class="search-container" id="search-container">
@@ -746,6 +746,11 @@ export class Worker {
                 plugins[uid] = plugin_local || {};
             } else if (useUser) {
                 plugins[uid] = plugin_user || {};
+            }
+
+            // Updating a disabled plugin should not trigger the event
+            if (event !== 'remove' &amp;&amp; plugins[uid]?.status !== 'on') {
+                delete plugins[uid];
             }
         }
 
