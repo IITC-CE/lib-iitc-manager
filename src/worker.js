@@ -695,6 +695,11 @@ export class Worker {
             } else if (useUser) {
                 plugins[uid] = plugin_user || {};
             }
+
+            // Updating a disabled plugin should not trigger the event
+            if (event !== 'remove' && plugins[uid]?.status !== 'on') {
+                delete plugins[uid];
+            }
         }
 
         if (Object.keys(plugins).length) {
