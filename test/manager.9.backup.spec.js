@@ -21,7 +21,7 @@ describe('getBackupData and setBackupData', function () {
             custom: {},
             release: {
                 'total-conversion-build.user.js': external_iitc_code,
-                'bookmarks1.user.js': external_code,
+                'Bookmarks for maps and portals.user.js': external_code,
             },
         },
         data: {
@@ -131,7 +131,6 @@ describe('getBackupData and setBackupData', function () {
                         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
                         name: 'Bookmarks for maps and portals',
                         category: 'Controls',
-                        filename: 'bookmarks1.user.js',
                     },
                     code: external_code,
                 },
@@ -146,10 +145,10 @@ describe('getBackupData and setBackupData', function () {
                     status: 'on',
                     user: true,
                     code: external_code,
-                    filename: 'bookmarks1.user.js',
                 },
             };
             const run = await manager.addUserScripts(scripts);
+            delete run['Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion']['filename'];
             expect(run).to.deep.equal(installed);
         });
         it('Add plugin settings data', async function () {

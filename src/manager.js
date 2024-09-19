@@ -2,7 +2,7 @@
 
 import { Worker } from './worker.js';
 import * as migrations from './migrations.js';
-import { getUID, isSet } from './helpers.js';
+import { getUID, isSet, sanitizeFileName } from './helpers.js';
 import * as backup from './backup.js';
 
 /**
@@ -310,6 +310,7 @@ export class Manager extends Worker {
                 plugins_user[plugin_uid] = Object.assign(meta, {
                     uid: plugin_uid,
                     status: 'on',
+                    filename: meta['filename'] ? meta['filename'] : sanitizeFileName(`${meta['name']}.user.js`),
                     code: code,
                 });
 

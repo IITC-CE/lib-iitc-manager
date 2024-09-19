@@ -212,3 +212,22 @@ export function clearWait() {
 export function isSet(value) {
     return typeof value !== 'undefined' && value !== null;
 }
+
+/**
+ * Processes a string by removing invalid characters for the file system and limiting its length.
+ *
+ * @param {string} input - The original string to be converted into a file name.
+ * @param {number} maxLength - The maximum length of the file name (default is 255 characters).
+ * @returns {string} - The processed string.
+ */
+export function sanitizeFileName(input, maxLength = 255) {
+    const invalidChars = /[/\\:*?"<>|]/g;
+    let sanitized = input.replace(invalidChars, '');
+
+    // Truncate the length to maxLength characters
+    if (sanitized.length > maxLength) {
+        sanitized = sanitized.slice(0, maxLength);
+    }
+
+    return sanitized;
+}
