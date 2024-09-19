@@ -1,6 +1,6 @@
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&dn=gpl-3.0.txt GPL-v3
 
-import { isSet, parseMeta } from './helpers.js';
+import { isSet, parseMeta, sanitizeFileName } from './helpers.js';
 import deepmerge from '@bundled-es-modules/deepmerge';
 
 /**
@@ -123,7 +123,10 @@ export const exportExternalPlugins = (all_storage) => {
             // Loop through each plugin UID in the current key's storage data
             for (const plugin_uid in all_storage[key]) {
                 // Get the plugin's filename and code from the storage data and add to the external_plugins object
-                const plugin_filename = all_storage[key][plugin_uid]['filename'];
+                let plugin_filename = all_storage[key][plugin_uid]['filename'];
+                if (!plugin_filename) {
+                    plugin_filename = sanitizeFileName(`${all_storage[key][plugin_uid]['name']}.user.js`);
+                }
                 external_plugins[channel][plugin_filename] = all_storage[key][plugin_uid]['code'];
             }
         }

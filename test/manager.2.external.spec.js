@@ -97,6 +97,7 @@ describe('manage.js external plugins integration tests', function () {
                 category: 'Controls',
                 status: 'on',
                 user: true,
+                filename: 'Bookmarks for maps and portals.user.js',
                 code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
@@ -145,6 +146,7 @@ describe('manage.js external plugins integration tests', function () {
                 category: 'Misc',
                 status: 'on',
                 user: true,
+                filename: 'Bookmarks2 for maps and portals.user.js',
                 code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
@@ -356,6 +358,7 @@ describe('manage.js external plugins integration tests', function () {
                 category: 'Controls',
                 status: 'on',
                 user: true,
+                filename: 'Bookmarks for maps and portals.user.js',
                 code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
