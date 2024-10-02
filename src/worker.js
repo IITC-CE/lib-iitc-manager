@@ -697,7 +697,7 @@ export class Worker {
             }
 
             // Updating a disabled plugin should not trigger the event
-            if (event !== 'remove' && plugins[uid]?.status !== 'on') {
+            if (!isCore && event !== 'remove' && plugins[uid]?.status !== 'on') {
                 delete plugins[uid];
             }
         }
