@@ -50,4 +50,9 @@ const uniqId = getUniqId("tmp");
 
 ## License
 
-[GPL-3.0 license](/LICENSE)
+lib-iitc-manager is licensed under [GNU General Public License v3.0 (GPL-3.0)](/LICENSE).
+For distribution through application stores (Apple App Store, Google Play Store, and others),
+please refer to the [COPYING.STORE](/COPYING.STORE) file, which provides an exception for the application store
+distribution requirements while maintaining GPL-3.0 compliance for the source code.
+
+
