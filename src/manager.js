@@ -233,7 +233,7 @@ export class Manager extends Worker {
                 });
                 await this._sendPluginsEvent([uid], 'update');
             } else {
-                const isEnabled = plugins_flat[uid]['status'] === true;
+                const isEnabled = plugins_flat[uid]['status'] === 'on';
                 if (plugins_flat[uid]['override']) {
                     if (plugins_local[uid] !== undefined) {
                         plugins_flat[uid] = { ...plugins_local[uid] };
