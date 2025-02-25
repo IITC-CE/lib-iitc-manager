@@ -272,4 +272,94 @@ describe('Delete external plugins - comprehensive tests', function () {
         expect(storage_after['release_plugins_flat'][built_in_uid].user).to.be.false;
         expect(storage_after['release_plugins_flat'][built_in_uid].status).to.equal('off');
     });
+
+    describe('Timestamps for built-in plugins', function () {
+        let manager = null;
+        const built_in_plugin_uid = 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+
+        beforeEach(async function () {
+            // Reset storage before each test
+            storage.resetStorage();
+            manager = new Manager({
+                storage: storage,
+                channel: 'release',
+                network_host: {
+                    release: 'http://127.0.0.1:31606/release',
+                    beta: 'http://127.0.0.1:31606/beta',
+                    custom: 'http://127.0.0.1/',
+                },
+                inject_user_script: function (data) {
+                    expect(data).to.include('// ==UserScript==');
+                },
+                inject_plugin: function (data) {
+                    expect(data['code']).to.include('// ==UserScript==');
+                },
+                plugin_event: () => {},
+                progressbar: function (is_show) {
+                    expect(is_show).to.be.oneOf([true, false]);
+                },
+                is_daemon: false,
+            });
+
+            // Initialize built-in plugins
+            await manager.run();
+        });
+
+        it('should set statusChangedAt when enabling built-in plugin first time', async function () {
+            // Enable plugin
+            await manager.managePlugin(built_in_plugin_uid, 'on');
+
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
+
+            // Check statusChangedAt set in both storages
+            expect(db_data['release_plugins_local'][built_in_plugin_uid]).to.have.property('statusChangedAt');
+            expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.have.property('statusChangedAt');
+            expect(db_data['release_plugins_flat'][built_in_plugin_uid].statusChangedAt).to.equal(
+                db_data['release_plugins_local'][built_in_plugin_uid].statusChangedAt
+            );
+
+            // Should not have addedAt
+            expect(db_data['release_plugins_local'][built_in_plugin_uid]).to.not.have.property('addedAt');
+            expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.not.have.property('addedAt');
+        });
+
+        it('should update statusChangedAt when toggling built-in plugin', async function () {
+            // First enable
+            await manager.managePlugin(built_in_plugin_uid, 'on');
+            const before = await storage.get(['release_plugins_local']);
+            const initialStatusChangedAt = before['release_plugins_local'][built_in_plugin_uid].statusChangedAt;
+
+            // Wait 1 second
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Disable plugin
+            await manager.managePlugin(built_in_plugin_uid, 'off');
+
+            const after = await storage.get(['release_plugins_flat', 'release_plugins_local']);
+
+            // Check statusChangedAt updated
+            expect(after['release_plugins_local'][built_in_plugin_uid].statusChangedAt).to.be.above(initialStatusChangedAt);
+            expect(after['release_plugins_flat'][built_in_plugin_uid].statusChangedAt).to.equal(
+                after['release_plugins_local'][built_in_plugin_uid].statusChangedAt
+            );
+        });
+
+        it('should set updatedAt when updating built-in plugin', async function () {
+            // First enable plugin to get it downloaded
+            await manager.managePlugin(built_in_plugin_uid, 'on');
+
+            // Wait 1 second
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Force update check
+            await manager.checkUpdates(true);
+
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
+
+            // Check updatedAt is set
+            expect(db_data['release_plugins_local'][built_in_plugin_uid]).to.have.property('updatedAt');
+            expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.have.property('updatedAt');
+            expect(db_data['release_plugins_flat'][built_in_plugin_uid].updatedAt).to.equal(db_data['release_plugins_local'][built_in_plugin_uid].updatedAt);
+        });
+    });
 });

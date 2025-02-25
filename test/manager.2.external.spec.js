@@ -101,6 +101,8 @@ describe('manage.js external plugins integration tests', function () {
                 code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
+            delete run[external_1_uid]['addedAt'];
+            delete run[external_1_uid]['statusChangedAt'];
             expect(run).to.deep.equal(installed);
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
@@ -150,6 +152,8 @@ describe('manage.js external plugins integration tests', function () {
                 code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
+            delete run[external_2_uid]['addedAt'];
+            delete run[external_2_uid]['statusChangedAt'];
             expect(run).to.deep.equal(installed);
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
@@ -362,6 +366,8 @@ describe('manage.js external plugins integration tests', function () {
                 code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
+            delete run[external_1_uid]['addedAt'];
+            delete run[external_1_uid]['statusChangedAt'];
             expect(run).to.deep.equal(installed);
         });
 
@@ -431,6 +437,8 @@ describe('manage.js external plugins integration tests', function () {
                 code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
+            delete run[external_1_uid]['addedAt'];
+            delete run[external_1_uid]['statusChangedAt'];
             expect(run).to.deep.equal(installed);
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
@@ -531,6 +539,8 @@ describe('manage.js external plugins integration tests', function () {
                 code: external_code,
             };
             const run = await manager.addUserScripts([external_3_plugin]);
+            delete run[external_3_uid]['addedAt'];
+            delete run[external_3_uid]['statusChangedAt'];
             expect(run).to.deep.equal(installed);
 
             const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
@@ -652,6 +662,208 @@ describe('manage.js external plugins integration tests', function () {
                 'updateURL',
                 'version'
             );
+        });
+    });
+
+    describe('Timestamps for external plugins', function () {
+        let manager = null;
+        const currentTime = Math.floor(Date.now() / 1000);
+
+        // External plugin data for testing
+        const external_plugin_uid = 'Test Plugin+https://github.com/IITC-CE/ingress-intel-total-conversion';
+        const plugin_data = {
+            meta: {
+                id: 'test-plugin',
+                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                name: 'Test Plugin',
+                category: 'Test',
+            },
+            code: '// ==UserScript==\nreturn false;',
+        };
+
+        before(function () {
+            storage.resetStorage();
+            // Setup manager with standard configuration
+            manager = new Manager({
+                storage: storage,
+                channel: 'release',
+                network_host: {
+                    release: 'http://127.0.0.1:31606/release',
+                    beta: 'http://127.0.0.1:31606/beta',
+                    custom: 'http://127.0.0.1/',
+                },
+                inject_user_script: function (data) {
+                    expect(data).to.include('// ==UserScript==');
+                },
+                inject_plugin: function (data) {
+                    expect(data['code']).to.include('// ==UserScript==');
+                },
+                plugin_event: () => {},
+                progressbar: function (is_show) {
+                    expect(is_show).to.be.oneOf([true, false]);
+                },
+                is_daemon: false,
+            });
+        });
+
+        it('should set addedAt and statusChangedAt when adding new plugin', async function () {
+            // Add plugin
+            await manager.addUserScripts([plugin_data]);
+
+            // Get stored data
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+
+            // Check timestamps in plugins_user
+            expect(db_data['release_plugins_user'][external_plugin_uid]).to.have.property('addedAt');
+            expect(db_data['release_plugins_user'][external_plugin_uid].addedAt).to.be.a('number');
+            expect(db_data['release_plugins_user'][external_plugin_uid].addedAt).to.be.closeTo(currentTime, 15);
+
+            expect(db_data['release_plugins_user'][external_plugin_uid]).to.have.property('statusChangedAt');
+            expect(db_data['release_plugins_user'][external_plugin_uid].statusChangedAt).to.equal(db_data['release_plugins_user'][external_plugin_uid].addedAt);
+
+            // Check timestamps in plugins_flat
+            expect(db_data['release_plugins_flat'][external_plugin_uid]).to.have.property('addedAt');
+            expect(db_data['release_plugins_flat'][external_plugin_uid].addedAt).to.equal(db_data['release_plugins_user'][external_plugin_uid].addedAt);
+
+            expect(db_data['release_plugins_flat'][external_plugin_uid]).to.have.property('statusChangedAt');
+            expect(db_data['release_plugins_flat'][external_plugin_uid].statusChangedAt).to.equal(
+                db_data['release_plugins_user'][external_plugin_uid].statusChangedAt
+            );
+        });
+
+        it('should update statusChangedAt when toggling plugin status', async function () {
+            const before = await storage.get(['release_plugins_user']);
+            const oldStatusChangedAt = before['release_plugins_user'][external_plugin_uid].statusChangedAt;
+
+            // Wait 1 second to ensure timestamp difference
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Toggle plugin off
+            await manager.managePlugin(external_plugin_uid, 'off');
+
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+
+            // Check new statusChangedAt
+            expect(db_data['release_plugins_user'][external_plugin_uid].statusChangedAt).to.be.above(oldStatusChangedAt);
+            expect(db_data['release_plugins_flat'][external_plugin_uid].statusChangedAt).to.equal(
+                db_data['release_plugins_user'][external_plugin_uid].statusChangedAt
+            );
+
+            // Original addedAt should remain unchanged
+            expect(db_data['release_plugins_user'][external_plugin_uid].addedAt).to.equal(before['release_plugins_user'][external_plugin_uid].addedAt);
+        });
+
+        it('should handle timestamps correctly when removing plugin', async function () {
+            // Get initial data
+            const before = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+            expect(before['release_plugins_user'][external_plugin_uid]).to.have.property('addedAt');
+            expect(before['release_plugins_user'][external_plugin_uid]).to.have.property('statusChangedAt');
+
+            // Remove plugin
+            await manager.managePlugin(external_plugin_uid, 'delete');
+
+            // Check data after removal
+            const after = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+
+            // Plugin should be removed from plugins_user
+            expect(after['release_plugins_user']).to.not.have.property(external_plugin_uid);
+
+            // Plugin should be removed from plugins_flat
+            expect(after['release_plugins_flat']).to.not.have.property(external_plugin_uid);
+        });
+    });
+
+    describe('Timestamps for plugins overriding built-in plugins', function () {
+        let manager = null;
+        const built_in_plugin_uid = 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+
+        before(async function () {
+            storage.resetStorage();
+            manager = new Manager({
+                storage: storage,
+                channel: 'release',
+                network_host: {
+                    release: 'http://127.0.0.1:31606/release',
+                    beta: 'http://127.0.0.1:31606/beta',
+                    custom: 'http://127.0.0.1/',
+                },
+                inject_user_script: function (data) {
+                    expect(data).to.include('// ==UserScript==');
+                },
+                inject_plugin: function (data) {
+                    expect(data['code']).to.include('// ==UserScript==');
+                },
+                plugin_event: () => {},
+                progressbar: function (is_show) {
+                    expect(is_show).to.be.oneOf([true, false]);
+                },
+                is_daemon: false,
+            });
+
+            // Initialize built-in plugins
+            await manager.run();
+        });
+
+        it('should handle timestamps correctly when overriding built-in plugin', async function () {
+            const override_plugin = {
+                meta: {
+                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                    name: 'Available AP statistics',
+                },
+                code: '// ==UserScript==\nreturn false;',
+            };
+
+            // Add overriding plugin
+            await manager.addUserScripts([override_plugin]);
+
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+
+            // Check timestamps in plugins_user
+            expect(db_data['release_plugins_user'][built_in_plugin_uid]).to.have.property('addedAt');
+            expect(db_data['release_plugins_user'][built_in_plugin_uid]).to.have.property('statusChangedAt');
+            expect(db_data['release_plugins_user'][built_in_plugin_uid].statusChangedAt).to.equal(db_data['release_plugins_user'][built_in_plugin_uid].addedAt);
+
+            // Check timestamps copied to plugins_flat
+            expect(db_data['release_plugins_flat'][built_in_plugin_uid].addedAt).to.equal(db_data['release_plugins_user'][built_in_plugin_uid].addedAt);
+            expect(db_data['release_plugins_flat'][built_in_plugin_uid].statusChangedAt).to.equal(
+                db_data['release_plugins_user'][built_in_plugin_uid].statusChangedAt
+            );
+        });
+
+        it('should update statusChangedAt when toggling overridden plugin', async function () {
+            const before = await storage.get(['release_plugins_user']);
+            const oldStatusChangedAt = before['release_plugins_user'][built_in_plugin_uid].statusChangedAt;
+            const addedAt = before['release_plugins_user'][built_in_plugin_uid].addedAt;
+
+            // Wait 1 second
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Toggle plugin off
+            await manager.managePlugin(built_in_plugin_uid, 'off');
+
+            const after = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+
+            // Check statusChangedAt updated
+            expect(after['release_plugins_user'][built_in_plugin_uid].statusChangedAt).to.be.above(oldStatusChangedAt);
+            expect(after['release_plugins_flat'][built_in_plugin_uid].statusChangedAt).to.equal(
+                after['release_plugins_user'][built_in_plugin_uid].statusChangedAt
+            );
+
+            // Check addedAt preserved
+            expect(after['release_plugins_user'][built_in_plugin_uid].addedAt).to.equal(addedAt);
+            expect(after['release_plugins_flat'][built_in_plugin_uid].addedAt).to.equal(addedAt);
+        });
+
+        it('should handle timestamps correctly when removing override', async function () {
+            // Remove override
+            await manager.managePlugin(built_in_plugin_uid, 'delete');
+
+            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+
+            // Override should be removed from plugins_user
+            expect(db_data['release_plugins_user']).to.not.have.property(built_in_plugin_uid);
+            // Built-in plugin should be restored in plugins_flat without override timestamps
+            expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.not.have.property('addedAt');
         });
     });
 });
