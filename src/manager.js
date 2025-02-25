@@ -197,8 +197,8 @@ export class Manager extends Worker {
                 let response = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
                 if (response) {
                     plugins_flat[uid]['status'] = 'on';
-                    plugins_local[uid] = plugins_flat[uid];
-                    plugins_local[uid]['code'] = response;
+                    plugins_flat[uid]['code'] = response;
+                    plugins_local[uid] = { ...plugins_flat[uid] };
 
                     this.inject_user_script(plugins_local[uid]['code']);
                     this.inject_plugin(plugins_local[uid]);

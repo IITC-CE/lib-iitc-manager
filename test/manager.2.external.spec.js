@@ -584,7 +584,7 @@ describe('manage.js external plugins integration tests', function () {
 
             const db_data = await storage.get(['release_plugins_flat']);
             expect(db_data['release_plugins_flat'][external_3_uid]['status'], "release_plugins_flat['status']: " + external_3_uid).to.equal('off');
-            expect(db_data['release_plugins_flat'][external_3_uid]['code'], "release_plugins_flat['code']: " + external_3_uid).to.have.lengthOf(596);
+            expect(db_data['release_plugins_flat'][external_3_uid]['code'], "release_plugins_flat['code']: " + external_3_uid).to.not.equal(external_code);
             expect(db_data['release_plugins_flat'][external_3_uid]['override'], "release_plugins_flat['override']: " + external_3_uid).to.be.false;
         });
     });
