@@ -209,6 +209,9 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
  * @property {string[]} exclude
  * @property {string[]} require
  * @property {string[]} grant
+ * @property {number} [addedAt] - Unix timestamp of when the external plugin was first added. Only for external plugins.
+ * @property {number} [statusChangedAt] - Unix timestamp of when the plugin's status (on/off) was last changed.
+ * @property {number} [updatedAt] - Unix timestamp of when the plugin's code was last updated.
  */
 
 /**
@@ -568,6 +571,7 @@ export class Worker {
             let exist_updates = false;
             const hash = `?${Date.now()}`;
             const updated_uids = [];
+            const currentTime = Math.floor(Date.now() / 1000);
 
             for (const uid of Object.keys(plugins_user)) {
                 const plugin = plugins_user[uid];
@@ -583,8 +587,13 @@ export class Worker {
                             let response_code = await this._getUrl(plugin['updateURL'] + hash);
                             if (response_code) {
                                 exist_updates = true;
-                                plugins_user[uid] = meta;
-                                plugins_user[uid]['code'] = response_code;
+                                plugins_user[uid] = {
+                                    ...meta,
+                                    code: response_code,
+                                    updatedAt: currentTime,
+                                    addedAt: plugin.addedAt,
+                                    statusChangedAt: plugin.statusChangedAt,
+                                };
                                 updated_uids.push(uid);
                             }
                         }
@@ -616,6 +625,7 @@ export class Worker {
 
         const updated_uids = [];
         const removed_uids = [];
+        const currentTime = Math.floor(Date.now() / 1000);
 
         // Iteration local plugins
         for (const uid of Object.keys(plugins_local)) {
@@ -625,6 +635,7 @@ export class Worker {
                 let code = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
                 if (code) {
                     plugins_local[uid]['code'] = code;
+                    plugins_local[uid]['updatedAt'] = currentTime;
                     updated_uids.push(uid);
                 }
             } else {
@@ -680,19 +691,26 @@ export class Worker {
 
         // Build local plugins
         Object.keys(plugins_local).forEach((plugin_uid) => {
-            data[plugin_uid]['status'] = plugins_local[plugin_uid]['status'] || 'off';
+            const localPlugin = plugins_local[plugin_uid];
+            data[plugin_uid]['status'] = localPlugin['status'] || 'off';
+            data[plugin_uid]['updatedAt'] = localPlugin['updatedAt'];
+            data[plugin_uid]['statusChangedAt'] = localPlugin['statusChangedAt'];
         });
 
         // Build External plugins
         if (Object.keys(plugins_user).length) {
             Object.keys(plugins_user).forEach((plugin_uid) => {
+                const userPlugin = plugins_user[plugin_uid];
                 if (plugin_uid in data) {
-                    data[plugin_uid]['status'] = plugins_user[plugin_uid]['status'] || 'off';
-                    data[plugin_uid]['code'] = plugins_user[plugin_uid]['code'];
+                    data[plugin_uid]['status'] = userPlugin['status'] || 'off';
+                    data[plugin_uid]['code'] = userPlugin['code'];
                     data[plugin_uid]['user'] = true;
                     data[plugin_uid]['override'] = true;
+                    data[plugin_uid]['addedAt'] = userPlugin['addedAt'];
+                    data[plugin_uid]['updatedAt'] = userPlugin['updatedAt'];
+                    data[plugin_uid]['statusChangedAt'] = userPlugin['statusChangedAt'];
                 } else {
-                    data[plugin_uid] = plugins_user[plugin_uid];
+                    data[plugin_uid] = userPlugin;
                 }
                 data[plugin_uid]['user'] = true;
             });

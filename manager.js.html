@@ -225,14 +225,20 @@ export class Manager extends Worker {
         if (!isSet(plugins_local)) plugins_local = {};
         if (!isSet(plugins_user)) plugins_user = {};
 
+        const currentTime = Math.floor(Date.now() / 1000);
+
         if (action === 'on') {
             const isUserPlugin = plugins_flat[uid]['user'];
             if ((isUserPlugin === false &amp;&amp; plugins_local[uid] !== undefined) || isUserPlugin === true) {
                 plugins_flat[uid]['status'] = 'on';
+                plugins_flat[uid]['statusChangedAt'] = currentTime;
+
                 if (isUserPlugin) {
                     plugins_user[uid]['status'] = 'on';
+                    plugins_user[uid]['statusChangedAt'] = currentTime;
                 } else {
                     plugins_local[uid]['status'] = 'on';
+                    plugins_local[uid]['statusChangedAt'] = currentTime;
                 }
 
                 this.inject_user_script(isUserPlugin === true ? plugins_user[uid]['code'] : plugins_local[uid]['code']);
@@ -249,8 +255,9 @@ export class Manager extends Worker {
                 let response = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
                 if (response) {
                     plugins_flat[uid]['status'] = 'on';
-                    plugins_local[uid] = plugins_flat[uid];
-                    plugins_local[uid]['code'] = response;
+                    plugins_flat[uid]['statusChangedAt'] = currentTime;
+                    plugins_flat[uid]['code'] = response;
+                    plugins_local[uid] = { ...plugins_flat[uid] };
 
                     this.inject_user_script(plugins_local[uid]['code']);
                     this.inject_plugin(plugins_local[uid]);
@@ -265,10 +272,14 @@ export class Manager extends Worker {
         }
         if (action === 'off') {
             plugins_flat[uid]['status'] = 'off';
+            plugins_flat[uid]['statusChangedAt'] = currentTime;
+
             if (plugins_flat[uid]['user']) {
                 plugins_user[uid]['status'] = 'off';
+                plugins_user[uid]['statusChangedAt'] = currentTime;
             } else {
                 plugins_local[uid]['status'] = 'off';
+                plugins_local[uid]['statusChangedAt'] = currentTime;
             }
 
             await this._save({
@@ -293,6 +304,7 @@ export class Manager extends Worker {
                     plugins_flat[uid]['user'] = false;
                     plugins_flat[uid]['override'] = false;
                     plugins_flat[uid]['status'] = 'off';
+                    delete plugins_flat[uid]['addedAt'];
                 } else {
                     delete plugins_flat[uid];
                 }
@@ -343,6 +355,8 @@ export class Manager extends Worker {
         const added_uids = [];
         const updated_uids = [];
         const installed_scripts = {};
+        const currentTime = Math.floor(Date.now() / 1000);
+
         scripts.forEach((script) => {
             let meta = script['meta'];
             const code = script['code'];
@@ -364,6 +378,8 @@ export class Manager extends Worker {
                     status: 'on',
                     filename: meta['filename'] ? meta['filename'] : sanitizeFileName(`${meta['name']}.user.js`),
                     code: code,
+                    addedAt: currentTime,
+                    statusChangedAt: currentTime,
                 });
 
                 if (plugin_uid in plugins_flat &amp;&amp; !is_user_plugins) {
@@ -374,6 +390,8 @@ export class Manager extends Worker {
                     plugins_flat[plugin_uid]['status'] = 'on';
                     plugins_flat[plugin_uid]['code'] = code;
                     plugins_flat[plugin_uid]['override'] = true;
+                    plugins_flat[plugin_uid]['addedAt'] = currentTime;
+                    plugins_flat[plugin_uid]['statusChangedAt'] = currentTime;
                     updated_uids.push(plugin_uid);
                 } else {
                     let category = plugins_user[plugin_uid]['category'];
