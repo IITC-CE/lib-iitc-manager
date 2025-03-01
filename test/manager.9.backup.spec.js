@@ -135,20 +135,22 @@ describe('getBackupData and setBackupData', function () {
                     code: external_code,
                 },
             ];
-            const installed = {
-                'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion': {
-                    uid: 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    id: 'bookmarks1',
-                    namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-                    name: 'Bookmarks for maps and portals',
-                    category: 'Controls',
-                    status: 'on',
-                    user: true,
-                    code: external_code,
-                },
+            const plugin_uid = 'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion';
+            const installed = {};
+            installed[plugin_uid] = {
+                uid: plugin_uid,
+                id: 'bookmarks1',
+                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+                name: 'Bookmarks for maps and portals',
+                category: 'Controls',
+                status: 'on',
+                user: true,
+                code: external_code,
             };
             const run = await manager.addUserScripts(scripts);
-            delete run['Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion']['filename'];
+            delete run[plugin_uid]['filename'];
+            delete run[plugin_uid]['addedAt'];
+            delete run[plugin_uid]['statusChangedAt'];
             expect(run).to.deep.equal(installed);
         });
         it('Add plugin settings data', async function () {
