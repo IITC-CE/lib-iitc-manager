@@ -28,7 +28,7 @@
     <div class="title">
         <h1><a href="index.html" class="link">lib iitc manager</a></h1>
         
-            <span class="version">v1.10.0</span>
+            <span class="version">v1.10.1</span>
         
     </div>
     <div class="search-container" id="search-container">
@@ -72,7 +72,7 @@
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line177">line 177</a></code>
+                <code><a href="worker.js.html#line181">line 181</a></code>
             </div>
             
         </h4>
@@ -269,7 +269,7 @@
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line478">line 478</a></code>
+                <code><a href="worker.js.html#line485">line 485</a></code>
             </div>
             
         </h4>
@@ -447,7 +447,7 @@
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line325">line 325</a></code>
+                <code><a href="worker.js.html#line330">line 330</a></code>
             </div>
             
         </h4>
@@ -625,7 +625,7 @@
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line429">line 429</a></code>
+                <code><a href="worker.js.html#line436">line 436</a></code>
             </div>
             
         </h4>
@@ -785,7 +785,7 @@
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line449">line 449</a></code>
+                <code><a href="worker.js.html#line456">line 456</a></code>
             </div>
             
         </h4>
@@ -947,7 +947,7 @@
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line285">line 285</a></code>
+                <code><a href="worker.js.html#line290">line 290</a></code>
             </div>
             
         </h4>
@@ -1208,7 +1208,7 @@ and a message to user about errors.</p>
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line209">line 209</a></code>
+                <code><a href="worker.js.html#line213">line 213</a></code>
             </div>
             
         </h4>
@@ -1316,7 +1316,7 @@ and a message to user about errors.</p>
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line635">line 635</a></code>
+                <code><a href="worker.js.html#line645">line 645</a></code>
             </div>
             
         </h4>
@@ -1328,7 +1328,7 @@ and a message to user about errors.</p>
 
     
     <div class="description">
-        <p>Allows adding third-party UserScript plugins to IITC.</p>
+        <p>Rebuilds the plugins array maintaining proper isolation between channels.</p>
     </div>
     
 
@@ -1520,7 +1520,7 @@ and a message to user about errors.</p>
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line608">line 608</a></code>
+                <code><a href="worker.js.html#line618">line 618</a></code>
             </div>
             
         </h4>
@@ -1700,12 +1700,12 @@ and a message to user about errors.</p>
     
         <h4 class="name" id="_save">
             
-                <span class="type-signature"><span class="icon green">async</span>, <span class="icon green">private</span> </span>_save<span class="signature">(options)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span>
+                <span class="type-signature"><span class="icon green">async</span>, <span class="icon green">private</span> </span>_save<span class="signature">(channel, options)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span>
                 
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line258">line 258</a></code>
+                <code><a href="worker.js.html#line263">line 263</a></code>
             </div>
             
         </h4>
@@ -1750,6 +1750,29 @@ Adds the name of release branch before key, if necessary.</p>
     </thead>
 
     <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>channel</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Current channel.</p></td>
+        </tr>
+
     
 
         <tr>
@@ -1859,12 +1882,12 @@ Adds the name of release branch before key, if necessary.</p>
     
         <h4 class="name" id="_sendPluginsEvent">
             
-                <span class="type-signature"><span class="icon green">async</span> </span>_sendPluginsEvent<span class="signature">(uids, event, update_type<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span>
+                <span class="type-signature"><span class="icon green">async</span> </span>_sendPluginsEvent<span class="signature">(channel, uids, event, update_type<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span>
                 
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line685">line 685</a></code>
+                <code><a href="worker.js.html#line702">line 702</a></code>
             </div>
             
         </h4>
@@ -1912,6 +1935,37 @@ If the action is &quot;remove&quot;, the plugins are represented by empty object
     </thead>
 
     <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>channel</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Current channel.</p></td>
+        </tr>
+
     
 
         <tr>
@@ -2113,7 +2167,7 @@ based on available data.</p></td>
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line235">line 235</a></code>
+                <code><a href="worker.js.html#line239">line 239</a></code>
             </div>
             
         </h4>
@@ -2356,12 +2410,12 @@ If the value is not set, the default value is returned.</p>
     
         <h4 class="name" id="_updateExternalPlugins">
             
-                <span class="type-signature"><span class="icon green">async</span>, <span class="icon green">private</span> </span>_updateExternalPlugins<span class="signature">(local)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span>
+                <span class="type-signature"><span class="icon green">async</span>, <span class="icon green">private</span> </span>_updateExternalPlugins<span class="signature">(channel, local)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span>
                 
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line516">line 516</a></code>
+                <code><a href="worker.js.html#line525">line 525</a></code>
             </div>
             
         </h4>
@@ -2405,6 +2459,29 @@ If the value is not set, the default value is returned.</p>
     </thead>
 
     <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>channel</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Current channel.</p></td>
+        </tr>
+
     
 
         <tr>
@@ -2514,12 +2591,12 @@ If the value is not set, the default value is returned.</p>
     
         <h4 class="name" id="_updateInternalIITC">
             
-                <span class="type-signature"><span class="icon green">async</span>, <span class="icon green">private</span> </span>_updateInternalIITC<span class="signature">(local, last_modified)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span>
+                <span class="type-signature"><span class="icon green">async</span>, <span class="icon green">private</span> </span>_updateInternalIITC<span class="signature">(channel, local, last_modified)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span>
                 
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line380">line 380</a></code>
+                <code><a href="worker.js.html#line387">line 387</a></code>
             </div>
             
         </h4>
@@ -2563,6 +2640,29 @@ If the value is not set, the default value is returned.</p>
     </thead>
 
     <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>channel</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Current channel.</p></td>
+        </tr>
+
     
 
         <tr>
@@ -2698,12 +2798,12 @@ If the value is not set, the default value is returned.</p>
     
         <h4 class="name" id="_updateLocalPlugins">
             
-                <span class="type-signature"><span class="icon green">async</span>, <span class="icon green">private</span> </span>_updateLocalPlugins<span class="signature">(plugins_flat, plugins_local)</span><span class="type-signature"> &rarr; {Promise.&lt;Object.&lt;string, <a href="global.html#plugin">plugin</a>>>}</span>
+                <span class="type-signature"><span class="icon green">async</span>, <span class="icon green">private</span> </span>_updateLocalPlugins<span class="signature">(channel, plugins_flat, plugins_local)</span><span class="type-signature"> &rarr; {Promise.&lt;Object.&lt;string, <a href="global.html#plugin">plugin</a>>>}</span>
                 
             
             <div class="container-source members">
                 <code><a href="worker.js.html">worker.js</a></code>,
-                <code><a href="worker.js.html#line570">line 570</a></code>
+                <code><a href="worker.js.html#line580">line 580</a></code>
             </div>
             
         </h4>
@@ -2747,6 +2847,29 @@ If the value is not set, the default value is returned.</p>
     </thead>
 
     <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>channel</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Current channel.</p></td>
+        </tr>
+
     
 
         <tr>

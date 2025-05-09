@@ -28,7 +28,7 @@
     <div class="title">
         <h1><a href="index.html" class="link">lib iitc manager</a></h1>
         
-            <span class="version">v1.10.0</span>
+            <span class="version">v1.10.1</span>
         
     </div>
     <div class="search-container" id="search-container">
@@ -178,7 +178,7 @@
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line283">line 283</a></code>
+                <code><a href="manager.js.html#line300">line 300</a></code>
             </div>
             
         </h4>
@@ -408,7 +408,7 @@ Returns the dictionary of installed or updated plugins.</p>
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line154">line 154</a></code>
+                <code><a href="manager.js.html#line170">line 170</a></code>
             </div>
             
         </h4>
@@ -586,7 +586,7 @@ Returns the dictionary of installed or updated plugins.</p>
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line424">line 424</a></code>
+                <code><a href="manager.js.html#line446">line 446</a></code>
             </div>
             
         </h4>
@@ -746,7 +746,7 @@ Returns the dictionary of installed or updated plugins.</p>
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line89">line 89</a></code>
+                <code><a href="manager.js.html#line104">line 104</a></code>
             </div>
             
         </h4>
@@ -851,12 +851,12 @@ Returns the dictionary of installed or updated plugins.</p>
     
         <h4 class="name" id="getIITCCore">
             
-                <span class="type-signature"><span class="icon green">async</span> </span>getIITCCore<span class="signature">(storage<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Promise.&lt;(<a href="global.html#plugin">plugin</a>|null)>}</span>
+                <span class="type-signature"><span class="icon green">async</span> </span>getIITCCore<span class="signature">(storage<span class="signature-attributes">opt</span>, channel<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Promise.&lt;(<a href="global.html#plugin">plugin</a>|null)>}</span>
                 
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line399">line 399</a></code>
+                <code><a href="manager.js.html#line419">line 419</a></code>
             </div>
             
         </h4>
@@ -937,6 +937,49 @@ Returns the dictionary of installed or updated plugins.</p>
 
             <td class="description last"><p>Storage object with keys <code>channel_iitc_core</code> and <code>channel_iitc_core_user</code>.
 If not specified, the data is queried from the storage.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>channel</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">"release"</span>
+|
+
+<span class="param-type">"beta"</span>
+|
+
+<span class="param-type">"custom"</span>
+|
+
+<span class="param-type">undefined</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Current channel.
+If not specified, the current channel is used.</p></td>
         </tr>
 
     
@@ -1030,7 +1073,7 @@ If not specified, the data is queried from the storage.</p></td>
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line385">line 385</a></code>
+                <code><a href="manager.js.html#line403">line 403</a></code>
             </div>
             
         </h4>
@@ -1188,7 +1231,7 @@ If not specified, the data is queried from the storage.</p></td>
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line127">line 127</a></code>
+                <code><a href="manager.js.html#line143">line 143</a></code>
             </div>
             
         </h4>
@@ -1300,7 +1343,7 @@ when attempting to access IITC, leaflet, or other dependencies during their init
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line166">line 166</a></code>
+                <code><a href="manager.js.html#line182">line 182</a></code>
             </div>
             
         </h4>
@@ -1487,7 +1530,7 @@ when attempting to access IITC, leaflet, or other dependencies during their init
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line74">line 74</a></code>
+                <code><a href="manager.js.html#line89">line 89</a></code>
             </div>
             
         </h4>
@@ -1596,7 +1639,7 @@ Migrates data storage as needed, then loads or updates UserScripts from the repo
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line463">line 463</a></code>
+                <code><a href="manager.js.html#line485">line 485</a></code>
             </div>
             
         </h4>
@@ -1948,7 +1991,7 @@ the 'backup' module.</p>
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line60">line 60</a></code>
+                <code><a href="manager.js.html#line75">line 75</a></code>
             </div>
             
         </h4>
@@ -2106,7 +2149,7 @@ the 'backup' module.</p>
             
             <div class="container-source members">
                 <code><a href="manager.js.html">manager.js</a></code>,
-                <code><a href="manager.js.html#line43">line 43</a></code>
+                <code><a href="manager.js.html#line58">line 58</a></code>
             </div>
             
         </h4>
