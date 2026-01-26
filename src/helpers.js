@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2025 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
+// Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 export let wait_timeout_id = null;
 
@@ -46,40 +46,80 @@ export function parseMeta(code) {
 }
 
 /**
- * This is a wrapper over the fetch() API method with pre-built parameters.
+ * Fetches a resource and returns data along with version header (ETag or Last-Modified).
  *
  * @async
  * @param {string} url - URL of the resource you want to fetch.
- * @param {"parseJSON" | "Last-Modified" | null} [variant=null] - Type of request:
- * "parseJSON" - Load the resource and parse it as a JSON response.
- * "Last-Modified" - Requests the last modification date of a file.
- * null - Get resource as text.
- * @return {Promise<string|object|null>}
+ * @param {Object} [options={}] - Fetch options.
+ * @param {boolean} [options.parseJSON=false] - Parse response as JSON.
+ * @param {boolean} [options.headOnly=false] - Only fetch headers (HEAD request).
+ * @param {boolean} [options.use_fetch_head_method=true] - Allow HEAD requests (if false, always use GET).
+ * @return {Promise<{data: string|object|null, version: string|null}>}
  */
-export async function ajaxGet(url, variant) {
-    // Using built-in fetch in browser , otherwise import polyfil
+export async function fetchResource(url, options = {}) {
+    const { parseJSON = false, headOnly = false, use_fetch_head_method = true } = options;
+
+    // Using built-in fetch in browser, otherwise import polyfill
     // eslint-disable-next-line no-undef
     const c_fetch = (...args) => (process.env.NODE_ENV !== 'test' ? fetch(...args) : import('node-fetch').then(({ default: fetch }) => fetch(...args)));
 
     try {
+        // If headOnly requested but HEAD not allowed, use GET anyway
+        const method = headOnly && use_fetch_head_method ? 'HEAD' : 'GET';
+
         const response = await c_fetch(url + '?' + Date.now(), {
-            method: variant === 'Last-Modified' ? 'HEAD' : 'GET',
+            method: method,
             cache: 'no-cache',
         });
-        if (response.ok) {
-            switch (variant) {
-                case 'Last-Modified':
-                    return response.headers.get('Last-Modified');
-                case 'parseJSON':
-                    return await response.json();
-                default:
-                    return await response.text();
-            }
+
+        if (!response.ok) {
+            return { data: null, version: null };
         }
+
+        const version = response.headers.get('ETag') || response.headers.get('Last-Modified');
+
+        // If we made HEAD request, no data
+        if (headOnly && method === 'HEAD') {
+            return { data: null, version };
+        }
+
+        const data = parseJSON ? await response.json() : await response.text();
+
+        return { data, version };
     } catch (error) {
-        console.error('Error in ajaxGet: ', error);
+        console.error('Error in fetchResource:', error);
+        return { data: null, version: null };
     }
-    return null;
+}
+
+/**
+ * This is a wrapper over the fetch() API method with pre-built parameters.
+ *
+ * @deprecated Use {@link fetchResource} instead for better version tracking.
+ * @async
+ * @param {string} url - URL of the resource you want to fetch.
+ * @param {"parseJSON" | "head" | null} [variant=null] - Type of request:
+ * "parseJSON" - Load the resource and parse it as a JSON response.
+ * "head" - Requests only headers (returns version: ETag or Last-Modified).
+ * null - Get resource as text.
+ * @return {Promise<string|object|null>}
+ */
+export async function ajaxGet(url, variant) {
+    const options = {};
+
+    if (variant === 'parseJSON') {
+        options.parseJSON = true;
+    } else if (variant === 'head') {
+        options.headOnly = true;
+    }
+
+    const { data, version } = await fetchResource(url, options);
+
+    // Old behavior: return version for 'head', otherwise return data
+    if (variant === 'head') {
+        return version;
+    }
+    return data;
 }
 
 /**

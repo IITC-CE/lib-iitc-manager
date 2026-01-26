@@ -1,6 +1,6 @@
-// Copyright (C) 2022-2025 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
+// Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js';
+import { fetchResource, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js';
 
 /**
  * @namespace manager
@@ -22,6 +22,8 @@ import { ajaxGet, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js
  * For example, "browser.storage.local" in webextensions.
  * @property {boolean} is_daemon=true - In daemon mode, the class does not terminate
  * and runs a periodic check for updates.
+ * @property {boolean} use_fetch_head_method=true - Allow HEAD requests for version checking.
+ * Some fetch implementations don't support HEAD method, set to false to always use GET.
  * @property {manager.network_host} network_host - URLs of repositories with IITC and plugins for different release branches.
  * If the parameter is not specified, the default values are used.
  * @property {manager.message} message - Function for sending an information message to a user.
@@ -222,6 +224,7 @@ export class Worker {
             this.config.network_host
         );
         this.is_daemon = await this._syncStorage('is_daemon', true, this.config.is_daemon);
+        this.use_fetch_head_method = await this._syncStorage('use_fetch_head_method', true, this.config.use_fetch_head_method);
         this.is_initialized = true;
     }
 
@@ -277,12 +280,15 @@ export class Worker {
 
     /**
      * The method requests data from the specified URL.
-     * It is a wrapper over {@link ajaxGet} function, with the addition of retries to load in case of problems
+     * It is a wrapper over {@link fetchResource} function, with the addition of retries to load in case of problems
      * and a message to user about errors.
      *
      * @async
      * @param {string} url - URL of the resource you want to fetch.
-     * @param {"parseJSON" | "Last-Modified" | null} [variant=null] - Type of request (see {@link ajaxGet}).
+     * @param {"parseJSON" | "Last-Modified" | null} [variant=null] - Type of request:
+     * "parseJSON" - Load the resource and parse it as a JSON response.
+     * "Last-Modified" - Requests the last modification date of a file.
+     * null - Get resource as text.
      * @param {boolean|number} [retry] - Is retry in case of an error | number of request attempt.
      * @return {Promise<string|object|null>}
      * @private
@@ -304,13 +310,25 @@ export class Worker {
             this.progressbar(true);
         }, 300);
         try {
-            const response = await ajaxGet(url, variant);
+            const options = {
+                use_fetch_head_method: this.use_fetch_head_method,
+            };
+
+            if (variant === 'parseJSON') {
+                options.parseJSON = true;
+            } else if (variant === 'Last-Modified') {
+                options.headOnly = true;
+            }
+
+            const { data, version } = await fetchResource(url, options);
+            const response = variant === 'Last-Modified' ? version : data;
+
             if (response) {
                 clearInterval(this.progress_interval_id);
                 this.progressbar(false);
             }
             return response;
-        } catch {
+        } catch (error) {
             if (retry === undefined) {
                 clearInterval(this.progress_interval_id);
                 return null;
