@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2025 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
+// Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { Worker } from './worker.js';
 import * as migrations from './migrations.js';
@@ -217,11 +217,11 @@ export class Manager extends Worker {
                 await this._sendPluginsEvent(channel, [uid], 'add');
             } else {
                 let filename = plugins_flat[uid]['filename'];
-                let response = await this._getUrl(`${this.network_host[channel]}/plugins/${filename}`);
-                if (response) {
+                let result = await this._getUrl(`${this.network_host[channel]}/plugins/${filename}`);
+                if (result.data) {
                     plugins_flat[uid]['status'] = 'on';
                     plugins_flat[uid]['statusChangedAt'] = currentTime;
-                    plugins_flat[uid]['code'] = response;
+                    plugins_flat[uid]['code'] = result.data;
                     plugins_local[uid] = { ...plugins_flat[uid] };
 
                     this.inject_user_script(plugins_local[uid]['code']);

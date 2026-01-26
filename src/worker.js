@@ -285,12 +285,12 @@ export class Worker {
      *
      * @async
      * @param {string} url - URL of the resource you want to fetch.
-     * @param {"parseJSON" | "Last-Modified" | null} [variant=null] - Type of request:
+     * @param {"parseJSON" | "head" | null} [variant=null] - Type of request:
      * "parseJSON" - Load the resource and parse it as a JSON response.
-     * "Last-Modified" - Requests the last modification date of a file.
+     * "head" - Requests only headers (returns version: ETag or Last-Modified).
      * null - Get resource as text.
      * @param {boolean|number} [retry] - Is retry in case of an error | number of request attempt.
-     * @return {Promise<string|object|null>}
+     * @return {Promise<{data: string|object|null, version: string|null}>}
      * @private
      */
     async _getUrl(url, variant, retry) {
@@ -316,22 +316,21 @@ export class Worker {
 
             if (variant === 'parseJSON') {
                 options.parseJSON = true;
-            } else if (variant === 'Last-Modified') {
+            } else if (variant === 'head') {
                 options.headOnly = true;
             }
 
-            const { data, version } = await fetchResource(url, options);
-            const response = variant === 'Last-Modified' ? version : data;
+            const result = await fetchResource(url, options);
 
-            if (response) {
+            if (result.data !== null || result.version !== null) {
                 clearInterval(this.progress_interval_id);
                 this.progressbar(false);
             }
-            return response;
+            return result;
         } catch (error) {
             if (retry === undefined) {
                 clearInterval(this.progress_interval_id);
-                return null;
+                return { data: null, version: null };
             }
             return await this._getUrl(url, variant, retry + 1);
         }
@@ -371,8 +370,8 @@ export class Worker {
                 clearWait();
                 clearTimeout(this.update_timeout_id);
                 this.update_timeout_id = null;
-                const last_modified = await this._getUrl(this.network_host[channel] + `${channel}/meta.json`, 'Last-Modified', true);
-                if (last_modified !== storage[`${channel}_last_modified`] || force) {
+                const result = await this._getUrl(this.network_host[channel] + '/meta.json', 'head', true);
+                if (result.version !== storage[`${channel}_last_modified`] || force) {
                     await this._updateInternalIITC(channel, storage, last_modified);
                 }
             }
@@ -403,8 +402,10 @@ export class Worker {
      * @private
      */
     async _updateInternalIITC(channel, local, last_modified) {
-        const response = await this._getUrl(this.network_host[channel] + '/meta.json', 'parseJSON', true);
-        if (!response) return;
+        const result = await this._getUrl(this.network_host[channel] + '/meta.json', 'parseJSON', true);
+        if (!result.data) return;
+
+        const response = result.data;
 
         let plugins_flat = this._getPluginsFlat(response);
         let categories = this._getCategories(response);
@@ -415,11 +416,11 @@ export class Worker {
         categories = this._rebuildingCategories(categories, plugins_user);
 
         const p_iitc = async () => {
-            const iitc_code = await this._getUrl(this.network_host[channel] + '/total-conversion-build.user.js');
-            if (iitc_code) {
-                const iitc_core = parseMeta(iitc_code);
+            const result = await this._getUrl(this.network_host[this.channel] + '/total-conversion-build.user.js');
+            if (result.data) {
+                const iitc_core = parseMeta(result.data);
                 iitc_core['uid'] = getUID(iitc_core);
-                iitc_core['code'] = iitc_code;
+                iitc_core['code'] = result.data;
                 await this._save(channel, {
                     iitc_core: iitc_core,
                 });
@@ -553,18 +554,18 @@ export class Worker {
 
                 if (plugin['updateURL'] && plugin['downloadURL']) {
                     // download meta info
-                    const response_meta = await this._getUrl(plugin['updateURL'] + hash);
-                    if (response_meta) {
-                        let meta = parseMeta(response_meta);
+                    const result_meta = await this._getUrl(plugin['updateURL'] + hash);
+                    if (result_meta.data) {
+                        let meta = parseMeta(result_meta.data);
                         // if new version
                         if (meta && meta['version'] && meta['version'] !== plugin['version']) {
                             // download userscript
-                            let response_code = await this._getUrl(plugin['updateURL'] + hash);
-                            if (response_code) {
+                            let result_code = await this._getUrl(plugin['updateURL'] + hash);
+                            if (result_code.data) {
                                 exist_updates = true;
                                 plugins_user[uid] = {
                                     ...meta,
-                                    code: response_code,
+                                    code: result_code.data,
                                     updatedAt: currentTime,
                                     addedAt: plugin.addedAt,
                                     statusChangedAt: plugin.statusChangedAt,
@@ -608,9 +609,9 @@ export class Worker {
             let filename = plugins_local[uid]['filename'];
 
             if (filename && plugins_flat[uid]) {
-                let code = await this._getUrl(`${this.network_host[channel]}/plugins/${filename}`);
-                if (code) {
-                    plugins_local[uid]['code'] = code;
+                let result = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
+                if (result.data) {
+                    plugins_local[uid]['code'] = result.data;
                     plugins_local[uid]['updatedAt'] = currentTime;
                     updated_uids.push(uid);
                 }
