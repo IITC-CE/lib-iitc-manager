@@ -363,7 +363,7 @@ export class Worker {
             clearWait();
             clearTimeout(this.update_timeout_id);
             this.update_timeout_id = null;
-            await this._updateInternalIITC(channel, storage, null);
+            await this._updateInternalIITC(channel, storage);
         } else {
             const time_delta = Math.floor(Date.now() / 1000) - update_check_interval - storage.last_check_update;
             if (time_delta >= 0 || force) {
@@ -372,7 +372,7 @@ export class Worker {
                 this.update_timeout_id = null;
                 const result = await this._getUrl(this.network_host[channel] + '/meta.json', 'head', true);
                 if (result.version !== storage[`${channel}_last_modified`] || force) {
-                    await this._updateInternalIITC(channel, storage, last_modified);
+                    await this._updateInternalIITC(channel, storage);
                 }
             }
         }
@@ -397,15 +397,15 @@ export class Worker {
      * @async
      * @param {string} channel - Current channel.
      * @param {storage.data} local - Data from storage.
-     * @param {string|null} last_modified - Last modified date of "meta.json" file.
      * @return {Promise<void>}
      * @private
      */
-    async _updateInternalIITC(channel, local, last_modified) {
+    async _updateInternalIITC(channel, local) {
         const result = await this._getUrl(this.network_host[channel] + '/meta.json', 'parseJSON', true);
         if (!result.data) return;
 
         const response = result.data;
+        const last_modified = result.version;
 
         let plugins_flat = this._getPluginsFlat(response);
         let categories = this._getCategories(response);
