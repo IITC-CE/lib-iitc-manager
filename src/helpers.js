@@ -8,6 +8,28 @@ const METABLOCK_RE_ENTRY = /\/\/\s*@(\S+)\s+(.*)$/gm; // example match: "\\ @nam
 const META_ARRAY_TYPES = ['include', 'exclude', 'match', 'excludeMatch', 'require', 'grant'];
 
 /**
+ * Decodes response as UTF-8 text using TextDecoder API.
+ * Forces UTF-8 interpretation regardless of Content-Type header.
+ * This fixes issues on Android WebView where response.text() doesn't always
+ * correctly interpret charset, causing Unicode characters to display incorrectly.
+ *
+ * @async
+ * @param {Response} response - Fetch API response object
+ * @return {Promise<string>}
+ * @private
+ */
+async function decodeResponseAsUTF8(response) {
+    try {
+        const arrayBuffer = await response.arrayBuffer();
+        const decoder = new TextDecoder('utf-8');
+        return decoder.decode(arrayBuffer);
+    } catch (error) {
+        console.warn('TextDecoder failed, falling back to response.text():', error);
+        return await response.text();
+    }
+}
+
+/**
  * Parses code of UserScript and returns an object with data from ==UserScript== header.
  *
  * @param {string} code - UserScript plugin with ==UserScript== header.
@@ -83,7 +105,9 @@ export async function fetchResource(url, options = {}) {
             return { data: null, version };
         }
 
-        const data = parseJSON ? await response.json() : await response.text();
+        // Parse data with forced UTF-8 decoding
+        const text = await decodeResponseAsUTF8(response);
+        const data = parseJSON ? JSON.parse(text) : text;
 
         return { data, version };
     } catch (error) {
