@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: 24
       - run: npm install
-      - uses: JS-DevTools/npm-publish@v1
+      - uses: JS-DevTools/npm-publish@v4
         if: ${{ vars.ENABLE_NPM_PUBLISH == 'true' }}
         with:
           strategy: upgrade
