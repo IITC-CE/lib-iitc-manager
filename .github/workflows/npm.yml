@@ -12,16 +12,16 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 17
+          node-version: 24
       - run: npm install
       - uses: JS-DevTools/npm-publish@v1
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ env.NPM_TOKEN != '' }}
+        if: ${{ env.ENABLE_NPM_PUBLISH == 'true' }}
         with:
-          token: ${{ env.NPM_TOKEN }}
-          greater-version-only: true
+          strategy: upgrade
