@@ -1,4 +1,4 @@
-// Copyright (C) 2022-2025 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
+// Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { describe, it } from 'mocha';
 import * as helpers from '../src/helpers.js';
@@ -44,6 +44,46 @@ describe('parseMeta', function () {
     });
 });
 
+describe('fetchResource', function () {
+    it('test plain text with version', async function () {
+        const result = await helpers.fetchResource('http://127.0.0.1:31606/release/total-conversion-build.meta.js');
+        expect(result, 'is object').to.be.an.instanceof(Object);
+        expect(result, 'have keys').to.have.all.keys('data', 'version');
+        expect(result.data, 'data includes UserScript header').to.include('==UserScript==');
+        expect(result.version, 'version exists').to.exist;
+    });
+
+    it('test json with version', async function () {
+        const result = await helpers.fetchResource('http://127.0.0.1:31606/release/meta.json', { parseJSON: true });
+        expect(result, 'is object').to.be.an.instanceof(Object);
+        expect(result, 'have keys').to.have.all.keys('data', 'version');
+        expect(result.data, 'data is object').to.be.an.instanceof(Object);
+        expect(result.data, 'data have keys').to.have.all.keys('categories', 'iitc_version');
+        expect(result.version, 'version exists').to.exist;
+    });
+
+    it('test headOnly with version', async function () {
+        const result = await helpers.fetchResource('http://127.0.0.1:31606/release/meta.json', { headOnly: true });
+        expect(result, 'is object').to.be.an.instanceof(Object);
+        expect(result, 'have keys').to.have.all.keys('data', 'version');
+        expect(result.data, 'data is null for HEAD request').to.be.null;
+        expect(result.version, 'version exists').to.exist;
+    });
+
+    it('test headOnly with use_fetch_head_method=false', async function () {
+        const result = await helpers.fetchResource('http://127.0.0.1:31606/release/meta.json', {
+            headOnly: true,
+            use_fetch_head_method: false,
+            parseJSON: true,
+        });
+        expect(result, 'is object').to.be.an.instanceof(Object);
+        expect(result, 'have keys').to.have.all.keys('data', 'version');
+        expect(result.data, 'data exists when HEAD disabled').to.exist;
+        expect(result.data, 'data is object').to.be.an.instanceof(Object);
+        expect(result.version, 'version exists').to.exist;
+    });
+});
+
 describe('ajaxGet', function () {
     it('test plaint', async function () {
         expect(await helpers.ajaxGet('http://127.0.0.1:31606/release/total-conversion-build.meta.js')).to.include('==UserScript==');
@@ -55,9 +95,9 @@ describe('ajaxGet', function () {
         expect(response, 'have keys').to.have.all.keys('categories', 'iitc_version');
     });
 
-    it('test Last-Modified', async function () {
-        const response = await helpers.ajaxGet('http://127.0.0.1:31606/release/meta.json', 'Last-Modified');
-        expect(response, 'matches the pattern').to.match(/^(\w+), (\d+) (\w+) (\d+) (\d+):(\d+):(\d+) (\w+)/);
+    it('test head', async function () {
+        const response = await helpers.ajaxGet('http://127.0.0.1:31606/release/meta.json', 'head');
+        expect(response, 'version exists').to.exist;
     });
 });
 
