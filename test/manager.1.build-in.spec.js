@@ -6,360 +6,436 @@ import storage from '../test/storage.js';
 import { expect } from 'chai';
 
 describe('manage.js build-in plugins integration tests', function () {
-    let manager = null;
-    let plugin_event_callback = (data) => {
-        const iitc_main_script_uid = 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
-        expect(data).to.have.all.keys('event', 'plugins');
-        expect(data['event']).to.equal('update');
-        expect(data['plugins']).to.have.all.keys(iitc_main_script_uid);
-        expect(data['plugins'][iitc_main_script_uid]['uid']).to.equal(iitc_main_script_uid);
+  let manager = null;
+  let plugin_event_callback = data => {
+    const iitc_main_script_uid =
+      'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    expect(data).to.have.all.keys('event', 'plugins');
+    expect(data['event']).to.equal('update');
+    expect(data['plugins']).to.have.all.keys(iitc_main_script_uid);
+    expect(data['plugins'][iitc_main_script_uid]['uid']).to.equal(iitc_main_script_uid);
+  };
+  before(function () {
+    storage.resetStorage();
+    const params = {
+      storage: storage,
+      channel: 'release',
+      network_host: {
+        release: 'http://127.0.0.1:31606/release',
+        beta: 'http://127.0.0.1:31606/beta',
+        custom: 'http://127.0.0.1/',
+      },
+      inject_user_script: function callBack(data) {
+        expect(data).to.include('// ==UserScript==');
+      },
+      inject_plugin: function callBack(data) {
+        expect(data['code']).to.include('// ==UserScript==');
+      },
+      plugin_event: data => {
+        plugin_event_callback(data);
+      },
+      progressbar: function callBack(is_show) {
+        expect(is_show).to.be.oneOf([true, false]);
+      },
+      is_daemon: false,
     };
-    before(function () {
-        storage.resetStorage();
-        const params = {
-            storage: storage,
-            channel: 'release',
-            network_host: {
-                release: 'http://127.0.0.1:31606/release',
-                beta: 'http://127.0.0.1:31606/beta',
-                custom: 'http://127.0.0.1/',
-            },
-            inject_user_script: function callBack(data) {
-                expect(data).to.include('// ==UserScript==');
-            },
-            inject_plugin: function callBack(data) {
-                expect(data['code']).to.include('// ==UserScript==');
-            },
-            plugin_event: (data) => {
-                plugin_event_callback(data);
-            },
-            progressbar: function callBack(is_show) {
-                expect(is_show).to.be.oneOf([true, false]);
-            },
-            is_daemon: false,
-        };
-        manager = new Manager(params);
+    manager = new Manager(params);
+  });
+
+  const first_plugin_uid =
+    'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const second_plugin_uid = 'Bing maps+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const third_plugin_uid = 'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion';
+
+  describe('run', function () {
+    it('Should not return an error', async function () {
+      const run = await manager.run();
+      expect(run).to.be.undefined;
+    });
+  });
+
+  describe('Manage build-in plugins', function () {
+    it('Enable first plugin', async function () {
+      plugin_event_callback = data => {
+        expect(data).to.have.all.keys('event', 'plugins');
+        expect(data['event']).to.equal('add');
+        expect(data['plugins']).to.have.all.keys(first_plugin_uid);
+        expect(data['plugins'][first_plugin_uid]['uid']).to.equal(first_plugin_uid);
+      };
+
+      const run = await manager.managePlugin(first_plugin_uid, 'on');
+      expect(run).to.be.undefined;
+
+      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
+      expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+        first_plugin_uid,
+        second_plugin_uid,
+        third_plugin_uid
+      );
+      expect(db_data['release_plugins_local'], 'release_plugins_local').to.have.all.keys(
+        first_plugin_uid
+      );
+
+      expect(
+        db_data['release_plugins_local'][first_plugin_uid]['status'],
+        'release_plugins_local: ' + first_plugin_uid
+      ).to.equal('on');
+      expect(
+        db_data['release_plugins_flat'][first_plugin_uid]['status'],
+        'release_plugins_flat: ' + first_plugin_uid
+      ).to.equal('on');
+      expect(
+        db_data['release_plugins_flat'][second_plugin_uid]['status'],
+        'release_plugins_flat: ' + second_plugin_uid
+      ).to.equal('off');
     });
 
-    const first_plugin_uid = 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
-    const second_plugin_uid = 'Bing maps+https://github.com/IITC-CE/ingress-intel-total-conversion';
-    const third_plugin_uid = 'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    it('Enable second plugin', async function () {
+      plugin_event_callback = data => {
+        expect(data).to.have.all.keys('event', 'plugins');
+        expect(data['event']).to.equal('add');
+        expect(data['plugins']).to.have.all.keys(second_plugin_uid);
+        expect(data['plugins'][second_plugin_uid]['uid']).to.equal(second_plugin_uid);
+      };
 
-    describe('run', function () {
-        it('Should not return an error', async function () {
-            const run = await manager.run();
-            expect(run).to.be.undefined;
-        });
+      const run = await manager.managePlugin(second_plugin_uid, 'on');
+      expect(run).to.be.undefined;
+
+      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
+      expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+        first_plugin_uid,
+        second_plugin_uid,
+        third_plugin_uid
+      );
+      expect(db_data['release_plugins_local'], 'release_plugins_local').to.have.all.keys(
+        first_plugin_uid,
+        second_plugin_uid
+      );
+
+      expect(
+        db_data['release_plugins_local'][first_plugin_uid]['status'],
+        'release_plugins_local: ' + first_plugin_uid
+      ).to.equal('on');
+
+      expect(
+        db_data['release_plugins_local'][second_plugin_uid]['status'],
+        'release_plugins_local: ' + second_plugin_uid
+      ).to.equal('on');
+
+      expect(
+        db_data['release_plugins_flat'][first_plugin_uid]['status'],
+        'release_plugins_flat: ' + first_plugin_uid
+      ).to.equal('on');
+
+      expect(
+        db_data['release_plugins_flat'][second_plugin_uid]['status'],
+        'release_plugins_flat: ' + second_plugin_uid
+      ).to.equal('on');
     });
 
-    describe('Manage build-in plugins', function () {
-        it('Enable first plugin', async function () {
-            plugin_event_callback = (data) => {
-                expect(data).to.have.all.keys('event', 'plugins');
-                expect(data['event']).to.equal('add');
-                expect(data['plugins']).to.have.all.keys(first_plugin_uid);
-                expect(data['plugins'][first_plugin_uid]['uid']).to.equal(first_plugin_uid);
-            };
+    it('Disable plugin', async function () {
+      plugin_event_callback = data => {
+        expect(data).to.have.all.keys('event', 'plugins');
+        expect(data['event']).to.equal('remove');
+        expect(data['plugins']).to.have.all.keys(first_plugin_uid);
+        expect(data['plugins'][first_plugin_uid]).to.be.empty;
+      };
 
-            const run = await manager.managePlugin(first_plugin_uid, 'on');
-            expect(run).to.be.undefined;
+      const run = await manager.managePlugin(first_plugin_uid, 'off');
+      expect(run).to.be.undefined;
 
-            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
-            expect(db_data['release_plugins_local'], 'release_plugins_local').to.have.all.keys(first_plugin_uid);
+      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
+      expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+        first_plugin_uid,
+        second_plugin_uid,
+        third_plugin_uid
+      );
+      expect(db_data['release_plugins_local'], 'release_plugins_local').to.have.all.keys(
+        first_plugin_uid,
+        second_plugin_uid
+      );
 
-            expect(db_data['release_plugins_local'][first_plugin_uid]['status'], 'release_plugins_local: ' + first_plugin_uid).to.equal('on');
-            expect(db_data['release_plugins_flat'][first_plugin_uid]['status'], 'release_plugins_flat: ' + first_plugin_uid).to.equal('on');
-            expect(db_data['release_plugins_flat'][second_plugin_uid]['status'], 'release_plugins_flat: ' + second_plugin_uid).to.equal('off');
-        });
+      expect(
+        db_data['release_plugins_local'][first_plugin_uid]['status'],
+        'release_plugins_local: ' + first_plugin_uid
+      ).to.equal('off');
 
-        it('Enable second plugin', async function () {
-            plugin_event_callback = (data) => {
-                expect(data).to.have.all.keys('event', 'plugins');
-                expect(data['event']).to.equal('add');
-                expect(data['plugins']).to.have.all.keys(second_plugin_uid);
-                expect(data['plugins'][second_plugin_uid]['uid']).to.equal(second_plugin_uid);
-            };
+      expect(
+        db_data['release_plugins_local'][second_plugin_uid]['status'],
+        'release_plugins_local: ' + second_plugin_uid
+      ).to.equal('on');
 
-            const run = await manager.managePlugin(second_plugin_uid, 'on');
-            expect(run).to.be.undefined;
+      expect(
+        db_data['release_plugins_flat'][first_plugin_uid]['status'],
+        'release_plugins_flat: ' + first_plugin_uid
+      ).to.equal('off');
 
-            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
-            expect(db_data['release_plugins_local'], 'release_plugins_local').to.have.all.keys(first_plugin_uid, second_plugin_uid);
-
-            expect(db_data['release_plugins_local'][first_plugin_uid]['status'], 'release_plugins_local: ' + first_plugin_uid).to.equal('on');
-
-            expect(db_data['release_plugins_local'][second_plugin_uid]['status'], 'release_plugins_local: ' + second_plugin_uid).to.equal('on');
-
-            expect(db_data['release_plugins_flat'][first_plugin_uid]['status'], 'release_plugins_flat: ' + first_plugin_uid).to.equal('on');
-
-            expect(db_data['release_plugins_flat'][second_plugin_uid]['status'], 'release_plugins_flat: ' + second_plugin_uid).to.equal('on');
-        });
-
-        it('Disable plugin', async function () {
-            plugin_event_callback = (data) => {
-                expect(data).to.have.all.keys('event', 'plugins');
-                expect(data['event']).to.equal('remove');
-                expect(data['plugins']).to.have.all.keys(first_plugin_uid);
-                expect(data['plugins'][first_plugin_uid]).to.be.empty;
-            };
-
-            const run = await manager.managePlugin(first_plugin_uid, 'off');
-            expect(run).to.be.undefined;
-
-            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
-            expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
-            expect(db_data['release_plugins_local'], 'release_plugins_local').to.have.all.keys(first_plugin_uid, second_plugin_uid);
-
-            expect(db_data['release_plugins_local'][first_plugin_uid]['status'], 'release_plugins_local: ' + first_plugin_uid).to.equal('off');
-
-            expect(db_data['release_plugins_local'][second_plugin_uid]['status'], 'release_plugins_local: ' + second_plugin_uid).to.equal('on');
-
-            expect(db_data['release_plugins_flat'][first_plugin_uid]['status'], 'release_plugins_flat: ' + first_plugin_uid).to.equal('off');
-
-            expect(db_data['release_plugins_flat'][second_plugin_uid]['status'], 'release_plugins_flat: ' + second_plugin_uid).to.equal('on');
-        });
-
-        it('Info about plugin', async function () {
-            const info = await manager.getPluginInfo(first_plugin_uid);
-            expect(info).to.be.an('object');
-            expect(info['uid']).to.be.equal(first_plugin_uid);
-            expect(info['status']).to.be.equal('off');
-        });
+      expect(
+        db_data['release_plugins_flat'][second_plugin_uid]['status'],
+        'release_plugins_flat: ' + second_plugin_uid
+      ).to.equal('on');
     });
+
+    it('Info about plugin', async function () {
+      const info = await manager.getPluginInfo(first_plugin_uid);
+      expect(info).to.be.an('object');
+      expect(info['uid']).to.be.equal(first_plugin_uid);
+      expect(info['status']).to.be.equal('off');
+    });
+  });
 });
 
 describe('Delete external plugins - comprehensive tests', function () {
-    let manager = null;
-    const external_plugin_uid = 'Test Plugin+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  let manager = null;
+  const external_plugin_uid =
+    'Test Plugin+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
-    // Track plugin events for verification
-    let received_plugin_event = null;
-    let plugin_event_callback = (data) => {
-        received_plugin_event = data;
+  // Track plugin events for verification
+  let received_plugin_event = null;
+  let plugin_event_callback = data => {
+    received_plugin_event = data;
+  };
+
+  before(function () {
+    storage.resetStorage();
+    const params = {
+      storage: storage,
+      channel: 'release',
+      network_host: {
+        release: 'http://127.0.0.1:31606/release',
+        beta: 'http://127.0.0.1:31606/beta',
+        custom: 'http://127.0.0.1/',
+      },
+      inject_user_script: function callBack(data) {
+        expect(data).to.include('// ==UserScript==');
+      },
+      inject_plugin: function callBack(data) {
+        expect(data['code']).to.include('// ==UserScript==');
+      },
+      plugin_event: data => {
+        plugin_event_callback(data);
+      },
+      progressbar: function callBack(is_show) {
+        expect(is_show).to.be.oneOf([true, false]);
+      },
+      is_daemon: false,
+    };
+    manager = new Manager(params);
+  });
+
+  beforeEach(function () {
+    storage.resetStorage();
+    received_plugin_event = null;
+  });
+
+  // Test deletion of active external plugin
+  it('should correctly delete active external plugin', async function () {
+    // Setup: Add external plugin with status 'on'
+    const plugin_data = {
+      meta: {
+        id: 'test-plugin',
+        namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+        name: 'Test Plugin',
+        category: 'Test',
+      },
+      code: '// ==UserScript==\nreturn false;',
     };
 
-    before(function () {
-        storage.resetStorage();
-        const params = {
-            storage: storage,
-            channel: 'release',
-            network_host: {
-                release: 'http://127.0.0.1:31606/release',
-                beta: 'http://127.0.0.1:31606/beta',
-                custom: 'http://127.0.0.1/',
-            },
-            inject_user_script: function callBack(data) {
-                expect(data).to.include('// ==UserScript==');
-            },
-            inject_plugin: function callBack(data) {
-                expect(data['code']).to.include('// ==UserScript==');
-            },
-            plugin_event: (data) => {
-                plugin_event_callback(data);
-            },
-            progressbar: function callBack(is_show) {
-                expect(is_show).to.be.oneOf([true, false]);
-            },
-            is_daemon: false,
-        };
-        manager = new Manager(params);
+    await manager.addUserScripts([plugin_data]);
+
+    // Delete the plugin
+    await manager.managePlugin(external_plugin_uid, 'delete');
+
+    // Verify storage state
+    const storage_after = await manager.storage.get([
+      'release_plugins_flat',
+      'release_plugins_user',
+    ]);
+
+    // Verify plugin was removed from user plugins
+    expect(storage_after['release_plugins_user']).to.be.empty;
+
+    // Verify plugin event was fired (since plugin was active)
+    expect(received_plugin_event).to.have.property('event', 'remove');
+    expect(received_plugin_event.plugins).to.have.property(external_plugin_uid);
+  });
+
+  // Test deletion of inactive external plugin
+  it('should correctly delete inactive external plugin without firing event', async function () {
+    // Setup: Add external plugin and set it to 'off'
+    const plugin_data = {
+      meta: {
+        id: 'test-plugin',
+        namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+        name: 'Test Plugin',
+        category: 'Test',
+      },
+      code: '// ==UserScript==\nreturn false;',
+    };
+
+    await manager.addUserScripts([plugin_data]);
+    await manager.managePlugin(external_plugin_uid, 'off');
+
+    // Reset event tracking before deletion
+    received_plugin_event = null;
+
+    // Delete the plugin
+    await manager.managePlugin(external_plugin_uid, 'delete');
+
+    // Verify storage state
+    const storage_after = await manager.storage.get([
+      'release_plugins_flat',
+      'release_plugins_user',
+    ]);
+
+    // Verify plugin was removed from user plugins
+    expect(storage_after['release_plugins_user']).to.be.empty;
+
+    // Verify no plugin event was fired (since plugin was inactive)
+    expect(received_plugin_event).to.be.null;
+  });
+
+  // Test deletion of external plugin that overrides built-in plugin
+  it('should correctly handle deletion of plugin with override flag', async function () {
+    // First, load built-in plugins through manager.run()
+    const run = await manager.run();
+    expect(run).to.be.undefined;
+
+    // Setup: Add external plugin that overrides built-in plugin
+    const built_in_uid =
+      'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    const override_plugin = {
+      meta: {
+        namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+        name: 'Available AP statistics',
+      },
+      code: '// ==UserScript==\nreturn false;',
+    };
+
+    // Add overriding plugin
+    await manager.addUserScripts([override_plugin]);
+
+    // Verify override flag is set before deletion
+    const storage_before = await manager.storage.get(['release_plugins_flat']);
+    expect(storage_before['release_plugins_flat'][built_in_uid].override).to.be.true;
+    expect(storage_before['release_plugins_flat'][built_in_uid].user).to.be.true;
+    expect(storage_before['release_plugins_flat'][built_in_uid].status).to.equal('on');
+
+    // Delete the plugin
+    await manager.managePlugin(built_in_uid, 'delete');
+
+    // Verify storage state after deletion
+    const storage_after = await manager.storage.get([
+      'release_plugins_flat',
+      'release_plugins_user',
+    ]);
+
+    // Verify plugin was removed from user plugins
+    expect(storage_after['release_plugins_user']).to.be.empty;
+
+    // Verify built-in plugin was restored to original state
+    expect(storage_after['release_plugins_flat'][built_in_uid].override).to.be.false;
+    expect(storage_after['release_plugins_flat'][built_in_uid].user).to.be.false;
+    expect(storage_after['release_plugins_flat'][built_in_uid].status).to.equal('off');
+  });
+
+  describe('Timestamps for built-in plugins', function () {
+    let manager = null;
+    const built_in_plugin_uid =
+      'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+
+    beforeEach(async function () {
+      // Reset storage before each test
+      storage.resetStorage();
+      manager = new Manager({
+        storage: storage,
+        channel: 'release',
+        network_host: {
+          release: 'http://127.0.0.1:31606/release',
+          beta: 'http://127.0.0.1:31606/beta',
+          custom: 'http://127.0.0.1/',
+        },
+        inject_user_script: function (data) {
+          expect(data).to.include('// ==UserScript==');
+        },
+        inject_plugin: function (data) {
+          expect(data['code']).to.include('// ==UserScript==');
+        },
+        plugin_event: () => {},
+        progressbar: function (is_show) {
+          expect(is_show).to.be.oneOf([true, false]);
+        },
+        is_daemon: false,
+      });
+
+      // Initialize built-in plugins
+      await manager.run();
     });
 
-    beforeEach(function () {
-        storage.resetStorage();
-        received_plugin_event = null;
+    it('should set statusChangedAt when enabling built-in plugin first time', async function () {
+      // Enable plugin
+      await manager.managePlugin(built_in_plugin_uid, 'on');
+
+      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
+
+      // Check statusChangedAt set in both storages
+      expect(db_data['release_plugins_local'][built_in_plugin_uid]).to.have.property(
+        'statusChangedAt'
+      );
+      expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.have.property(
+        'statusChangedAt'
+      );
+      expect(db_data['release_plugins_flat'][built_in_plugin_uid].statusChangedAt).to.equal(
+        db_data['release_plugins_local'][built_in_plugin_uid].statusChangedAt
+      );
+
+      // Should not have addedAt
+      expect(db_data['release_plugins_local'][built_in_plugin_uid]).to.not.have.property('addedAt');
+      expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.not.have.property('addedAt');
     });
 
-    // Test deletion of active external plugin
-    it('should correctly delete active external plugin', async function () {
-        // Setup: Add external plugin with status 'on'
-        const plugin_data = {
-            meta: {
-                id: 'test-plugin',
-                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-                name: 'Test Plugin',
-                category: 'Test',
-            },
-            code: '// ==UserScript==\nreturn false;',
-        };
+    it('should update statusChangedAt when toggling built-in plugin', async function () {
+      // First enable
+      await manager.managePlugin(built_in_plugin_uid, 'on');
+      const before = await storage.get(['release_plugins_local']);
+      const initialStatusChangedAt =
+        before['release_plugins_local'][built_in_plugin_uid].statusChangedAt;
 
-        await manager.addUserScripts([plugin_data]);
+      // Wait 1 second
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Delete the plugin
-        await manager.managePlugin(external_plugin_uid, 'delete');
+      // Disable plugin
+      await manager.managePlugin(built_in_plugin_uid, 'off');
 
-        // Verify storage state
-        const storage_after = await manager.storage.get(['release_plugins_flat', 'release_plugins_user']);
+      const after = await storage.get(['release_plugins_flat', 'release_plugins_local']);
 
-        // Verify plugin was removed from user plugins
-        expect(storage_after['release_plugins_user']).to.be.empty;
-
-        // Verify plugin event was fired (since plugin was active)
-        expect(received_plugin_event).to.have.property('event', 'remove');
-        expect(received_plugin_event.plugins).to.have.property(external_plugin_uid);
+      // Check statusChangedAt updated
+      expect(after['release_plugins_local'][built_in_plugin_uid].statusChangedAt).to.be.above(
+        initialStatusChangedAt
+      );
+      expect(after['release_plugins_flat'][built_in_plugin_uid].statusChangedAt).to.equal(
+        after['release_plugins_local'][built_in_plugin_uid].statusChangedAt
+      );
     });
 
-    // Test deletion of inactive external plugin
-    it('should correctly delete inactive external plugin without firing event', async function () {
-        // Setup: Add external plugin and set it to 'off'
-        const plugin_data = {
-            meta: {
-                id: 'test-plugin',
-                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-                name: 'Test Plugin',
-                category: 'Test',
-            },
-            code: '// ==UserScript==\nreturn false;',
-        };
+    it('should set updatedAt when updating built-in plugin', async function () {
+      // First enable plugin to get it downloaded
+      await manager.managePlugin(built_in_plugin_uid, 'on');
 
-        await manager.addUserScripts([plugin_data]);
-        await manager.managePlugin(external_plugin_uid, 'off');
+      // Wait 1 second
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Reset event tracking before deletion
-        received_plugin_event = null;
+      // Force update check
+      await manager.checkUpdates(true);
 
-        // Delete the plugin
-        await manager.managePlugin(external_plugin_uid, 'delete');
+      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
 
-        // Verify storage state
-        const storage_after = await manager.storage.get(['release_plugins_flat', 'release_plugins_user']);
-
-        // Verify plugin was removed from user plugins
-        expect(storage_after['release_plugins_user']).to.be.empty;
-
-        // Verify no plugin event was fired (since plugin was inactive)
-        expect(received_plugin_event).to.be.null;
+      // Check updatedAt is set
+      expect(db_data['release_plugins_local'][built_in_plugin_uid]).to.have.property('updatedAt');
+      expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.have.property('updatedAt');
+      expect(db_data['release_plugins_flat'][built_in_plugin_uid].updatedAt).to.equal(
+        db_data['release_plugins_local'][built_in_plugin_uid].updatedAt
+      );
     });
-
-    // Test deletion of external plugin that overrides built-in plugin
-    it('should correctly handle deletion of plugin with override flag', async function () {
-        // First, load built-in plugins through manager.run()
-        const run = await manager.run();
-        expect(run).to.be.undefined;
-
-        // Setup: Add external plugin that overrides built-in plugin
-        const built_in_uid = 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
-        const override_plugin = {
-            meta: {
-                namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-                name: 'Available AP statistics',
-            },
-            code: '// ==UserScript==\nreturn false;',
-        };
-
-        // Add overriding plugin
-        await manager.addUserScripts([override_plugin]);
-
-        // Verify override flag is set before deletion
-        const storage_before = await manager.storage.get(['release_plugins_flat']);
-        expect(storage_before['release_plugins_flat'][built_in_uid].override).to.be.true;
-        expect(storage_before['release_plugins_flat'][built_in_uid].user).to.be.true;
-        expect(storage_before['release_plugins_flat'][built_in_uid].status).to.equal('on');
-
-        // Delete the plugin
-        await manager.managePlugin(built_in_uid, 'delete');
-
-        // Verify storage state after deletion
-        const storage_after = await manager.storage.get(['release_plugins_flat', 'release_plugins_user']);
-
-        // Verify plugin was removed from user plugins
-        expect(storage_after['release_plugins_user']).to.be.empty;
-
-        // Verify built-in plugin was restored to original state
-        expect(storage_after['release_plugins_flat'][built_in_uid].override).to.be.false;
-        expect(storage_after['release_plugins_flat'][built_in_uid].user).to.be.false;
-        expect(storage_after['release_plugins_flat'][built_in_uid].status).to.equal('off');
-    });
-
-    describe('Timestamps for built-in plugins', function () {
-        let manager = null;
-        const built_in_plugin_uid = 'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
-
-        beforeEach(async function () {
-            // Reset storage before each test
-            storage.resetStorage();
-            manager = new Manager({
-                storage: storage,
-                channel: 'release',
-                network_host: {
-                    release: 'http://127.0.0.1:31606/release',
-                    beta: 'http://127.0.0.1:31606/beta',
-                    custom: 'http://127.0.0.1/',
-                },
-                inject_user_script: function (data) {
-                    expect(data).to.include('// ==UserScript==');
-                },
-                inject_plugin: function (data) {
-                    expect(data['code']).to.include('// ==UserScript==');
-                },
-                plugin_event: () => {},
-                progressbar: function (is_show) {
-                    expect(is_show).to.be.oneOf([true, false]);
-                },
-                is_daemon: false,
-            });
-
-            // Initialize built-in plugins
-            await manager.run();
-        });
-
-        it('should set statusChangedAt when enabling built-in plugin first time', async function () {
-            // Enable plugin
-            await manager.managePlugin(built_in_plugin_uid, 'on');
-
-            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
-
-            // Check statusChangedAt set in both storages
-            expect(db_data['release_plugins_local'][built_in_plugin_uid]).to.have.property('statusChangedAt');
-            expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.have.property('statusChangedAt');
-            expect(db_data['release_plugins_flat'][built_in_plugin_uid].statusChangedAt).to.equal(
-                db_data['release_plugins_local'][built_in_plugin_uid].statusChangedAt
-            );
-
-            // Should not have addedAt
-            expect(db_data['release_plugins_local'][built_in_plugin_uid]).to.not.have.property('addedAt');
-            expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.not.have.property('addedAt');
-        });
-
-        it('should update statusChangedAt when toggling built-in plugin', async function () {
-            // First enable
-            await manager.managePlugin(built_in_plugin_uid, 'on');
-            const before = await storage.get(['release_plugins_local']);
-            const initialStatusChangedAt = before['release_plugins_local'][built_in_plugin_uid].statusChangedAt;
-
-            // Wait 1 second
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            // Disable plugin
-            await manager.managePlugin(built_in_plugin_uid, 'off');
-
-            const after = await storage.get(['release_plugins_flat', 'release_plugins_local']);
-
-            // Check statusChangedAt updated
-            expect(after['release_plugins_local'][built_in_plugin_uid].statusChangedAt).to.be.above(initialStatusChangedAt);
-            expect(after['release_plugins_flat'][built_in_plugin_uid].statusChangedAt).to.equal(
-                after['release_plugins_local'][built_in_plugin_uid].statusChangedAt
-            );
-        });
-
-        it('should set updatedAt when updating built-in plugin', async function () {
-            // First enable plugin to get it downloaded
-            await manager.managePlugin(built_in_plugin_uid, 'on');
-
-            // Wait 1 second
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            // Force update check
-            await manager.checkUpdates(true);
-
-            const db_data = await storage.get(['release_plugins_flat', 'release_plugins_local']);
-
-            // Check updatedAt is set
-            expect(db_data['release_plugins_local'][built_in_plugin_uid]).to.have.property('updatedAt');
-            expect(db_data['release_plugins_flat'][built_in_plugin_uid]).to.have.property('updatedAt');
-            expect(db_data['release_plugins_flat'][built_in_plugin_uid].updatedAt).to.equal(db_data['release_plugins_local'][built_in_plugin_uid].updatedAt);
-        });
-    });
+  });
 });

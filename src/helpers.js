@@ -19,14 +19,14 @@ const META_ARRAY_TYPES = ['include', 'exclude', 'match', 'excludeMatch', 'requir
  * @private
  */
 async function decodeResponseAsUTF8(response) {
-    try {
-        const arrayBuffer = await response.arrayBuffer();
-        const decoder = new TextDecoder('utf-8');
-        return decoder.decode(arrayBuffer);
-    } catch (error) {
-        console.warn('TextDecoder failed, falling back to response.text():', error);
-        return await response.text();
-    }
+  try {
+    const arrayBuffer = await response.arrayBuffer();
+    const decoder = new TextDecoder('utf-8');
+    return decoder.decode(arrayBuffer);
+  } catch (error) {
+    console.warn('TextDecoder failed, falling back to response.text():', error);
+    return await response.text();
+  }
 }
 
 /**
@@ -36,35 +36,35 @@ async function decodeResponseAsUTF8(response) {
  * @return {Object.<string, string>|null}
  */
 export function parseMeta(code) {
-    let header = METABLOCK_RE_HEADER.exec(code);
-    if (header === null) return null;
-    header = header[1];
-    const meta = {};
+  let header = METABLOCK_RE_HEADER.exec(code);
+  if (header === null) return null;
+  header = header[1];
+  const meta = {};
 
-    let entry = METABLOCK_RE_ENTRY.exec(header);
-    while (entry) {
-        const [keyName, locale] = entry[1].split(':');
-        const camelKey = keyName.replace(/[-_](\w)/g, (m, g) => g.toUpperCase());
-        const key = locale ? `${camelKey}:${locale.toLowerCase()}` : camelKey;
-        let value = entry[2];
+  let entry = METABLOCK_RE_ENTRY.exec(header);
+  while (entry) {
+    const [keyName, locale] = entry[1].split(':');
+    const camelKey = keyName.replace(/[-_](\w)/g, (m, g) => g.toUpperCase());
+    const key = locale ? `${camelKey}:${locale.toLowerCase()}` : camelKey;
+    let value = entry[2];
 
-        if (camelKey === 'name') {
-            value = value.replace('IITC plugin: ', '').replace('IITC Plugin: ', '');
-        }
-        if (META_ARRAY_TYPES.includes(key)) {
-            if (typeof meta[key] === 'undefined') {
-                meta[key] = [];
-            }
-            meta[key].push(value);
-        } else {
-            meta[key] = value;
-        }
-
-        entry = METABLOCK_RE_ENTRY.exec(header);
+    if (camelKey === 'name') {
+      value = value.replace('IITC plugin: ', '').replace('IITC Plugin: ', '');
     }
-    // @homepageURL: compatible with @homepage
-    if (!meta.homepageURL && meta.homepage) meta.homepageURL = meta.homepage;
-    return meta;
+    if (META_ARRAY_TYPES.includes(key)) {
+      if (typeof meta[key] === 'undefined') {
+        meta[key] = [];
+      }
+      meta[key].push(value);
+    } else {
+      meta[key] = value;
+    }
+
+    entry = METABLOCK_RE_ENTRY.exec(header);
+  }
+  // @homepageURL: compatible with @homepage
+  if (!meta.homepageURL && meta.homepage) meta.homepageURL = meta.homepage;
+  return meta;
 }
 
 /**
@@ -79,41 +79,44 @@ export function parseMeta(code) {
  * @return {Promise<{data: string|object|null, version: string|null}>}
  */
 export async function fetchResource(url, options = {}) {
-    const { parseJSON = false, headOnly = false, use_fetch_head_method = true } = options;
+  const { parseJSON = false, headOnly = false, use_fetch_head_method = true } = options;
 
-    // Using built-in fetch in browser, otherwise import polyfill
-    // eslint-disable-next-line no-undef
-    const c_fetch = (...args) => (process.env.NODE_ENV !== 'test' ? fetch(...args) : import('node-fetch').then(({ default: fetch }) => fetch(...args)));
+  // Using built-in fetch in browser, otherwise import polyfill
+  // eslint-disable-next-line no-undef
+  const c_fetch = (...args) =>
+    process.env.NODE_ENV !== 'test'
+      ? fetch(...args)
+      : import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
-    try {
-        // If headOnly requested but HEAD not allowed, use GET anyway
-        const method = headOnly && use_fetch_head_method ? 'HEAD' : 'GET';
+  try {
+    // If headOnly requested but HEAD not allowed, use GET anyway
+    const method = headOnly && use_fetch_head_method ? 'HEAD' : 'GET';
 
-        const response = await c_fetch(url + '?' + Date.now(), {
-            method: method,
-            cache: 'no-cache',
-        });
+    const response = await c_fetch(url + '?' + Date.now(), {
+      method: method,
+      cache: 'no-cache',
+    });
 
-        if (!response.ok) {
-            return { data: null, version: null };
-        }
-
-        const version = response.headers.get('ETag') || response.headers.get('Last-Modified');
-
-        // If we made HEAD request, no data
-        if (headOnly && method === 'HEAD') {
-            return { data: null, version };
-        }
-
-        // Parse data with forced UTF-8 decoding
-        const text = await decodeResponseAsUTF8(response);
-        const data = parseJSON ? JSON.parse(text) : text;
-
-        return { data, version };
-    } catch (error) {
-        console.error('Error in fetchResource:', error);
-        return { data: null, version: null };
+    if (!response.ok) {
+      return { data: null, version: null };
     }
+
+    const version = response.headers.get('ETag') || response.headers.get('Last-Modified');
+
+    // If we made HEAD request, no data
+    if (headOnly && method === 'HEAD') {
+      return { data: null, version };
+    }
+
+    // Parse data with forced UTF-8 decoding
+    const text = await decodeResponseAsUTF8(response);
+    const data = parseJSON ? JSON.parse(text) : text;
+
+    return { data, version };
+  } catch (error) {
+    console.error('Error in fetchResource:', error);
+    return { data: null, version: null };
+  }
 }
 
 /**
@@ -129,21 +132,21 @@ export async function fetchResource(url, options = {}) {
  * @return {Promise<string|object|null>}
  */
 export async function ajaxGet(url, variant) {
-    const options = {};
+  const options = {};
 
-    if (variant === 'parseJSON') {
-        options.parseJSON = true;
-    } else if (variant === 'head') {
-        options.headOnly = true;
-    }
+  if (variant === 'parseJSON') {
+    options.parseJSON = true;
+  } else if (variant === 'head') {
+    options.headOnly = true;
+  }
 
-    const { data, version } = await fetchResource(url, options);
+  const { data, version } = await fetchResource(url, options);
 
-    // Old behavior: return version for 'head', otherwise return data
-    if (variant === 'head') {
-        return version;
-    }
-    return data;
+  // Old behavior: return version for 'head', otherwise return data
+  if (variant === 'head') {
+    return version;
+  }
+  return data;
 }
 
 /**
@@ -153,8 +156,12 @@ export async function ajaxGet(url, variant) {
  * @return {string}
  */
 export function getUniqId(prefix = 'VM') {
-    const now = performance.now();
-    return prefix + Math.floor((now - Math.floor(now)) * 1e12).toString(36) + Math.floor(Math.random() * 1e12).toString(36);
+  const now = performance.now();
+  return (
+    prefix +
+    Math.floor((now - Math.floor(now)) * 1e12).toString(36) +
+    Math.floor(Math.random() * 1e12).toString(36)
+  );
 }
 
 /**
@@ -164,26 +171,26 @@ export function getUniqId(prefix = 'VM') {
  * @return {string|null}
  */
 export function getUID(plugin) {
-    const available_fields = [];
+  const available_fields = [];
 
-    if (plugin['id']) {
-        available_fields.push(plugin['id']);
-    }
-    if (plugin['filename']) {
-        available_fields.push(plugin['filename']);
-    }
-    if (plugin['name']) {
-        available_fields.push(plugin['name']);
-    }
-    if (plugin['namespace']) {
-        available_fields.push(plugin['namespace']);
-    }
+  if (plugin['id']) {
+    available_fields.push(plugin['id']);
+  }
+  if (plugin['filename']) {
+    available_fields.push(plugin['filename']);
+  }
+  if (plugin['name']) {
+    available_fields.push(plugin['name']);
+  }
+  if (plugin['namespace']) {
+    available_fields.push(plugin['namespace']);
+  }
 
-    if (available_fields.length < 2) {
-        return null;
-    }
+  if (available_fields.length < 2) {
+    return null;
+  }
 
-    return available_fields.slice(-2).join('+');
+  return available_fields.slice(-2).join('+');
 }
 
 /**
@@ -194,29 +201,31 @@ export function getUID(plugin) {
  * @return {boolean}
  */
 export function check_url_match_pattern(url, domain) {
-    if (url.startsWith('/^')) {
-        url = url
-            .replace(/\/\^|\?/g, '')
-            .replace(/\\\//g, '/')
-            .replace(/\.\*/g, '*')
-            .replace(/\\\./g, '.');
-    }
+  if (url.startsWith('/^')) {
+    url = url
+      .replace(/\/\^|\?/g, '')
+      .replace(/\\\//g, '/')
+      .replace(/\.\*/g, '*')
+      .replace(/\\\./g, '.');
+  }
 
-    if (
-        (/^(http|https|\*):\/\/(www|\*)\.ingress\.com\/mission*/.test(url) || /^(http|https|\*):\/\/missions\.ingress\.com\/*/.test(url)) &&
-        (domain === '<all>' || domain === 'missions.ingress.com')
-    ) {
-        return true;
-    }
+  if (
+    (/^(http|https|\*):\/\/(www|\*)\.ingress\.com\/mission*/.test(url) ||
+      /^(http|https|\*):\/\/missions\.ingress\.com\/*/.test(url)) &&
+    (domain === '<all>' || domain === 'missions.ingress.com')
+  ) {
+    return true;
+  }
 
-    if (
-        (/^(http|https|\*):\/\/(www\.|\*\.|\*|)ingress\.com(?!.*\/mission*)/.test(url) || /^(http|https|\*):\/\/intel\.ingress\.com*/.test(url)) &&
-        (domain === '<all>' || domain === 'intel.ingress.com')
-    ) {
-        return true;
-    }
+  if (
+    (/^(http|https|\*):\/\/(www\.|\*\.|\*|)ingress\.com(?!.*\/mission*)/.test(url) ||
+      /^(http|https|\*):\/\/intel\.ingress\.com*/.test(url)) &&
+    (domain === '<all>' || domain === 'intel.ingress.com')
+  ) {
+    return true;
+  }
 
-    return false;
+  return false;
 }
 
 /**
@@ -229,17 +238,17 @@ export function check_url_match_pattern(url, domain) {
  * @return {boolean}
  */
 export function check_meta_match_pattern(meta, domain = '<all>') {
-    if (meta.match && meta.match.length) {
-        for (const url of meta.match) {
-            if (check_url_match_pattern(url, domain)) return true;
-        }
+  if (meta.match && meta.match.length) {
+    for (const url of meta.match) {
+      if (check_url_match_pattern(url, domain)) return true;
     }
-    if (meta.include && meta.include.length) {
-        for (const url of meta.include) {
-            if (check_url_match_pattern(url, domain)) return true;
-        }
+  }
+  if (meta.include && meta.include.length) {
+    for (const url of meta.include) {
+      if (check_url_match_pattern(url, domain)) return true;
     }
-    return false;
+  }
+  return false;
 }
 
 /**
@@ -250,11 +259,11 @@ export function check_meta_match_pattern(meta, domain = '<all>') {
  * @return {Promise<void>}
  */
 export async function wait(seconds) {
-    return new Promise((resolve) => {
-        clearTimeout(wait_timeout_id);
-        wait_timeout_id = null;
-        wait_timeout_id = setTimeout(resolve, seconds * 1000);
-    });
+  return new Promise(resolve => {
+    clearTimeout(wait_timeout_id);
+    wait_timeout_id = null;
+    wait_timeout_id = setTimeout(resolve, seconds * 1000);
+  });
 }
 
 /**
@@ -263,8 +272,8 @@ export async function wait(seconds) {
  * @return {void}
  */
 export function clearWait() {
-    clearTimeout(wait_timeout_id);
-    wait_timeout_id = null;
+  clearTimeout(wait_timeout_id);
+  wait_timeout_id = null;
 }
 
 /**
@@ -274,7 +283,7 @@ export function clearWait() {
  * @return {boolean}
  */
 export function isSet(value) {
-    return typeof value !== 'undefined' && value !== null;
+  return typeof value !== 'undefined' && value !== null;
 }
 
 /**
@@ -285,13 +294,13 @@ export function isSet(value) {
  * @returns {string} - The processed string.
  */
 export function sanitizeFileName(input, maxLength = 255) {
-    const invalidChars = /[/\\:*?"<>|]/g;
-    let sanitized = input.replace(invalidChars, '');
+  const invalidChars = /[/\\:*?"<>|]/g;
+  let sanitized = input.replace(invalidChars, '');
 
-    // Truncate the length to maxLength characters
-    if (sanitized.length > maxLength) {
-        sanitized = sanitized.slice(0, maxLength);
-    }
+  // Truncate the length to maxLength characters
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.slice(0, maxLength);
+  }
 
-    return sanitized;
+  return sanitized;
 }
