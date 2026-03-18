@@ -5,25 +5,29 @@
   },
   "extends": [
     "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
     "plugin:prettier/recommended",
     "prettier"
   ],
+  "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": 13,
     "sourceType": "module"
   },
   "ignorePatterns": [
-    "/test/fixtures/*"
+    "/test/fixtures/*",
+    "/dist/*"
   ],
-  "plugins": ["prettier"],
+  "plugins": ["@typescript-eslint", "prettier"],
   "rules": {
     "eqeqeq": "error",
     "spaced-comment": "error",
-    "no-unused-expressions": "error"
+    "no-unused-expressions": "error",
+    "@typescript-eslint/no-explicit-any": "off"
   },
   "overrides": [
     {
-      "files": ["*.test.js", "*.spec.js"],
+      "files": ["*.test.ts", "*.spec.ts"],
       "rules": {
         "no-unused-expressions": "off"
       }

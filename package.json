@@ -2,9 +2,11 @@
   "name": "lib-iitc-manager",
   "version": "1.11.1",
   "description": "Library for managing IITC plugins",
-  "main": "src/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
+    "build": "tsc",
     "test": "NODE_ENV=test mocha --exit",
     "test_with_webserver": "http-server ./test/fixtures/ -p 31606 -s & sleep 1 && NODE_ENV=test mocha --exit",
     "webserver": "http-server ./test/fixtures/ -p 31606"
@@ -20,6 +22,9 @@
   },
   "homepage": "https://github.com/IITC-CE/lib-iitc-manager#readme",
   "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
     "chai": "^4.3.6",
     "eslint": "^8.20.0",
     "eslint-config-prettier": "^8.5.0",
@@ -27,7 +32,9 @@
     "http-server": "^14.1.0",
     "mocha": "^9.2.2",
     "node-fetch": "^3.2.3",
-    "prettier": "^2.7.1"
+    "prettier": "^2.7.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@bundled-es-modules/deepmerge": "^4.3.1",

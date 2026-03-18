@@ -3,12 +3,12 @@ export default function () {
     return {
         files: [
             'package.json',
-            'test/storage.js',
-            'src/**/*.js'
+            'test/storage.ts',
+            'src/**/*.ts'
         ],
 
         tests: [
-            'test/**/*spec.js',
+            'test/**/*spec.ts',
         ],
 
         env: {
