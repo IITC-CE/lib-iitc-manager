@@ -108,7 +108,7 @@ describe('exclude-match', function () {
   it('should exclude any', function () {
     const script = {
       match: ['*://*/*'],
-      'exclude-match': ['*://*/*'],
+      excludeMatch: ['*://*/*'],
     };
     expect(check_matching(script, 'https://www.example.com/'), 'should exclude `http | https`').to
       .be.false;
@@ -116,7 +116,7 @@ describe('exclude-match', function () {
   it('should include by regexp', function () {
     const script = {
       match: ['*://*/*'],
-      'exclude-match': ['http://www.example.com/*', 'http://www.example2.com/*'],
+      excludeMatch: ['http://www.example.com/*', 'http://www.example2.com/*'],
     };
     expect(check_matching(script, 'http://www.example.com/'), 'should exclude `/`').to.be.false;
     expect(check_matching(script, 'http://www.example2.com/data/'), 'exclude by prefix').to.be

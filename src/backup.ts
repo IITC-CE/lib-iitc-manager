@@ -1,7 +1,9 @@
-// Copyright (C) 2023-2025 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
+// Copyright (C) 2023-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { isSet, parseMeta, sanitizeFileName } from './helpers.js';
 import deepmerge from '@bundled-es-modules/deepmerge';
+import type { BackupParams, StorageData } from './types.js';
+import type { Manager } from './manager.js';
 
 /**
  * Processes the input parameters for backup data retrieval.
@@ -11,21 +13,20 @@ import deepmerge from '@bundled-es-modules/deepmerge';
  * an object, an empty object is used as the default value. The function combines the
  * input parameters with default parameters to ensure all required properties are present.
  *
- * @param {BackupParams} params - The parameters for setting the backup data.
- * @returns {Object} The processed parameters object.
+ * @param params - The parameters for setting the backup data.
  */
-export function paramsProcessing(params) {
-  if (typeof params !== 'object') params = {};
+export function paramsProcessing(params: Partial<BackupParams> | unknown): BackupParams {
+  if (typeof params !== 'object' || params === null) params = {};
 
   // Default parameters
-  const default_params = {
+  const default_params: BackupParams = {
     settings: false,
     data: false,
     external: false,
   };
 
   // Combine the default parameters with the input parameters using spread syntax
-  return { ...default_params, ...params };
+  return { ...default_params, ...(params as Partial<BackupParams>) };
 }
 
 /**
@@ -35,11 +36,10 @@ export function paramsProcessing(params) {
  * predefined keys. It creates a new object containing only the specified IITC settings
  * and returns it.
  *
- * @param {Object} all_storage - The storage object containing all data.
- * @returns {Object} An object containing specific IITC settings.
+ * @param all_storage - The storage object containing all data.
  */
-export const exportIitcSettings = all_storage => {
-  const iitc_settings = {};
+export const exportIitcSettings = (all_storage: StorageData): StorageData => {
+  const iitc_settings: StorageData = {};
 
   // An array of predefined keys for IITC settings
   const storage_keys = [
@@ -67,11 +67,10 @@ export const exportIitcSettings = all_storage => {
  * with the prefix 'VMin'. It creates a new object containing only the plugin settings
  * and returns it.
  *
- * @param {Object} all_storage - The storage object containing all data.
- * @returns {Object} An object containing specific plugin settings.
+ * @param all_storage - The storage object containing all data.
  */
-export const exportPluginsSettings = all_storage => {
-  const plugins_storage = {};
+export const exportPluginsSettings = (all_storage: StorageData): StorageData => {
+  const plugins_storage: StorageData = {};
 
   // Loop through all_storage and check if the keys start with the prefix 'VMin'
   // If so, add them to the plugins_storage object
@@ -90,11 +89,12 @@ export const exportPluginsSettings = all_storage => {
  * It creates a new object containing the external plugins organized by their channels and filenames,
  * and returns it.
  *
- * @param {Object} all_storage - The storage object containing all data.
- * @returns {Object} An object containing external plugins organized by channels and filenames.
+ * @param all_storage - The storage object containing all data.
  */
-export const exportExternalPlugins = all_storage => {
-  const external_plugins = {};
+export const exportExternalPlugins = (
+  all_storage: StorageData
+): { [channel: string]: { [filename: string]: string } } => {
+  const external_plugins: { [channel: string]: { [filename: string]: string } } = {};
 
   // An array of predefined keys for external plugins
   const storage_keys = [
@@ -120,20 +120,23 @@ export const exportExternalPlugins = all_storage => {
       }
 
       // Add a custom IITC core to the external_plugins object
-      if (variant === 'iitc' && isSet(all_storage[key]) && isSet(all_storage[key]['code'])) {
+      const storageValue = all_storage[key] as StorageData;
+      if (variant === 'iitc' && isSet(storageValue) && isSet(storageValue['code'])) {
         const plugin_filename = 'total-conversion-build.user.js';
-        external_plugins[channel][plugin_filename] = all_storage[key]['code'];
+        external_plugins[channel][plugin_filename] = storageValue['code'] as string;
         continue;
       }
 
       // Loop through each plugin UID in the current key's storage data
-      for (const plugin_uid in all_storage[key]) {
+      const plugins = all_storage[key] as StorageData;
+      for (const plugin_uid in plugins) {
         // Get the plugin's filename and code from the storage data and add to the external_plugins object
-        let plugin_filename = all_storage[key][plugin_uid]['filename'];
+        const plugin = plugins[plugin_uid] as StorageData;
+        let plugin_filename = plugin['filename'] as string;
         if (!plugin_filename) {
-          plugin_filename = sanitizeFileName(`${all_storage[key][plugin_uid]['name']}.user.js`);
+          plugin_filename = sanitizeFileName(`${plugin['name']}.user.js`);
         }
-        external_plugins[channel][plugin_filename] = all_storage[key][plugin_uid]['code'];
+        external_plugins[channel][plugin_filename] = plugin['code'] as string;
       }
     }
   }
@@ -144,12 +147,10 @@ export const exportExternalPlugins = all_storage => {
 /**
  * Imports IITC settings from the provided backup object.
  *
- * @async
- * @param {Object} self - IITC manager object.
- * @param {Object} backup - The backup object containing IITC settings to import.
- * @returns {Promise<void>} A promise that resolves when the import is complete.
+ * @param self - IITC manager object.
+ * @param backup - The backup object containing IITC settings to import.
  */
-export const importIitcSettings = async (self, backup) => {
+export const importIitcSettings = async (self: Manager, backup: StorageData): Promise<void> => {
   const backup_obj = Object.assign({}, backup);
   const default_channel = self.channel;
 
@@ -157,7 +158,7 @@ export const importIitcSettings = async (self, backup) => {
   await self.storage.set(backup_obj);
 
   // Check if the channel in the backup object is different from the original channel
-  const set_channel = backup_obj.channel;
+  const set_channel = backup_obj.channel as import('./types.js').Channel;
   if (set_channel !== default_channel) {
     await self.setChannel(set_channel);
   }
@@ -173,16 +174,14 @@ export const importIitcSettings = async (self, backup) => {
  * resulting in a new storage object `new_storage` that contains updated plugin settings. Finally,
  * the updated storage object is set into the 'self' object using `self.storage.set()`.
  *
- * @async
- * @param {Object} self - IITC manager object.
- * @param {Object} backup - The backup object containing plugin settings to import.
- * @returns {Promise<void>} A promise that resolves when the import is complete.
+ * @param self - IITC manager object.
+ * @param backup - The backup object containing plugin settings to import.
  */
-export const importPluginsSettings = async (self, backup) => {
+export const importPluginsSettings = async (self: Manager, backup: StorageData): Promise<void> => {
   const all_storage = await self.storage.get(null);
 
   // Create a new object containing only plugin-related data (keys starting with 'VMin')
-  const vMinRecords = {};
+  const vMinRecords: StorageData = {};
   Object.keys(all_storage).forEach(key => {
     if (key.startsWith('VMin')) {
       vMinRecords[key] = all_storage[key];
@@ -190,7 +189,7 @@ export const importPluginsSettings = async (self, backup) => {
   });
 
   // Merge the 'vMinRecords' object with the provided backup object and set into storage
-  const new_storage = deepmerge(vMinRecords, backup);
+  const new_storage = deepmerge(vMinRecords, backup) as StorageData;
   await self.storage.set(new_storage);
 };
 
@@ -204,24 +203,25 @@ export const importPluginsSettings = async (self, backup) => {
  * all channels, the function sets the default channel using `self.setChannel()` if it was changed during
  * the import process.
  *
- * @async
- * @param {Object} self - IITC manager object.
- * @param {Object} backup - The backup object containing external plugins to import.
- * @returns {Promise<void>} A promise that resolves when the import is complete.
+ * @param self - IITC manager object.
+ * @param backup - The backup object containing external plugins to import.
  */
-export const importExternalPlugins = async (self, backup) => {
+export const importExternalPlugins = async (
+  self: Manager,
+  backup: { [channel: string]: { [filename: string]: string } }
+): Promise<void> => {
   const default_channel = self.channel;
 
   // Iterate through each channel in the backup object
   for (const channel of Object.keys(backup)) {
     // Initialize an empty array to store the plugin information (metadata and code)
-    const scripts = [];
-    await self.setChannel(channel);
+    const scripts: { meta: import('./types.js').PluginMeta; code: string }[] = [];
+    await self.setChannel(channel as import('./types.js').Channel);
 
     // Iterate through each plugin in the current channel and extract plugin information
     for (const [filename, code] of Object.entries(backup[channel])) {
       // Parse the metadata from the plugin code using the 'parseMeta()' function
-      const meta = parseMeta(code);
+      const meta = parseMeta(code)!;
       meta['filename'] = filename;
 
       // Push the plugin information (metadata and code) to the 'scripts' array

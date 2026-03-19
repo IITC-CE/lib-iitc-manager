@@ -1,6 +1,13 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-export let wait_timeout_id = null;
+import type {
+  PluginMeta,
+  FetchResourceOptions,
+  FetchResourceResult,
+  IngressDomain,
+} from './types.js';
+
+export let wait_timeout_id: ReturnType<typeof setTimeout> | null = null;
 
 const METABLOCK_RE_HEADER = /==UserScript==\s*([\s\S]*)\/\/\s*==\/UserScript==/m; // Note: \s\S to match linebreaks
 const METABLOCK_RE_ENTRY = /\/\/\s*@(\S+)\s+(.*)$/gm; // example match: "\\ @name some text"
@@ -12,13 +19,8 @@ const META_ARRAY_TYPES = ['include', 'exclude', 'match', 'excludeMatch', 'requir
  * Forces UTF-8 interpretation regardless of Content-Type header.
  * This fixes issues on Android WebView where response.text() doesn't always
  * correctly interpret charset, causing Unicode characters to display incorrectly.
- *
- * @async
- * @param {Response} response - Fetch API response object
- * @return {Promise<string>}
- * @private
  */
-async function decodeResponseAsUTF8(response) {
+async function decodeResponseAsUTF8(response: Response): Promise<string> {
   try {
     const arrayBuffer = await response.arrayBuffer();
     const decoder = new TextDecoder('utf-8');
@@ -32,19 +34,18 @@ async function decodeResponseAsUTF8(response) {
 /**
  * Parses code of UserScript and returns an object with data from ==UserScript== header.
  *
- * @param {string} code - UserScript plugin with ==UserScript== header.
- * @return {Object.<string, string>|null}
+ * @param code - UserScript plugin with ==UserScript== header.
  */
-export function parseMeta(code) {
-  let header = METABLOCK_RE_HEADER.exec(code);
-  if (header === null) return null;
-  header = header[1];
-  const meta = {};
+export function parseMeta(code: string): PluginMeta | null {
+  const headerMatch = METABLOCK_RE_HEADER.exec(code);
+  if (headerMatch === null) return null;
+  const header = headerMatch[1];
+  const meta: PluginMeta = {};
 
   let entry = METABLOCK_RE_ENTRY.exec(header);
   while (entry) {
     const [keyName, locale] = entry[1].split(':');
-    const camelKey = keyName.replace(/[-_](\w)/g, (m, g) => g.toUpperCase());
+    const camelKey = keyName.replace(/[-_](\w)/g, (_m, g: string) => g.toUpperCase());
     const key = locale ? `${camelKey}:${locale.toLowerCase()}` : camelKey;
     let value = entry[2];
 
@@ -55,7 +56,7 @@ export function parseMeta(code) {
       if (typeof meta[key] === 'undefined') {
         meta[key] = [];
       }
-      meta[key].push(value);
+      (meta[key] as string[]).push(value);
     } else {
       meta[key] = value;
     }
@@ -70,23 +71,22 @@ export function parseMeta(code) {
 /**
  * Fetches a resource and returns data along with version header (ETag or Last-Modified).
  *
- * @async
- * @param {string} url - URL of the resource you want to fetch.
- * @param {Object} [options={}] - Fetch options.
- * @param {boolean} [options.parseJSON=false] - Parse response as JSON.
- * @param {boolean} [options.headOnly=false] - Only fetch headers (HEAD request).
- * @param {boolean} [options.use_fetch_head_method=true] - Allow HEAD requests (if false, always use GET).
- * @return {Promise<{data: string|object|null, version: string|null}>}
+ * @param url - URL of the resource you want to fetch.
+ * @param options - Fetch options.
  */
-export async function fetchResource(url, options = {}) {
+export async function fetchResource(
+  url: string,
+  options: FetchResourceOptions = {}
+): Promise<FetchResourceResult> {
   const { parseJSON = false, headOnly = false, use_fetch_head_method = true } = options;
 
   // Using built-in fetch in browser, otherwise import polyfill
-  // eslint-disable-next-line no-undef
-  const c_fetch = (...args) =>
+  const c_fetch = (...args: Parameters<typeof fetch>): Promise<Response> =>
     process.env.NODE_ENV !== 'test'
       ? fetch(...args)
-      : import('node-fetch').then(({ default: fetch }) => fetch(...args));
+      : import('node-fetch').then(({ default: nodeFetch }) =>
+          (nodeFetch as unknown as typeof fetch)(...args)
+        );
 
   try {
     // If headOnly requested but HEAD not allowed, use GET anyway
@@ -123,16 +123,14 @@ export async function fetchResource(url, options = {}) {
  * This is a wrapper over the fetch() API method with pre-built parameters.
  *
  * @deprecated Use {@link fetchResource} instead for better version tracking.
- * @async
- * @param {string} url - URL of the resource you want to fetch.
- * @param {"parseJSON" | "head" | null} [variant=null] - Type of request:
- * "parseJSON" - Load the resource and parse it as a JSON response.
- * "head" - Requests only headers (returns version: ETag or Last-Modified).
- * null - Get resource as text.
- * @return {Promise<string|object|null>}
+ * @param url - URL of the resource you want to fetch.
+ * @param variant - Type of request.
  */
-export async function ajaxGet(url, variant) {
-  const options = {};
+export async function ajaxGet(
+  url: string,
+  variant?: 'parseJSON' | 'head' | null
+): Promise<string | object | null> {
+  const options: FetchResourceOptions = {};
 
   if (variant === 'parseJSON') {
     options.parseJSON = true;
@@ -152,10 +150,9 @@ export async function ajaxGet(url, variant) {
 /**
  * Generates a unique random string with prefix.
  *
- * @param {string} [prefix="VM"] prefix - Prefix string.
- * @return {string}
+ * @param prefix - Prefix string.
  */
-export function getUniqId(prefix = 'VM') {
+export function getUniqId(prefix: string = 'VM'): string {
   const now = performance.now();
   return (
     prefix +
@@ -167,11 +164,10 @@ export function getUniqId(prefix = 'VM') {
 /**
  * Returns the unique identifier (UID) of plugin, composed of available plugin fields.
  *
- * @param {plugin} plugin - Plugin object.
- * @return {string|null}
+ * @param plugin - Plugin object or metadata.
  */
-export function getUID(plugin) {
-  const available_fields = [];
+export function getUID(plugin: PluginMeta): string | null {
+  const available_fields: string[] = [];
 
   if (plugin['id']) {
     available_fields.push(plugin['id']);
@@ -196,11 +192,10 @@ export function getUID(plugin) {
 /**
  * Checks if the accepted URL matches one or all domains related to Ingress.
  *
- * @param {string} url - URL address.
- * @param {"<all>" | "intel.ingress.com" | "missions.ingress.com"} [domain="<all>"] domain - One or all domains related to Ingress.
- * @return {boolean}
+ * @param url - URL address.
+ * @param domain - One or all domains related to Ingress.
  */
-export function check_url_match_pattern(url, domain) {
+export function check_url_match_pattern(url: string, domain: IngressDomain): boolean {
   if (url.startsWith('/^')) {
     url = url
       .replace(/\/\^|\?/g, '')
@@ -233,11 +228,13 @@ export function check_url_match_pattern(url, domain) {
  * Far from implementing all the features of userscripts {@link https://violentmonkey.github.io/api/matching/|@match/@include},
  * but sufficient for our needs.
  *
- * @param {plugin} meta - Object with data from ==UserScript== header.
- * @param {"<all>" | "intel.ingress.com" | "missions.ingress.com"} [domain="<all>"] domain - One or all domains related to Ingress.
- * @return {boolean}
+ * @param meta - Object with data from ==UserScript== header.
+ * @param domain - One or all domains related to Ingress.
  */
-export function check_meta_match_pattern(meta, domain = '<all>') {
+export function check_meta_match_pattern(
+  meta: PluginMeta,
+  domain: IngressDomain = '<all>'
+): boolean {
   if (meta.match && meta.match.length) {
     for (const url of meta.match) {
       if (check_url_match_pattern(url, domain)) return true;
@@ -254,13 +251,11 @@ export function check_meta_match_pattern(meta, domain = '<all>') {
 /**
  * Sets a timer with a specified number of seconds to wait.
  *
- * @async
- * @param {number} seconds
- * @return {Promise<void>}
+ * @param seconds - Number of seconds to wait.
  */
-export async function wait(seconds) {
+export async function wait(seconds: number): Promise<void> {
   return new Promise(resolve => {
-    clearTimeout(wait_timeout_id);
+    clearTimeout(wait_timeout_id!);
     wait_timeout_id = null;
     wait_timeout_id = setTimeout(resolve, seconds * 1000);
   });
@@ -268,32 +263,28 @@ export async function wait(seconds) {
 
 /**
  * Stops the timer created in {@link wait}
- *
- * @return {void}
  */
-export function clearWait() {
-  clearTimeout(wait_timeout_id);
+export function clearWait(): void {
+  clearTimeout(wait_timeout_id!);
   wait_timeout_id = null;
 }
 
 /**
  * Checks if any value is set.
  *
- * @param {any} value - Any value.
- * @return {boolean}
+ * @param value - Any value.
  */
-export function isSet(value) {
+export function isSet(value: unknown): boolean {
   return typeof value !== 'undefined' && value !== null;
 }
 
 /**
  * Processes a string by removing invalid characters for the file system and limiting its length.
  *
- * @param {string} input - The original string to be converted into a file name.
- * @param {number} maxLength - The maximum length of the file name (default is 255 characters).
- * @returns {string} - The processed string.
+ * @param input - The original string to be converted into a file name.
+ * @param maxLength - The maximum length of the file name (default is 255 characters).
  */
-export function sanitizeFileName(input, maxLength = 255) {
+export function sanitizeFileName(input: string, maxLength: number = 255): string {
   const invalidChars = /[/\\:*?"<>|]/g;
   let sanitized = input.replace(invalidChars, '');
 

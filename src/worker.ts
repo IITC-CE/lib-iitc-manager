@@ -1,193 +1,53 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { fetchResource, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js';
+import type {
+  Channel,
+  ManagerConfig,
+  StorageAPI,
+  StorageData,
+  NetworkHost,
+  Plugin,
+  PluginDict,
+  PluginEventType,
+  PluginEventData,
+  UpdateType,
+  RequestVariant,
+  FetchResourceOptions,
+  FetchResourceResult,
+  CategoryDict,
+  MetaJsonResponse,
+} from './types.js';
 
 /**
- * @namespace manager
- */
-
-/**
- * @namespace storage
- */
-
-/**
- * Environment parameters for an instance of Manager class.
- * Specifying only the "storage" parameter is enough to run in lightweight form,
- * but for full functionality you also need to specify callbacks.
- *
- * @typedef {Object} config
- * @memberOf manager
- * @property {storage.channel} channel - Update channel for IITC and plugins.
- * @property {storage.storage} storage - Platform-dependent data storage class.
- * For example, "browser.storage.local" in webextensions.
- * @property {boolean} is_daemon=true - In daemon mode, the class does not terminate
- * and runs a periodic check for updates.
- * @property {boolean} use_fetch_head_method=true - Allow HEAD requests for version checking.
- * Some fetch implementations don't support HEAD method, set to false to always use GET.
- * @property {manager.network_host} network_host - URLs of repositories with IITC and plugins for different release branches.
- * If the parameter is not specified, the default values are used.
- * @property {manager.message} message - Function for sending an information message to a user.
- * @property {manager.progressbar} progressbar - Function for controls the display of progress bar.
- * @property {manager.inject_user_script} inject_user_script - Function for injecting UserScript code
- * into the Ingress Intel window.
- * @property {manager.inject_plugin} inject_plugin - Function for injecting UserScript plugin
- * into the Ingress Intel window.
- * @property {manager.plugin_event} plugin_event - The function is called when the plugin status changes
- * (enabled/disabled, updated).
- */
-
-/**
- * Platform-dependent data storage class.
- * For example, when using this library in a browser extension, the
- * [storage.local API]{@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage}
- * is compatible.
- * Other platforms may have other ways of dealing with local storage,
- * but it is sufficient to create a small layer for storage to have the specified methods.
- *
- * @typedef {Object} storage.storage
- * @memberOf storage
- * @property {storage.get} get - Retrieves one or more items from the storage area.
- * @property {storage.set} set - Stores one or more items in the storage area, or update existing items.
- */
-
-/**
- * Retrieves one or more items from the storage area.
- * This method accepts a key (string) or keys (an array of strings) to identify the item(s) to be retrieved from storage.
- * This is an asynchronous function that returns a Promise that resolves to a results object,
- * containing every object in keys that was found in the storage area.
- *
- * @typedef {Function} storage.get
- * @memberOf storage
- * @param {string|string[]} keys
- * @returns {Promise<storage.data>}
- */
-
-/**
- * Stores one or more items in the storage area, or update existing items.
- * This is an asynchronous function that returns a Promise
- * that will be fulfilled with no arguments if the operation succeeded.
- *
- * @typedef {Function} storage.set
- * @memberOf storage
- * @param {storage.data} data
- * @returns {Promise<null>}
- */
-
-/**
- * URLs of repositories with IITC and plugins for different release branches
- *
- * @typedef {Object} network_host
- * @memberOf manager
- * @property {string} release=https://iitc.app/build/release - Release branch.
- * @property {string} beta=https://iitc.app/build/beta - Beta branch.
- * @property {string} custom=http://localhost:8000 - URL address of a custom repository.
- */
-
-/**
- * Sends an information message to user.
- *
- * @callback manager.message
- * @memberOf manager
- * @param {string} message - The name of the message sent to user.
- * You then need to map the message name to human-readable text in application.
- * @param {string|string[]} [args] - A single substitution string, or an array of substitution strings.
- */
-
-/**
- * Controls progress bar display.
- *
- * @callback manager.progressbar
- * @memberOf manager
- * @param {boolean} is_show - Show progress bar.
- */
-
-/**
- * Calls a function that injects UserScript code into the Ingress Intel window.
- *
- * @deprecated since version 1.5.0. Use {@link manager.inject_plugin} instead.
- * @callback manager.inject_user_script
- * @memberOf manager
- * @param {string} code - UserScript code to run in the Ingress Intel window
- */
-
-/**
- * Calls a function that injects UserScript plugin into the Ingress Intel window.
- *
- * @callback manager.inject_plugin
- * @memberOf manager
- * @param {plugin} plugin - UserScript plugin to run in the Ingress Intel window
- */
-
-/**
- * Called to handle changes in plugin status for multiple plugins at once, such as enabling, disabling, or updating.
- * This function is invoked with detailed information about the plugin events, encapsulating the changes in a single call.
- * The input object contains the type of event and a mapping of unique identifiers (UIDs) to plugin data, enabling
- * batch processing of plugin state changes.
- *
- * @callback manager.plugin_event
- * @memberOf manager
- * @param {Object} plugin_event - An object containing the event type and a mapping of plugin data.
- * @param {'add'|'update'|'remove'} plugin_event.event - The type of event that occurred,
- *        indicating the action being taken on the plugins.
- * @param {Object.<string, Object|{}>} plugin_event.plugins - A mapping of plugin UIDs to their respective data objects.
- *        For 'add' and 'update' events, these objects contain the relevant plugin data.
- *        For 'remove' events, the corresponding data object will be an empty object ({}).
- */
-
-/**
- * Key-value data in storage
- *
- * @memberOf storage
- * @typedef {Object.<string, string|number|object>} storage.data
- */
-
-/**
- * URLs of repositories with IITC and plugins for different release branches
- *
- * @typedef {Object} plugin
- * @property {string} uid - Unique identifier (UID) of plugin. Created by lib-iitc-manager.
- * @property {string} id
- * @property {string} name
- * @property {string} author
- * @property {string} category
- * @property {string} version
- * @property {string} description
- * @property {string} namespace
- * @property {string} status
- * @property {string} code
- * @property {boolean} user
- * @property {boolean} override
- * @property {string[]} match
- * @property {string[]} include
- * @property {string[]} exclude-match
- * @property {string[]} exclude
- * @property {string[]} require
- * @property {string[]} grant
- * @property {number} [addedAt] - Unix timestamp of when the external plugin was first added. Only for external plugins.
- * @property {number} [statusChangedAt] - Unix timestamp of when the plugin's status (on/off) was last changed.
- * @property {number} [updatedAt] - Unix timestamp of when the plugin's code was last updated.
- */
-
-/**
- * Parameters for retrieving backup data.
- *
- * @typedef {Object} BackupParams
- * @property {boolean} settings - Whether to import/export IITC settings.
- * @property {boolean} data - Whether to import/export plugins' data.
- * @property {boolean} external - Whether to import/export external plugins.
- */
-
-/**
- * @classdesc This class contains methods for managing IITC and plugins.
+ * This class contains methods for managing IITC and plugins.
  */
 export class Worker {
+  config: ManagerConfig;
+  storage: StorageAPI;
+  channel!: Channel;
+  network_host!: NetworkHost;
+  is_daemon!: boolean;
+  use_fetch_head_method!: boolean;
+  is_initialized: boolean;
+
+  iitc_main_script_uid: string;
+  progress_interval_id: ReturnType<typeof setInterval> | null;
+  update_timeout_id: ReturnType<typeof setTimeout> | null;
+  external_update_timeout_id: ReturnType<typeof setTimeout> | null;
+
+  message?: (message: string, args?: string | string[]) => void;
+  progressbar?: (is_show: boolean) => void;
+  inject_user_script: (code: string) => void;
+  inject_plugin: (plugin: Plugin) => void;
+  plugin_event: (event: PluginEventData) => void;
+
   /**
    * Creates an instance of Manager class with the specified parameters
    *
-   * @param {manager.config} config - Environment parameters for an instance of Manager class.
-   * @return {void}
+   * @param config - Environment parameters for an instance of Manager class.
    */
-  constructor(config) {
+  constructor(config: ManagerConfig) {
     this.config = config;
     this.progress_interval_id = null;
     this.update_timeout_id = null;
@@ -198,7 +58,7 @@ export class Worker {
     this.storage =
       typeof this.config.storage !== 'undefined'
         ? this.config.storage
-        : console.error("config key 'storage' is not set");
+        : (console.error("config key 'storage' is not set") as unknown as StorageAPI);
     this.message = this.config.message;
     this.progressbar = this.config.progressbar;
     this.inject_user_script = this.config.inject_user_script || function () {};
@@ -211,12 +71,9 @@ export class Worker {
 
   /**
    * Set values for the class properties.
-   *
-   * @async
-   * @return {Promise<void>}
-   * @private
+   * @internal
    */
-  async _init() {
+  async _init(): Promise<void> {
     this.channel = await this._syncStorage('channel', 'release', this.config.channel);
     this.network_host = await this._syncStorage(
       'network_host',
@@ -240,39 +97,35 @@ export class Worker {
    * Overwrites the values in the storage and returns the new value.
    * If the value is not set, the default value is returned.
    *
-   * @async
-   * @param {string} key - Storage entry key.
-   * @param {string|number|object} defaults - Default value.
-   * @param {string|number|object|undefined} [override=undefined] - Value to override the default value.
-   * @return {Promise<string|number|object>}
-   * @private
+   * @param key - Storage entry key.
+   * @param defaults - Default value.
+   * @param override - Value to override the default value.
+   * @internal
    */
-  async _syncStorage(key, defaults, override) {
-    let data;
+  async _syncStorage<T>(key: string, defaults: T, override?: T): Promise<T> {
+    let data: T | undefined;
     if (typeof override !== 'undefined') {
       data = override;
     } else {
-      data = await this.storage.get([key]).then(result => result[key]);
+      data = await this.storage.get([key]).then(result => result[key] as T);
     }
     if (!isSet(data)) data = defaults;
 
-    this[key] = data;
-    await this._save(this.channel, { [key]: data });
-    return data;
+    (this as unknown as Record<string, unknown>)[key] = data;
+    await this._save(this.channel, { [key]: data } as StorageData);
+    return data!;
   }
 
   /**
    * Saves passed data to local storage.
    * Adds the name of release branch before key, if necessary.
    *
-   * @async
-   * @param {string} channel - Current channel.
-   * @param {storage.data} options - Key-value data to be saved.
-   * @return {Promise<void>}
-   * @private
+   * @param channel - Current channel.
+   * @param options - Key-value data to be saved.
+   * @internal
    */
-  async _save(channel, options) {
-    const data = {};
+  async _save(channel: Channel, options: StorageData): Promise<void> {
+    const data: StorageData = {};
     Object.keys(options).forEach(key => {
       if (
         [
@@ -299,34 +152,33 @@ export class Worker {
    * It is a wrapper over {@link fetchResource} function, with the addition of retries to load in case of problems
    * and a message to user about errors.
    *
-   * @async
-   * @param {string} url - URL of the resource you want to fetch.
-   * @param {"parseJSON" | "head" | null} [variant=null] - Type of request:
-   * "parseJSON" - Load the resource and parse it as a JSON response.
-   * "head" - Requests only headers (returns version: ETag or Last-Modified).
-   * null - Get resource as text.
-   * @param {boolean|number} [retry] - Is retry in case of an error | number of request attempt.
-   * @return {Promise<{data: string|object|null, version: string|null}>}
-   * @private
+   * @param url - URL of the resource you want to fetch.
+   * @param variant - Type of request.
+   * @param retry - Is retry in case of an error | number of request attempt.
+   * @internal
    */
-  async _getUrl(url, variant, retry) {
-    if (retry > 1) {
-      let seconds = retry * retry;
+  async _getUrl(
+    url: string,
+    variant?: RequestVariant,
+    retry?: boolean | number
+  ): Promise<FetchResourceResult> {
+    if ((retry as number) > 1) {
+      let seconds = (retry as number) * (retry as number);
       if (seconds > 30 * 60) seconds = 30 * 60; // maximum is 30 minutes
       try {
-        this.message('serverNotAvailableRetry', String(seconds));
+        this.message!('serverNotAvailableRetry', String(seconds));
       } catch {
         // Ignore if there is no message receiver
       }
       await wait(seconds);
     }
 
-    clearInterval(this.progress_interval_id);
+    clearInterval(this.progress_interval_id!);
     this.progress_interval_id = setInterval(async () => {
-      this.progressbar(true);
+      this.progressbar!(true);
     }, 300);
     try {
-      const options = {
+      const options: FetchResourceOptions = {
         use_fetch_head_method: this.use_fetch_head_method,
       };
 
@@ -339,28 +191,26 @@ export class Worker {
       const result = await fetchResource(url, options);
 
       if (result.data !== null || result.version !== null) {
-        clearInterval(this.progress_interval_id);
-        this.progressbar(false);
+        clearInterval(this.progress_interval_id!);
+        this.progressbar!(false);
       }
       return result;
-    } catch (error) {
+    } catch {
       if (retry === undefined) {
-        clearInterval(this.progress_interval_id);
+        clearInterval(this.progress_interval_id!);
         return { data: null, version: null };
       }
-      return await this._getUrl(url, variant, retry + 1);
+      return await this._getUrl(url, variant, (retry as number) + 1);
     }
   }
 
   /**
    * Runs periodic checks and installs updates for IITC and plugins.
    *
-   * @async
-   * @param {boolean} [force=false] - Forced to run the update right now.
-   * @return {Promise<void>}
-   * @private
+   * @param force - Forced to run the update right now.
+   * @internal
    */
-  async _checkInternalUpdates(force) {
+  async _checkInternalUpdates(force?: boolean): Promise<void> {
     const channel = this.channel;
     const storage = await this.storage.get([
       'last_check_update',
@@ -372,20 +222,22 @@ export class Worker {
       `${channel}_plugins_user`,
     ]);
 
-    let update_check_interval = storage[`${channel}_update_check_interval`];
+    let update_check_interval = storage[`${channel}_update_check_interval`] as number;
     if (!update_check_interval) update_check_interval = 24 * 60 * 60;
 
     if (!isSet(storage[`${channel}_last_modified`]) || !isSet(storage.last_check_update)) {
       clearWait();
-      clearTimeout(this.update_timeout_id);
+      clearTimeout(this.update_timeout_id!);
       this.update_timeout_id = null;
       await this._updateInternalIITC(channel, storage);
     } else {
       const time_delta =
-        Math.floor(Date.now() / 1000) - update_check_interval - storage.last_check_update;
+        Math.floor(Date.now() / 1000) -
+        update_check_interval -
+        (storage.last_check_update as number);
       if (time_delta >= 0 || force) {
         clearWait();
-        clearTimeout(this.update_timeout_id);
+        clearTimeout(this.update_timeout_id!);
         this.update_timeout_id = null;
         const result = await this._getUrl(this.network_host[channel] + '/meta.json', 'head', true);
         if (result.version !== storage[`${channel}_last_modified`] || force) {
@@ -411,23 +263,21 @@ export class Worker {
   /**
    * Updates IITC, passes control to {@link _updateLocalPlugins} function to update plugins.
    *
-   * @async
-   * @param {string} channel - Current channel.
-   * @param {storage.data} local - Data from storage.
-   * @return {Promise<void>}
-   * @private
+   * @param channel - Current channel.
+   * @param local - Data from storage.
+   * @internal
    */
-  async _updateInternalIITC(channel, local) {
+  async _updateInternalIITC(channel: Channel, local: StorageData): Promise<void> {
     const result = await this._getUrl(this.network_host[channel] + '/meta.json', 'parseJSON', true);
     if (!result.data) return;
 
-    const response = result.data;
+    const response = result.data as MetaJsonResponse;
     const last_modified = result.version;
 
     let plugins_flat = this._getPluginsFlat(response);
     let categories = this._getCategories(response);
-    let plugins_local = local[`${channel}_plugins_local`];
-    let plugins_user = local[`${channel}_plugins_user`];
+    let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
+    let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
 
     if (!isSet(plugins_user)) plugins_user = {};
     categories = this._rebuildingCategories(categories, plugins_user);
@@ -437,9 +287,9 @@ export class Worker {
         this.network_host[this.channel] + '/total-conversion-build.user.js'
       );
       if (result.data) {
-        const iitc_core = parseMeta(result.data);
-        iitc_core['uid'] = getUID(iitc_core);
-        iitc_core['code'] = result.data;
+        const iitc_core = parseMeta(result.data as string) as Plugin;
+        iitc_core['uid'] = getUID(iitc_core)!;
+        iitc_core['code'] = result.data as string;
         await this._save(channel, {
           iitc_core: iitc_core,
         });
@@ -471,11 +321,10 @@ export class Worker {
   /**
    * Builds a dictionary from received meta.json file, in which it places names and descriptions of categories.
    *
-   * @param {Object} data - Data from received meta.json file.
-   * @return {Object.<string, Object.<string, string>>}} - Dictionary with names and descriptions of categories.
-   * @private
+   * @param data - Data from received meta.json file.
+   * @internal
    */
-  _getCategories(data) {
+  _getCategories(data: MetaJsonResponse): CategoryDict {
     if (!('categories' in data)) return {};
     const categories = data['categories'];
 
@@ -491,22 +340,21 @@ export class Worker {
   /**
    * Converting a list of categories with plugins inside into a flat structure.
    *
-   * @param {Object} data - Data from received meta.json file.
-   * @return {Object.<string, plugin>} - Dictionary of plugin name and plugin data.
-   * @private
+   * @param data - Data from received meta.json file.
+   * @internal
    */
-  _getPluginsFlat(data) {
+  _getPluginsFlat(data: MetaJsonResponse): PluginDict {
     if (!('categories' in data)) return {};
-    const plugins = {};
+    const plugins: PluginDict = {};
     const categories = data['categories'];
 
     Object.keys(categories).forEach(cat => {
       if (cat === 'Obsolete' || cat === 'Deleted') return;
 
-      if ('plugins' in categories[cat]) {
-        Object.keys(categories[cat]['plugins']).forEach(id => {
-          const plugin = categories[cat]['plugins'][id];
-          plugin['uid'] = getUID(plugin);
+      if ('plugins' in categories[cat] && categories[cat].plugins) {
+        Object.keys(categories[cat].plugins!).forEach(id => {
+          const plugin = categories[cat].plugins![id] as unknown as Plugin;
+          plugin['uid'] = getUID(plugin)!;
           plugin['status'] = 'off';
           plugin['category'] = cat;
           plugins[plugin['uid']] = plugin;
@@ -519,12 +367,10 @@ export class Worker {
   /**
    * Runs periodic checks and installs updates for external plugins.
    *
-   * @async
-   * @param {boolean} [force=false] - Forced to run the update right now.
-   * @return {Promise<void>}
-   * @private
+   * @param force - Forced to run the update right now.
+   * @internal
    */
-  async _checkExternalUpdates(force) {
+  async _checkExternalUpdates(force?: boolean): Promise<void> {
     const channel = this.channel;
     const local = await this.storage.get([
       'channel',
@@ -533,15 +379,17 @@ export class Worker {
       `${channel}_plugins_user`,
     ]);
 
-    let update_check_interval = local['external_update_check_interval'];
+    let update_check_interval = local['external_update_check_interval'] as number;
     if (!update_check_interval) {
       update_check_interval = 24 * 60 * 60;
     }
 
     const time_delta =
-      Math.floor(Date.now() / 1000) - update_check_interval - local.last_check_external_update;
+      Math.floor(Date.now() / 1000) -
+      update_check_interval -
+      (local.last_check_external_update as number);
     if (time_delta >= 0 || force) {
-      clearTimeout(this.external_update_timeout_id);
+      clearTimeout(this.external_update_timeout_id!);
       this.external_update_timeout_id = null;
       await this._updateExternalPlugins(channel, local);
     }
@@ -564,18 +412,16 @@ export class Worker {
   /**
    * Updates external plugins.
    *
-   * @async
-   * @param {string} channel - Current channel.
-   * @param {storage.data} local - Data from storage.
-   * @return {Promise<void>}
-   * @private
+   * @param channel - Current channel.
+   * @param local - Data from storage.
+   * @internal
    */
-  async _updateExternalPlugins(channel, local) {
-    const plugins_user = local[`${channel}_plugins_user`];
+  async _updateExternalPlugins(channel: Channel, local: StorageData): Promise<void> {
+    const plugins_user = local[`${channel}_plugins_user`] as PluginDict | undefined;
     if (plugins_user) {
       let exist_updates = false;
       const hash = `?${Date.now()}`;
-      const updated_uids = [];
+      const updated_uids: string[] = [];
       const currentTime = Math.floor(Date.now() / 1000);
 
       for (const uid of Object.keys(plugins_user)) {
@@ -585,20 +431,21 @@ export class Worker {
           // download meta info
           const result_meta = await this._getUrl(plugin['updateURL'] + hash);
           if (result_meta.data) {
-            let meta = parseMeta(result_meta.data);
+            const meta = parseMeta(result_meta.data as string);
             // if new version
             if (meta && meta['version'] && meta['version'] !== plugin['version']) {
               // download userscript
-              let result_code = await this._getUrl(plugin['updateURL'] + hash);
+              const result_code = await this._getUrl(plugin['updateURL'] + hash);
               if (result_code.data) {
                 exist_updates = true;
                 plugins_user[uid] = {
                   ...meta,
-                  code: result_code.data,
+                  uid,
+                  code: result_code.data as string,
                   updatedAt: currentTime,
                   addedAt: plugin.addedAt,
                   statusChangedAt: plugin.statusChangedAt,
-                };
+                } as Plugin;
                 updated_uids.push(uid);
               }
             }
@@ -618,29 +465,31 @@ export class Worker {
   /**
    * Updates plugins.
    *
-   * @async
-   * @param {string} channel - Current channel.
-   * @param {Object.<string, plugin>} plugins_flat - Data from storage, key "[channel]_plugins_flat".
-   * @param {Object.<string, plugin>} plugins_local - Data from storage, key "[channel]_plugins_local".
-   * @return {Promise<Object.<string, plugin>>}
-   * @private
+   * @param channel - Current channel.
+   * @param plugins_flat - Data from storage, key "[channel]_plugins_flat".
+   * @param plugins_local - Data from storage, key "[channel]_plugins_local".
+   * @internal
    */
-  async _updateLocalPlugins(channel, plugins_flat, plugins_local) {
+  async _updateLocalPlugins(
+    channel: Channel,
+    plugins_flat: PluginDict,
+    plugins_local: PluginDict
+  ): Promise<PluginDict> {
     // If no plugins installed
     if (!isSet(plugins_local)) return {};
 
-    const updated_uids = [];
-    const removed_uids = [];
+    const updated_uids: string[] = [];
+    const removed_uids: string[] = [];
     const currentTime = Math.floor(Date.now() / 1000);
 
     // Iteration local plugins
     for (const uid of Object.keys(plugins_local)) {
-      let filename = plugins_local[uid]['filename'];
+      const filename = plugins_local[uid]['filename'];
 
       if (filename && plugins_flat[uid]) {
-        let result = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
+        const result = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
         if (result.data) {
-          plugins_local[uid]['code'] = result.data;
+          plugins_local[uid]['code'] = result.data as string;
           plugins_local[uid]['updatedAt'] = currentTime;
           updated_uids.push(uid);
         }
@@ -659,11 +508,11 @@ export class Worker {
   /**
    * Updates categories by adding custom categories of external plugins.
    *
-   * @param {Object.<string, Object.<string, string>>} categories - Dictionary with names and descriptions of categories.
-   * @param {Object.<string, plugin>} plugins_user - Dictionary of external UserScripts.
-   * @return {Object.<string, Object.<string, string>>} - Dictionary with names and descriptions of categories.
+   * @param categories - Dictionary with names and descriptions of categories.
+   * @param plugins_user - Dictionary of external UserScripts.
+   * @internal
    */
-  _rebuildingCategories(categories, plugins_user) {
+  _rebuildingCategories(categories: CategoryDict, plugins_user: PluginDict): CategoryDict {
     if (Object.keys(plugins_user).length) {
       Object.keys(plugins_user).forEach(plugin_uid => {
         let category = plugins_user[plugin_uid]['category'];
@@ -684,14 +533,17 @@ export class Worker {
   /**
    * Rebuilds the plugins array maintaining proper isolation between channels.
    *
-   * @param {Object.<string, plugin>} raw_plugins - Dictionary of plugins downloaded from the server.
-   * @param {Object.<string, plugin>} plugins_local - Dictionary of installed plugins from IITC-CE distribution.
-   * @param {Object.<string, plugin>} plugins_user - Dictionary of external UserScripts.
-   * @return {Object<string, plugin>}
-   * @private
+   * @param raw_plugins - Dictionary of plugins downloaded from the server.
+   * @param plugins_local - Dictionary of installed plugins from IITC-CE distribution.
+   * @param plugins_user - Dictionary of external UserScripts.
+   * @internal
    */
-  _rebuildingArrayCategoriesPlugins(raw_plugins, plugins_local, plugins_user) {
-    let data = { ...raw_plugins };
+  _rebuildingArrayCategoriesPlugins(
+    raw_plugins: PluginDict,
+    plugins_local: PluginDict,
+    plugins_user: PluginDict
+  ): PluginDict {
+    const data: PluginDict = { ...raw_plugins };
 
     if (!isSet(plugins_local)) plugins_local = {};
     if (!isSet(plugins_user)) plugins_user = {};
@@ -736,22 +588,26 @@ export class Worker {
    * It calls `plugin_event` once with the event type and a map of the selected plugins.
    * If the action is "remove", the plugins are represented by empty objects.
    *
-   * @async
-   * @param {string} channel - Current channel.
-   * @param {string[]} uids - Array of unique identifiers (UID) of plugins.
-   * @param {'add'|'update'|'remove'} event - The type of event to handle.
-   * @param {'local'|'user'} [update_type] - Specifies the update type to determine which plugin versions to use.
+   * @param channel - Current channel.
+   * @param uids - Array of unique identifiers (UID) of plugins.
+   * @param event - The type of event to handle.
+   * @param update_type - Specifies the update type to determine which plugin versions to use.
    * When set to 'local', actions with plugins marked as "user" are ignored, and vice versa.
    * This parameter is intended to ignore updates from 'local' plugins when a 'user' plugin is used, and vice versa.
    * If not specified, no ignoring logic is applied, and the function attempts to process the plugin event
    * based on available data.
-   * @returns {Promise<void>} A promise that resolves when the event has been processed.
+   * @internal
    */
-  async _sendPluginsEvent(channel, uids, event, update_type) {
-    const validEvents = ['add', 'update', 'remove'];
+  async _sendPluginsEvent(
+    channel: Channel,
+    uids: string[],
+    event: PluginEventType,
+    update_type?: UpdateType
+  ): Promise<void> {
+    const validEvents: PluginEventType[] = ['add', 'update', 'remove'];
     if (!validEvents.includes(event)) return;
 
-    const plugins = {};
+    const plugins: PluginEventData['plugins'] = {};
 
     for (const uid of uids) {
       const isCore = uid === this.iitc_main_script_uid;
@@ -762,12 +618,12 @@ export class Worker {
         : [`${channel}_plugins_local`, `${channel}_plugins_user`];
       const storage = await this.storage.get(storageKeys);
 
-      let plugin_local = isCore
-        ? storage[`${channel}_iitc_core`]
-        : storage[`${channel}_plugins_local`]?.[uid];
-      let plugin_user = isCore
-        ? storage[`${channel}_iitc_core_user`]
-        : storage[`${channel}_plugins_user`]?.[uid];
+      const plugin_local = isCore
+        ? (storage[`${channel}_iitc_core`] as Plugin | undefined)
+        : (storage[`${channel}_plugins_local`] as PluginDict)?.[uid];
+      const plugin_user = isCore
+        ? (storage[`${channel}_iitc_core_user`] as Plugin | undefined)
+        : (storage[`${channel}_plugins_user`] as PluginDict)?.[uid];
 
       if (event === 'remove' || (!isSet(plugin_local) && !isSet(plugin_user))) {
         plugins[uid] = {};
@@ -785,7 +641,7 @@ export class Worker {
       }
 
       // Updating a disabled plugin should not trigger the event
-      if (!isCore && event !== 'remove' && plugins[uid]?.status !== 'on') {
+      if (!isCore && (plugins[uid] as Plugin)?.status !== 'on') {
         delete plugins[uid];
       }
     }
