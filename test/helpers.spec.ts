@@ -6,7 +6,7 @@ import { expect } from 'chai';
 
 describe('parseMeta', function () {
   it('without arguments', function () {
-    expect(helpers.parseMeta()).to.be.null;
+    expect(helpers.parseMeta(undefined as unknown as string)).to.be.null;
   });
 
   const data1 =
@@ -36,7 +36,7 @@ describe('parseMeta', function () {
 
   describe('test data1', function () {
     it('has expected number of keys', function () {
-      expect(Object.keys(helpers.parseMeta(data1)).length).to.equal(Object.keys(expected1).length);
+      expect(Object.keys(helpers.parseMeta(data1)!).length).to.equal(Object.keys(expected1).length);
     });
     it('has expected keys and values', function () {
       expect(helpers.parseMeta(data1)).to.deep.equal(expected1);

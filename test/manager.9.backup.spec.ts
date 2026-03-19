@@ -1,12 +1,13 @@
-// Copyright (C) 2022-2025 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
+// Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { describe, it, before } from 'mocha';
 import { Manager } from '../src/manager.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
+import type { BackupData, ManagerConfig, Plugin, PluginDict, StorageData } from '../src/types.js';
 
 describe('getBackupData and setBackupData', function () {
-  let manager = null;
+  let manager: Manager | null = null;
   const first_plugin_uid =
     'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
   const external_code =
@@ -17,7 +18,7 @@ describe('getBackupData and setBackupData', function () {
     '// @namespace https://github.com/IITC-CE/ingress-intel-total-conversion\n' +
     '// ==/UserScript==\n' +
     'return false;';
-  const initialBackupData = {
+  const initialBackupData: BackupData = {
     external_plugins: {
       beta: {},
       custom: {},
@@ -42,7 +43,7 @@ describe('getBackupData and setBackupData', function () {
     },
   };
 
-  const backupData = {
+  const backupData: BackupData = {
     external_plugins: {
       release: {
         'bookmarks2.user.js': external_code,
@@ -66,7 +67,7 @@ describe('getBackupData and setBackupData', function () {
 
   before(async function () {
     storage.resetStorage();
-    const params = {
+    const params: ManagerConfig = {
       storage: storage,
       channel: 'release',
       network_host: {
@@ -74,13 +75,13 @@ describe('getBackupData and setBackupData', function () {
         beta: 'http://127.0.0.1:31606/beta',
         custom: 'http://127.0.0.1/',
       },
-      inject_user_script: function callBack(data) {
+      inject_user_script: function callBack(data: string) {
         expect(data).to.include('// ==UserScript==');
       },
-      inject_plugin: function callBack(data) {
+      inject_plugin: function callBack(data: Plugin) {
         expect(data['code']).to.include('// ==UserScript==');
       },
-      progressbar: function callBack(is_show) {
+      progressbar: function callBack(is_show: boolean) {
         expect(is_show).to.be.oneOf([true, false]);
       },
       is_daemon: false,
@@ -90,14 +91,14 @@ describe('getBackupData and setBackupData', function () {
 
   describe('run', function () {
     it('Should not return an error', async function () {
-      const run = await manager.run();
+      const run = await manager!.run();
       expect(run).to.be.undefined;
     });
   });
 
   describe('Enable plugins and add plugin settings data', function () {
     it('Enable first plugin', async function () {
-      const run = await manager.managePlugin(first_plugin_uid, 'on');
+      const run = await manager!.managePlugin(first_plugin_uid, 'on');
       expect(run).to.be.undefined;
     });
     it('Add custom IITC core', async function () {
@@ -112,7 +113,7 @@ describe('getBackupData and setBackupData', function () {
           code: external_iitc_code,
         },
       ];
-      const installed = {
+      const installed: PluginDict = {
         'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion':
           {
             uid: 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion',
@@ -123,7 +124,7 @@ describe('getBackupData and setBackupData', function () {
             filename: 'total-conversion-build.user.js',
           },
       };
-      const run = await manager.addUserScripts(scripts);
+      const run = await manager!.addUserScripts(scripts);
       expect(run).to.deep.equal(installed);
     });
     it('Add external plugin', async function () {
@@ -140,7 +141,7 @@ describe('getBackupData and setBackupData', function () {
       ];
       const plugin_uid =
         'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion';
-      const installed = {};
+      const installed: PluginDict = {};
       installed[plugin_uid] = {
         uid: plugin_uid,
         id: 'bookmarks1',
@@ -151,10 +152,10 @@ describe('getBackupData and setBackupData', function () {
         user: true,
         code: external_code,
       };
-      const run = await manager.addUserScripts(scripts);
-      delete run[plugin_uid]['filename'];
-      delete run[plugin_uid]['addedAt'];
-      delete run[plugin_uid]['statusChangedAt'];
+      const run = await manager!.addUserScripts(scripts);
+      delete (run as PluginDict)[plugin_uid]['filename'];
+      delete (run as PluginDict)[plugin_uid]['addedAt'];
+      delete (run as PluginDict)[plugin_uid]['statusChangedAt'];
       expect(run).to.deep.equal(installed);
     });
     it('Add plugin settings data', async function () {
@@ -164,7 +165,7 @@ describe('getBackupData and setBackupData', function () {
 
   describe('getBackupData', function () {
     it('Should return the correct backup data', async function () {
-      const backupDataFromManager = await manager.getBackupData({
+      const backupDataFromManager = await manager!.getBackupData({
         settings: true,
         data: true,
         external: true,
@@ -175,7 +176,7 @@ describe('getBackupData and setBackupData', function () {
 
   describe('setBackupData', function () {
     it('Should set the backup data correctly', async function () {
-      await manager.setBackupData(
+      await manager!.setBackupData(
         {
           settings: true,
           data: true,
@@ -185,7 +186,7 @@ describe('getBackupData and setBackupData', function () {
       );
 
       // Check if the data was set correctly in storage
-      expect(manager.channel).to.equal('beta');
+      expect(manager!.channel).to.equal('beta');
 
       const pluginsData = await storage.get(['VMin5555', 'VMin9999']);
       expect(pluginsData).to.deep.equal({
@@ -194,7 +195,7 @@ describe('getBackupData and setBackupData', function () {
       });
 
       const externalCore = await storage.get(['beta_iitc_core_user']);
-      expect(externalCore['beta_iitc_core_user']).to.deep.equal({
+      expect(externalCore['beta_iitc_core_user'] as StorageData).to.deep.equal({
         uid: 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion',
         name: 'IITC: Ingress intel map total conversion',
         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
