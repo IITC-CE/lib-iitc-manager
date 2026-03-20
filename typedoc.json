@@ -1,0 +1,11 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "out",
+  "name": "lib-iitc-manager",
+  "readme": "README.md",
+  "tsconfig": "tsconfig.json",
+  "plugin": ["typedoc-material-theme"],
+  "themeColor": "#26A69A",
+  "excludeInternal": true,
+  "excludeNotDocumented": true
+}

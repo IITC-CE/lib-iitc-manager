@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "NODE_ENV=test mocha --exit",
     "test_with_webserver": "http-server ./test/fixtures/ -p 31606 -s & sleep 1 && NODE_ENV=test mocha --exit",
-    "webserver": "http-server ./test/fixtures/ -p 31606"
+    "webserver": "http-server ./test/fixtures/ -p 31606",
+    "docs": "typedoc"
   },
   "repository": {
     "type": "git",
@@ -38,6 +39,8 @@
     "node-fetch": "^3.2.3",
     "prettier": "^2.7.1",
     "tsx": "^4.21.0",
+    "typedoc": "^0.28.17",
+    "typedoc-material-theme": "^1.4.1",
     "typescript": "^5.9.3"
   },
   "dependencies": {
