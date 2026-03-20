@@ -1,133 +1,196 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Home | lib iitc manager</title>
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>lib-iitc-manager</title><meta name="description" content="Documentation for lib-iitc-manager"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><script async src="assets/hierarchy.js" id="tsd-hierarchy-script"></script><style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --md-sys-color-primary: #51dbcc;
+    --md-sys-color-on-primary: #003732;
+    --md-sys-color-primary-container: #005049;
+    --md-sys-color-on-primary-container: #72f8e8;
+    --md-sys-color-secondary: #b1ccc7;
+    --md-sys-color-on-secondary: #1c3531;
+    --md-sys-color-secondary-container: #324b48;
+    --md-sys-color-on-secondary-container: #cce8e3;
+    --md-sys-color-tertiary: #aec9e6;
+    --md-sys-color-on-tertiary: #163349;
+    --md-sys-color-tertiary-container: #2e4961;
+    --md-sys-color-on-tertiary-container: #cde5ff;
+    --md-sys-color-error: #ffb4ab;
+    --md-sys-color-on-error: #690005;
+    --md-sys-color-error-container: #93000a;
+    --md-sys-color-on-error-container: #ffb4ab;
+    --md-sys-color-background: #191c1c;
+    --md-sys-color-on-background: #e0e3e1;
+    --md-sys-color-surface: #191c1c;
+    --md-sys-color-on-surface: #e0e3e1;
+    --md-sys-color-surface-variant: #3f4947;
+    --md-sys-color-on-surface-variant: #bec9c6;
+    --md-sys-color-outline: #899390;
+    --md-sys-color-outline-variant: #3f4947;
+    --md-sys-color-shadow: #000000;
+    --md-sys-color-scrim: #000000;
+    --md-sys-color-inverse-surface: #e0e3e1;
+    --md-sys-color-inverse-on-surface: #2d3130;
+    --md-sys-color-inverse-primary: #006a62;
+    --md-sys-color-surface-dim: #101413;
+    --md-sys-color-surface-bright: #363a39;
+    --md-sys-color-surface-container-lowest: #0b0f0e;
+    --md-sys-color-surface-container-low: #191c1c;
+    --md-sys-color-surface-container: #1d2020;
+    --md-sys-color-surface-container-high: #272b2a;
+    --md-sys-color-surface-container-highest: #323535
+  }
+}
+:root[data-theme="dark"] {
+  --md-sys-color-primary: #51dbcc;
+  --md-sys-color-on-primary: #003732;
+  --md-sys-color-primary-container: #005049;
+  --md-sys-color-on-primary-container: #72f8e8;
+  --md-sys-color-secondary: #b1ccc7;
+  --md-sys-color-on-secondary: #1c3531;
+  --md-sys-color-secondary-container: #324b48;
+  --md-sys-color-on-secondary-container: #cce8e3;
+  --md-sys-color-tertiary: #aec9e6;
+  --md-sys-color-on-tertiary: #163349;
+  --md-sys-color-tertiary-container: #2e4961;
+  --md-sys-color-on-tertiary-container: #cde5ff;
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffb4ab;
+  --md-sys-color-background: #191c1c;
+  --md-sys-color-on-background: #e0e3e1;
+  --md-sys-color-surface: #191c1c;
+  --md-sys-color-on-surface: #e0e3e1;
+  --md-sys-color-surface-variant: #3f4947;
+  --md-sys-color-on-surface-variant: #bec9c6;
+  --md-sys-color-outline: #899390;
+  --md-sys-color-outline-variant: #3f4947;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-inverse-surface: #e0e3e1;
+  --md-sys-color-inverse-on-surface: #2d3130;
+  --md-sys-color-inverse-primary: #006a62;
+  --md-sys-color-surface-dim: #101413;
+  --md-sys-color-surface-bright: #363a39;
+  --md-sys-color-surface-container-lowest: #0b0f0e;
+  --md-sys-color-surface-container-low: #191c1c;
+  --md-sys-color-surface-container: #1d2020;
+  --md-sys-color-surface-container-high: #272b2a;
+  --md-sys-color-surface-container-highest: #323535
+}
 
-    <script src="scripts/prettify/prettify.js"> </script>
-    <script src="scripts/prettify/lang-css.js"> </script>
-    <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <link type="text/css" rel="stylesheet" href="styles/bootstrap.min.css">
-    <link type="text/css" rel="stylesheet" href="styles/prettify-jsdoc.css">
-    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
-    <link type="text/css" rel="stylesheet" href="styles/tui-doc.css">
-
-    
-</head>
-<body>
-<nav class="lnb" id="lnb">
-    <div class="logo" style="; height: 0">
-        
-            <a href="https://github.com/IITC-CE/lib-iitc-manager" rel="noopener noreferrer" target="_blank">
-                <img src="img/toast-ui.png" width="100%" height="100%">
-            </a>
-        
-    </div>
-    <div class="title">
-        <h1><a href="index.html" class="link">lib iitc manager</a></h1>
-        
-            <span class="version">v1.11.1</span>
-        
-    </div>
-    <div class="search-container" id="search-container">
-        <input type="text" placeholder="Search">
-        <ul></ul>
-    </div>
-    
-    <div class="lnb-api hidden"><h3>Classes</h3><ul><li><a href="Manager.html">Manager</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="Manager_sub"><div class="member-type">Methods</div><ul class="inner"><li><a href="Manager.html#addUserScripts">addUserScripts</a></li><li><a href="Manager.html#checkUpdates">checkUpdates</a></li><li><a href="Manager.html#getBackupData">getBackupData</a></li><li><a href="Manager.html#getEnabledPlugins">getEnabledPlugins</a></li><li><a href="Manager.html#getIITCCore">getIITCCore</a></li><li><a href="Manager.html#getPluginInfo">getPluginInfo</a></li><li><a href="Manager.html#inject">inject</a></li><li><a href="Manager.html#managePlugin">managePlugin</a></li><li><a href="Manager.html#run">run</a></li><li><a href="Manager.html#setBackupData">setBackupData</a></li><li><a href="Manager.html#setChannel">setChannel</a></li><li><a href="Manager.html#setCustomChannelUrl">setCustomChannelUrl</a></li><li><a href="Manager.html#setUpdateCheckInterval">setUpdateCheckInterval</a></li></ul></div></li><li><a href="Worker.html">Worker</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="Worker_sub"><div class="member-type">Methods</div><ul class="inner"><li><a href="Worker.html#_checkExternalUpdates">_checkExternalUpdates</a></li><li><a href="Worker.html#_checkInternalUpdates">_checkInternalUpdates</a></li><li><a href="Worker.html#_getCategories">_getCategories</a></li><li><a href="Worker.html#_getPluginsFlat">_getPluginsFlat</a></li><li><a href="Worker.html#_getUrl">_getUrl</a></li><li><a href="Worker.html#_init">_init</a></li><li><a href="Worker.html#_rebuildingArrayCategoriesPlugins">_rebuildingArrayCategoriesPlugins</a></li><li><a href="Worker.html#_rebuildingCategories">_rebuildingCategories</a></li><li><a href="Worker.html#_save">_save</a></li><li><a href="Worker.html#_sendPluginsEvent">_sendPluginsEvent</a></li><li><a href="Worker.html#_syncStorage">_syncStorage</a></li><li><a href="Worker.html#_updateExternalPlugins">_updateExternalPlugins</a></li><li><a href="Worker.html#_updateInternalIITC">_updateInternalIITC</a></li><li><a href="Worker.html#_updateLocalPlugins">_updateLocalPlugins</a></li></ul></div></li></ul></div><div class="lnb-api hidden"><h3>Namespaces</h3><ul><li><a href="manager_.html">manager</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="manager_sub"><div class="member-type">Typedef</div><ul class="inner"><li><a href="manager_.html#.config">config</a></li><li><a href="manager_.html#.inject_plugin">inject_plugin</a></li><li><a href="manager_.html#.inject_user_script">inject_user_script</a></li><li><a href="manager_.html#.message">message</a></li><li><a href="manager_.html#.network_host">network_host</a></li><li><a href="manager_.html#.plugin_event">plugin_event</a></li><li><a href="manager_.html#.progressbar">progressbar</a></li></ul></div></li><li><a href="storage.html">storage</a><button type="button" class="hidden toggle-subnav btn btn-link">  <span class="glyphicon glyphicon-plus"></span></button><div class="hidden" id="storage_sub"><div class="member-type">Typedef</div><ul class="inner"><li><a href="storage.html#.data">data</a></li><li><a href="storage.html#.get">get</a></li><li><a href="storage.html#.set">set</a></li><li><a href="storage.html#.storage">storage</a></li></ul></div></li></ul></div><div class="lnb-api hidden"><h3>Global</h3><ul><li><a href="global.html#ajaxGet">ajaxGet</a></li><li class="hidden"><a href="global.html#BackupParams">BackupParams</a></li><li><a href="global.html#check_matching">check_matching</a></li><li><a href="global.html#check_meta_match_pattern">check_meta_match_pattern</a></li><li><a href="global.html#check_url_match_pattern">check_url_match_pattern</a></li><li><a href="global.html#clearWait">clearWait</a></li><li><a href="global.html#decodeResponseAsUTF8">decodeResponseAsUTF8</a></li><li><a href="global.html#exportExternalPlugins">exportExternalPlugins</a></li><li><a href="global.html#exportIitcSettings">exportIitcSettings</a></li><li><a href="global.html#exportPluginsSettings">exportPluginsSettings</a></li><li><a href="global.html#fetchResource">fetchResource</a></li><li><a href="global.html#getUID">getUID</a></li><li><a href="global.html#getUniqId">getUniqId</a></li><li><a href="global.html#humanize_match">humanize_match</a></li><li><a href="global.html#importExternalPlugins">importExternalPlugins</a></li><li><a href="global.html#importIitcSettings">importIitcSettings</a></li><li><a href="global.html#importPluginsSettings">importPluginsSettings</a></li><li><a href="global.html#isSet">isSet</a></li><li><a href="global.html#paramsProcessing">paramsProcessing</a></li><li><a href="global.html#parseMeta">parseMeta</a></li><li class="hidden"><a href="global.html#plugin">plugin</a></li><li><a href="global.html#sanitizeFileName">sanitizeFileName</a></li><li><a href="global.html#testInclude">testInclude</a></li><li><a href="global.html#testMatch">testMatch</a></li><li><a href="global.html#wait">wait</a></li></ul></div>
-</nav>
-<div id="resizer"></div>
-
-<div class="main" id="main">
-    
-
-
-
-    
-
-
-
-
-
-
-
-
-
-    
-
-
-    <section>
-        <article class="readme"><h1>lib IITC manager</h1>
+@media (prefers-color-scheme: light) {
+  :root {
+    --md-sys-color-primary: #006a62;
+    --md-sys-color-on-primary: #ffffff;
+    --md-sys-color-primary-container: #72f8e8;
+    --md-sys-color-on-primary-container: #00201d;
+    --md-sys-color-secondary: #4a635f;
+    --md-sys-color-on-secondary: #ffffff;
+    --md-sys-color-secondary-container: #cce8e3;
+    --md-sys-color-on-secondary-container: #051f1d;
+    --md-sys-color-tertiary: #46617a;
+    --md-sys-color-on-tertiary: #ffffff;
+    --md-sys-color-tertiary-container: #cde5ff;
+    --md-sys-color-on-tertiary-container: #001d32;
+    --md-sys-color-error: #ba1a1a;
+    --md-sys-color-on-error: #ffffff;
+    --md-sys-color-error-container: #ffdad6;
+    --md-sys-color-on-error-container: #410002;
+    --md-sys-color-background: #fafdfb;
+    --md-sys-color-on-background: #191c1c;
+    --md-sys-color-surface: #fafdfb;
+    --md-sys-color-on-surface: #191c1c;
+    --md-sys-color-surface-variant: #dae5e2;
+    --md-sys-color-on-surface-variant: #3f4947;
+    --md-sys-color-outline: #6f7977;
+    --md-sys-color-outline-variant: #bec9c6;
+    --md-sys-color-shadow: #000000;
+    --md-sys-color-scrim: #000000;
+    --md-sys-color-inverse-surface: #2d3130;
+    --md-sys-color-inverse-on-surface: #eff1ef;
+    --md-sys-color-inverse-primary: #51dbcc;
+    --md-sys-color-surface-dim: #d8dbd9;
+    --md-sys-color-surface-bright: #f7faf8;
+    --md-sys-color-surface-container-lowest: #ffffff;
+    --md-sys-color-surface-container-low: #f2f4f2;
+    --md-sys-color-surface-container: #eceeed;
+    --md-sys-color-surface-container-high: #e6e9e7;
+    --md-sys-color-surface-container-highest: #e0e3e1
+  }
+}
+:root[data-theme="light"] {
+  --md-sys-color-primary: #006a62;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #72f8e8;
+  --md-sys-color-on-primary-container: #00201d;
+  --md-sys-color-secondary: #4a635f;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #cce8e3;
+  --md-sys-color-on-secondary-container: #051f1d;
+  --md-sys-color-tertiary: #46617a;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #cde5ff;
+  --md-sys-color-on-tertiary-container: #001d32;
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
+  --md-sys-color-background: #fafdfb;
+  --md-sys-color-on-background: #191c1c;
+  --md-sys-color-surface: #fafdfb;
+  --md-sys-color-on-surface: #191c1c;
+  --md-sys-color-surface-variant: #dae5e2;
+  --md-sys-color-on-surface-variant: #3f4947;
+  --md-sys-color-outline: #6f7977;
+  --md-sys-color-outline-variant: #bec9c6;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-inverse-surface: #2d3130;
+  --md-sys-color-inverse-on-surface: #eff1ef;
+  --md-sys-color-inverse-primary: #51dbcc;
+  --md-sys-color-surface-dim: #d8dbd9;
+  --md-sys-color-surface-bright: #f7faf8;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f2f4f2;
+  --md-sys-color-surface-container: #eceeed;
+  --md-sys-color-surface-container-high: #e6e9e7;
+  --md-sys-color-surface-container-highest: #e0e3e1
+}
+</style><link rel="stylesheet" href="assets/material-style.css"/></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">lib-iitc-manager</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>lib-iitc-manager</h1></div><div class="tsd-panel tsd-typography"><h1 id="lib-iitc-manager" class="tsd-anchor-link">lib IITC manager<a href="#lib-iitc-manager" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
 <p>Library for managing <a href="https://iitc.app/">IITC and plugins</a>.</p>
-<h2>Getting started</h2>
-<pre class="prettyprint source"><code>npm install lib-iitc-manager --save
-</code></pre>
-<h2>Usage</h2>
+<h2 id="getting-started" class="tsd-anchor-link">Getting started<a href="#getting-started" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<pre><code><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-0">install</span><span class="hl-1"> </span><span class="hl-0">lib</span><span class="hl-1">-</span><span class="hl-0">iitc</span><span class="hl-1">-</span><span class="hl-0">manager</span><span class="hl-1"> --</span><span class="hl-0">save</span>
+</code><button>Copy</button></pre>
+
+<h2 id="usage" class="tsd-anchor-link">Usage<a href="#usage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>Example code to use in WebExtension.
 Imports the library, passes environment parameters and starts loading IITC and plugins.</p>
-<pre class="prettyprint source lang-js"><code>import { Manager } from 'lib-iitc-manager';
+<pre><code class="js"><span class="hl-2">import</span><span class="hl-1"> { </span><span class="hl-0">Manager</span><span class="hl-1"> } </span><span class="hl-2">from</span><span class="hl-1"> </span><span class="hl-3">&#39;lib-iitc-manager&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">manager</span><span class="hl-1"> = </span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-6">Manager</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-0">storage:</span><span class="hl-1"> </span><span class="hl-0">browser</span><span class="hl-1">.</span><span class="hl-0">storage</span><span class="hl-1">.</span><span class="hl-0">local</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-6">message</span><span class="hl-0">:</span><span class="hl-1"> (</span><span class="hl-0">message</span><span class="hl-1">, </span><span class="hl-0">args</span><span class="hl-1">) </span><span class="hl-4">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-0">console</span><span class="hl-1">.</span><span class="hl-6">log</span><span class="hl-1">(</span><span class="hl-3">&quot;Message for user:&quot;</span><span class="hl-1">);</span><br/><span class="hl-1">        </span><span class="hl-0">console</span><span class="hl-1">.</span><span class="hl-6">log</span><span class="hl-1">(</span><span class="hl-0">message</span><span class="hl-1">+</span><span class="hl-3">&quot;, args: &quot;</span><span class="hl-1">+</span><span class="hl-0">args</span><span class="hl-1">);</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">    </span><span class="hl-6">progressbar</span><span class="hl-0">:</span><span class="hl-1"> </span><span class="hl-0">is_show</span><span class="hl-1"> </span><span class="hl-4">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-2">if</span><span class="hl-1"> (</span><span class="hl-0">is_show</span><span class="hl-1">) {</span><br/><span class="hl-1">            </span><span class="hl-0">console</span><span class="hl-1">.</span><span class="hl-6">log</span><span class="hl-1">(</span><span class="hl-3">&quot;Show progress bar&quot;</span><span class="hl-1">);</span><br/><span class="hl-1">        } </span><span class="hl-2">else</span><span class="hl-1"> {</span><br/><span class="hl-1">            </span><span class="hl-0">console</span><span class="hl-1">.</span><span class="hl-6">log</span><span class="hl-1">(</span><span class="hl-3">&quot;Hide progress bar&quot;</span><span class="hl-1">);</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">    </span><span class="hl-6">inject_plugin</span><span class="hl-0">:</span><span class="hl-1"> </span><span class="hl-0">plugin</span><span class="hl-1"> </span><span class="hl-4">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">        </span><span class="hl-0">console</span><span class="hl-1">.</span><span class="hl-6">log</span><span class="hl-1">(</span><span class="hl-3">&quot;Code of UserScript plugin for embedding in a page:&quot;</span><span class="hl-1">);</span><br/><span class="hl-1">        </span><span class="hl-0">console</span><span class="hl-1">.</span><span class="hl-6">log</span><span class="hl-1">(</span><span class="hl-0">plugin</span><span class="hl-1">[</span><span class="hl-3">&#39;code&#39;</span><span class="hl-1">]);</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-0">manager</span><span class="hl-1">.</span><span class="hl-6">run</span><span class="hl-1">().</span><span class="hl-6">then</span><span class="hl-1">();</span>
+</code><button type="button">Copy</button></pre>
 
-const manager = new Manager({
-    storage: browser.storage.local,
-    message: (message, args) => {
-        console.log(&quot;Message for user:&quot;);
-        console.log(message+&quot;, args: &quot;+args);
-    },
-    progressbar: is_show => {
-        if (is_show) {
-            console.log(&quot;Show progress bar&quot;);
-        } else {
-            console.log(&quot;Hide progress bar&quot;);
-        }
-    },
-    inject_plugin: plugin => {
-        console.log(&quot;Code of UserScript plugin for embedding in a page:&quot;);
-        console.log(plugin['code']);
-    }
-});
-
-manager.run().then();
-</code></pre>
 <p>Example of use helpers:</p>
-<pre class="prettyprint source lang-js"><code>import { getUniqId } from &quot;lib-iitc-manager&quot;;
+<pre><code class="js"><span class="hl-2">import</span><span class="hl-1"> { </span><span class="hl-0">getUniqId</span><span class="hl-1"> } </span><span class="hl-2">from</span><span class="hl-1"> </span><span class="hl-3">&quot;lib-iitc-manager&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">uniqId</span><span class="hl-1"> = </span><span class="hl-6">getUniqId</span><span class="hl-1">(</span><span class="hl-3">&quot;tmp&quot;</span><span class="hl-1">);</span>
+</code><button type="button">Copy</button></pre>
 
-const uniqId = getUniqId(&quot;tmp&quot;);
-</code></pre>
 <p><a href="https://iitc-ce.github.io/lib-iitc-manager/">See more in documentation</a></p>
-<h2>License</h2>
+<h2 id="license" class="tsd-anchor-link">License<a href="#license" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>lib-iitc-manager is licensed under <a href="/LICENSE">GNU General Public License v3.0 (GPL-3.0)</a>.
 For distribution through application stores (Apple App Store, Google Play Store, and others),
 please refer to the <a href="/COPYING.STORE">COPYING.STORE</a> file, which provides an exception for the application store
-distribution requirements while maintaining GPL-3.0 compliance for the source code.</p></article>
-    </section>
+distribution requirements while maintaining GPL-3.0 compliance for the source code.</p>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#lib-iitc-manager"><span>lib <wbr/>IITC manager</span></a><ul><li><a href="#getting-started"><span>Getting started</span></a></li><li><a href="#usage"><span>Usage</span></a></li><li><a href="#license"><span>License</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">lib-iitc-manager</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div><script>
+          try {
+            const generateLinkElement = document.querySelector(".tsd-generator a");
+            const link = document.createElement("a");
+            Object.assign(link, {
+              href: "https://github.com/dmnsgn/typedoc-material-theme",
+              target: "_blank",
+              rel: "noreferrer",
+              innerText: "typedoc-material-theme."
+            });
+            generateLinkElement.insertAdjacentElement("afterend", link);
+            generateLinkElement.insertAdjacentText("afterend", " with ");
+          } catch (error) {
 
-
-
-
-
-
-</div>
-
-<footer>
-    <img class="logo" src="img/toast-ui.png" style="; height: 0">
-    <div class="footer-text">Ingress Intel Total Conversion (Community Edition)</div>
-</footer>
-<script>prettyPrint();</script>
-<script src="scripts/jquery.min.js"></script>
-<script src="scripts/tui-doc.js"></script>
-<script src="scripts/linenumber.js"></script>
-
-    <script>
-        var id = 'package:lib-iitc-manager_sub'.replace(/"/g, '_');
-        var selectedApi = document.getElementById(id); // do not use jquery selector
-        var $selectedApi = $(selectedApi);
-
-        $selectedApi.removeClass('hidden');
-        $selectedApi.parent().find('.glyphicon').removeClass('glyphicon-plus').addClass('glyphicon-minus');
-        showLnbApi();
-    </script>
-
-</body>
-</html>
+          }
+        </script></body></html>
