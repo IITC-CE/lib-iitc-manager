@@ -1,11 +1,18 @@
 {
   "name": "lib-iitc-manager",
-  "version": "1.12.0",
+  "version": "1.12.1",
   "description": "Library for managing IITC plugins",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "files": [
+    "dist",
+    "LICENSE",
+    "COPYING.STORE",
+    "README.md"
+  ],
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "tsc",
     "lint": "eslint src/ test/",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
