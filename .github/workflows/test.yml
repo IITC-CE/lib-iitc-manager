@@ -14,8 +14,8 @@ jobs:
     strategy:
       matrix:
         node:
-          - 17
-          - 18
+          - 20
+          - 22
           - 24
     steps:
       - uses: actions/setup-node@v6
@@ -31,5 +31,9 @@ jobs:
             ${{ runner.os }}-node-v${{ matrix.node }}-
       - name: Install Dependencies
         run: npm install
+      - name: Lint
+        run: npm run lint
+      - name: Type Check
+        run: npm run typecheck
       - name: Run All Node.js Tests
         run: npm run test_with_webserver

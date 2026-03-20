@@ -1,9 +1,10 @@
-// Copyright (C) 2022-2025 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
+// Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { before, describe, it } from 'mocha';
 import { migrate, number_of_migrations } from '../src/migrations.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
+import type { StorageData } from '../src/types.js';
 
 const iitc_code = '// ==UserScript==\n// @author jonatkins\n// ==/UserScript==';
 
@@ -45,18 +46,16 @@ describe('test migrations', function () {
   describe('check migrations', function () {
     it('Should replace undefined with "Misc" (fix https://github.com/IITC-CE/IITC-Button/issues/68)', async function () {
       const db_data = await storage.get(['release_plugins_flat']);
-      const ext_plugin =
-        db_data['release_plugins_flat'][
-          'External+https://github.com/IITC-CE/ingress-intel-total-conversion'
-        ];
+      const ext_plugin = (db_data['release_plugins_flat'] as StorageData)[
+        'External+https://github.com/IITC-CE/ingress-intel-total-conversion'
+      ] as StorageData;
       expect(ext_plugin['category']).to.equal('Misc');
     });
     it('Custom plugins should have status and uid', async function () {
       const db_data = await storage.get(['release_plugins_user']);
-      const ext_plugin =
-        db_data['release_plugins_user'][
-          'ext+https://github.com/IITC-CE/ingress-intel-total-conversion'
-        ];
+      const ext_plugin = (db_data['release_plugins_user'] as StorageData)[
+        'ext+https://github.com/IITC-CE/ingress-intel-total-conversion'
+      ] as StorageData;
       expect(ext_plugin['uid']).to.equal(
         'ext+https://github.com/IITC-CE/ingress-intel-total-conversion'
       );
@@ -68,9 +67,10 @@ describe('test migrations', function () {
     });
     it('Should create `iitc_core` object', async function () {
       const db_data = await storage.get(['release_iitc_core']);
-      expect(db_data['release_iitc_core']).to.be.an('object');
-      expect(db_data['release_iitc_core']['author']).to.equal('jonatkins');
-      expect(db_data['release_iitc_core']['code']).to.to.include('jonatkins');
+      const iitc_core = db_data['release_iitc_core'] as StorageData;
+      expect(iitc_core).to.be.an('object');
+      expect(iitc_core['author']).to.equal('jonatkins');
+      expect(iitc_core['code']).to.to.include('jonatkins');
     });
     it('Should change _update_check_interval from hours to seconds', async function () {
       const db_data = await storage.get(['release_update_check_interval']);

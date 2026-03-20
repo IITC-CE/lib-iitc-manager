@@ -1,14 +1,29 @@
-// Copyright (C) 2022-2025 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
+// Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { isSet, getUID, parseMeta } from './helpers.js';
+import type { StorageAPI, StorageData } from './types.js';
 
-export function number_of_migrations() {
+export function number_of_migrations(): number {
   return migrates.length;
 }
 
-const migrates = [migration_0001, migration_0002, migration_0003, migration_0004, migration_0005];
+type MigrationFn = (
+  storage_iitc_code: StorageData,
+  storage_plugins_flat: StorageData,
+  storage_plugins_user: StorageData,
+  storage_misc: StorageData,
+  update_check_interval: StorageData
+) => Promise<void>;
 
-export async function migrate(storage) {
+const migrates: MigrationFn[] = [
+  migration_0001,
+  migration_0002,
+  migration_0003,
+  migration_0004,
+  migration_0005,
+];
+
+export async function migrate(storage: StorageAPI): Promise<boolean> {
   const storage_iitc_code = await storage.get([
     'release_iitc_code',
     'beta_iitc_code',
@@ -48,7 +63,7 @@ export async function migrate(storage) {
   let is_migrated = false;
   for (const migrate of migrates) {
     const index = migrates.indexOf(migrate);
-    if (parseInt(storage_misc['storage_version']) < index + 1) {
+    if (parseInt(storage_misc['storage_version'] as string) < index + 1) {
       await migrate(
         storage_iitc_code,
         storage_plugins_flat,
@@ -71,12 +86,16 @@ export async function migrate(storage) {
   return is_migrated;
 }
 
-async function migration_0001(storage_iitc_code, storage_plugins_flat) {
-  for (let channel of Object.keys(storage_plugins_flat)) {
+async function migration_0001(
+  _storage_iitc_code: StorageData,
+  storage_plugins_flat: StorageData
+): Promise<void> {
+  for (const channel of Object.keys(storage_plugins_flat)) {
     if (!isSet(storage_plugins_flat[channel])) continue;
 
-    for (let plugin of Object.keys(storage_plugins_flat[channel])) {
-      const plugin_obj = storage_plugins_flat[channel][plugin];
+    const plugins = storage_plugins_flat[channel] as StorageData;
+    for (const plugin of Object.keys(plugins)) {
+      const plugin_obj = plugins[plugin] as StorageData;
 
       if (plugin_obj['user'] === true && plugin_obj['category'] === undefined) {
         plugin_obj['category'] = 'Misc';
@@ -85,29 +104,32 @@ async function migration_0001(storage_iitc_code, storage_plugins_flat) {
   }
 }
 
-async function migration_0002() {}
+async function migration_0002(): Promise<void> {}
 
 async function migration_0003(
-  storage_iitc_code,
-  storage_plugins_flat,
-  storage_plugins_user,
-  storage_misc
-) {
-  if (['test', 'local'].includes(storage_misc.channel)) {
+  _storage_iitc_code: StorageData,
+  _storage_plugins_flat: StorageData,
+  storage_plugins_user: StorageData,
+  storage_misc: StorageData
+): Promise<void> {
+  if (['test', 'local'].includes(storage_misc.channel as string)) {
     storage_misc.channel = 'release';
-    storage_misc.network_host.custom = storage_misc.network_host.local;
+    (storage_misc.network_host as StorageData).custom = (
+      storage_misc.network_host as StorageData
+    ).local;
   }
-  if (!['release', 'beta', 'custom'].includes(storage_misc.channel)) {
+  if (!['release', 'beta', 'custom'].includes(storage_misc.channel as string)) {
     storage_misc.channel = 'release';
   }
-  for (let channel of Object.keys(storage_plugins_user)) {
+  for (const channel of Object.keys(storage_plugins_user)) {
     if (!isSet(storage_plugins_user[channel])) continue;
 
-    for (let plugin of Object.keys(storage_plugins_user[channel])) {
-      const plugin_obj = storage_plugins_user[channel][plugin];
+    const plugins = storage_plugins_user[channel] as StorageData;
+    for (const plugin of Object.keys(plugins)) {
+      const plugin_obj = plugins[plugin] as StorageData;
 
       if (plugin_obj['uid'] === undefined) {
-        plugin_obj['uid'] = getUID(plugin_obj);
+        plugin_obj['uid'] = getUID(plugin_obj as unknown as import('./types.js').PluginMeta);
       }
       if (plugin_obj['status'] === undefined) {
         plugin_obj['status'] = 'off';
@@ -116,28 +138,29 @@ async function migration_0003(
   }
 }
 
-async function migration_0004(storage_iitc_code) {
-  for (let channel_iitc_code of Object.keys(storage_iitc_code)) {
-    const code = storage_iitc_code[channel_iitc_code];
+async function migration_0004(storage_iitc_code: StorageData): Promise<void> {
+  for (const channel_iitc_code of Object.keys(storage_iitc_code)) {
+    const code = storage_iitc_code[channel_iitc_code] as string;
     const channel = channel_iitc_code.replace('_iitc_code', '');
     delete storage_iitc_code[channel_iitc_code];
 
     if (isSet(code)) {
-      storage_iitc_code[channel + 'iitc_core'] = parseMeta(code);
-      storage_iitc_code[channel + 'iitc_core']['code'] = code;
+      const meta = parseMeta(code) as StorageData;
+      meta['code'] = code;
+      storage_iitc_code[channel + 'iitc_core'] = meta;
     }
   }
 }
 
 async function migration_0005(
-  storage_iitc_code,
-  storage_plugins_flat,
-  storage_plugins_user,
-  storage_misc,
-  update_check_interval
-) {
-  for (let channel of Object.keys(update_check_interval)) {
-    const interval = update_check_interval[channel];
+  _storage_iitc_code: StorageData,
+  _storage_plugins_flat: StorageData,
+  _storage_plugins_user: StorageData,
+  _storage_misc: StorageData,
+  update_check_interval: StorageData
+): Promise<void> {
+  for (const channel of Object.keys(update_check_interval)) {
+    const interval = update_check_interval[channel] as number;
     if (!isSet(interval)) {
       delete update_check_interval[channel];
       continue;

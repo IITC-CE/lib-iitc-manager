@@ -15,14 +15,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Build
-        uses: andstor/jsdoc-action@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          source_dir: ./src
-          output_dir: ./out
-          config_file: jsdoc-conf.json
-          template: tui-jsdoc-template
-          front_page: README.md
+          node-version: 24
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build docs
+        run: npx typedoc
 
       - name: Deploy
         if: github.event_name != 'pull_request'

@@ -4,19 +4,27 @@ import { Worker } from './worker.js';
 import * as migrations from './migrations.js';
 import { getUID, isSet, sanitizeFileName } from './helpers.js';
 import * as backup from './backup.js';
+import type {
+  Channel,
+  Plugin,
+  PluginDict,
+  StorageData,
+  BackupParams,
+  BackupData,
+  UserScript,
+  CategoryDict,
+} from './types.js';
 
 /**
- * @classdesc This class contains methods for managing IITC and plugins.
+ * This class contains methods for managing IITC and plugins.
  */
 export class Manager extends Worker {
   /**
    * Changes the update channel and calls for an update.
    *
-   * @async
-   * @param {"release" | "beta" | "custom"} channel - Update channel for IITC and plugins.
-   * @return {Promise<void>}
+   * @param channel - Update channel for IITC and plugins.
    */
-  async setChannel(channel) {
+  async setChannel(channel: Channel): Promise<void> {
     // Get active plugins from current channel and notify about removal
     const oldEnabledPlugins = await this.getEnabledPlugins();
     await this._sendPluginsEvent(channel, Object.keys(oldEnabledPlugins), 'remove');
@@ -33,7 +41,7 @@ export class Manager extends Worker {
     ]);
 
     // Initialize missing structures if needed
-    const updates = {};
+    const updates: StorageData = {};
     if (!newChannelData[`${channel}_plugins_flat`]) updates[`${channel}_plugins_flat`] = {};
     if (!newChannelData[`${channel}_plugins_local`]) updates[`${channel}_plugins_local`] = {};
     if (!newChannelData[`${channel}_plugins_user`]) updates[`${channel}_plugins_user`] = {};
@@ -53,16 +61,13 @@ export class Manager extends Worker {
   /**
    * Changes the update check interval. If the interval for the current channel changes, a forced update check is started to apply the new interval.
    *
-   * @async
-   * @param {number} interval - Update check interval in seconds.
-   * @param {"release" | "beta" | "custom" | undefined} [channel=undefined] - Update channel for IITC and plugins.
-   * If not specified, the current channel is used.
-   * @return {Promise<void>}
+   * @param interval - Update check interval in seconds.
+   * @param channel - Update channel for IITC and plugins.
    */
-  async setUpdateCheckInterval(interval, channel) {
+  async setUpdateCheckInterval(interval: number, channel?: string): Promise<void> {
     if (typeof channel === 'undefined') channel = this.channel;
 
-    const data = {};
+    const data: StorageData = {};
     data[channel + '_update_check_interval'] = interval;
     await this.storage.set(data);
 
@@ -72,12 +77,12 @@ export class Manager extends Worker {
   /**
    * Changes the URL of the repository with IITC and plugins for the custom channel.
    *
-   * @async
-   * @param {string} url - URL of the repository.
-   * @return {Promise<void>}
+   * @param url - URL of the repository.
    */
-  async setCustomChannelUrl(url) {
-    const network_host = await this.storage.get(['network_host']).then(data => data.network_host);
+  async setCustomChannelUrl(url: string): Promise<void> {
+    const network_host = (await this.storage
+      .get(['network_host'])
+      .then(data => data.network_host)) as typeof this.network_host;
     network_host.custom = url;
     await this.storage.set({ network_host: network_host });
     this.network_host = network_host;
@@ -86,11 +91,8 @@ export class Manager extends Worker {
   /**
    * Running the IITC and plugins manager.
    * Migrates data storage as needed, then loads or updates UserScripts from the repositories.
-   *
-   * @async
-   * @return {Promise<void>}
    */
-  async run() {
+  async run(): Promise<void> {
     if (!this.is_initialized) {
       await new Promise(resolve => setTimeout(resolve, 1));
       return await this.run();
@@ -100,12 +102,9 @@ export class Manager extends Worker {
   }
 
   /**
-   * Returns an object of all enabled plugins, including IITC core, with plugin UID as the key and plugin data as the value.
-   *
-   * @async
-   * @returns {Promise<Object>} A promise that resolves to an object containing enabled plugins and IITC core data.
+   * Returns an object of all enabled plugins, including IITC core, with plugin UID as the key.
    */
-  async getEnabledPlugins() {
+  async getEnabledPlugins(): Promise<PluginDict> {
     const channel = this.channel;
     const storage = await this.storage.get([
       `${channel}_iitc_core`,
@@ -115,12 +114,12 @@ export class Manager extends Worker {
       `${channel}_plugins_user`,
     ]);
 
-    const plugins_flat = storage[`${channel}_plugins_flat`] || {};
-    const plugins_local = storage[`${channel}_plugins_local`] || {};
-    const plugins_user = storage[`${channel}_plugins_user`] || {};
+    const plugins_flat = (storage[`${channel}_plugins_flat`] || {}) as PluginDict;
+    const plugins_local = (storage[`${channel}_plugins_local`] || {}) as PluginDict;
+    const plugins_user = (storage[`${channel}_plugins_user`] || {}) as PluginDict;
 
-    const enabled_plugins = {};
-    let iitc_script = await this.getIITCCore(storage);
+    const enabled_plugins: PluginDict = {};
+    const iitc_script = await this.getIITCCore(storage);
     if (iitc_script !== null) {
       enabled_plugins[this.iitc_main_script_uid] = iitc_script;
 
@@ -128,7 +127,9 @@ export class Manager extends Worker {
         if (plugins_flat[uid]['status'] === 'on') {
           // If the plugin is marked as 'user', use its 'user' version; otherwise, use its 'local' version
           enabled_plugins[uid] =
-            plugins_flat[uid]['user'] === true ? plugins_user[uid] || {} : plugins_local[uid] || {};
+            plugins_flat[uid]['user'] === true
+              ? plugins_user[uid] || ({} as Plugin)
+              : plugins_local[uid] || ({} as Plugin);
         }
       }
     }
@@ -141,16 +142,13 @@ export class Manager extends Worker {
    * the initialization of IITC takes some time, and during this time, plugins can be added to `window.bootPlugins`
    * without being started immediately. Injecting IITC first also prevents plugins from throwing errors
    * when attempting to access IITC, leaflet, or other dependencies during their initialization.
-   *
-   * @async
-   * @returns {Promise<void>}
    */
-  async inject() {
+  async inject(): Promise<void> {
     const plugins = await this.getEnabledPlugins();
 
     // Ensure IITC core is injected first
     if (plugins[this.iitc_main_script_uid]) {
-      this.inject_user_script(plugins[this.iitc_main_script_uid].code);
+      this.inject_user_script(plugins[this.iitc_main_script_uid].code!);
       this.inject_plugin(plugins[this.iitc_main_script_uid]);
       delete plugins[this.iitc_main_script_uid]; // Remove IITC core from the list to avoid re-injecting
     }
@@ -168,33 +166,29 @@ export class Manager extends Worker {
   /**
    * Runs periodic checks and installs updates for IITC, internal and external plugins.
    *
-   * @async
-   * @param {boolean} [force=false] - Forced to run the update right now.
-   * @return {Promise<void>}
+   * @param force - Forced to run the update right now.
    */
-  async checkUpdates(force) {
+  async checkUpdates(force?: boolean): Promise<void> {
     await Promise.all([this._checkInternalUpdates(force), this._checkExternalUpdates(force)]);
   }
 
   /**
    * Controls the plugin. Allows you to enable, disable and remove the plugin.
    *
-   * @async
-   * @param {string} uid - Unique identifier of the plugin.
-   * @param {"on" | "off" | "delete"} action - Type of action with the plugin.
-   * @return {Promise<void>}
+   * @param uid - Unique identifier of the plugin.
+   * @param action - Type of action with the plugin.
    */
-  async managePlugin(uid, action) {
+  async managePlugin(uid: string, action: 'on' | 'off' | 'delete'): Promise<void> {
     const channel = this.channel;
-    let local = await this.storage.get([
+    const local = await this.storage.get([
       `${channel}_plugins_flat`,
       `${channel}_plugins_local`,
       `${channel}_plugins_user`,
     ]);
 
-    let plugins_flat = local[`${channel}_plugins_flat`];
-    let plugins_local = local[`${channel}_plugins_local`];
-    let plugins_user = local[`${channel}_plugins_user`];
+    const plugins_flat = local[`${channel}_plugins_flat`] as PluginDict;
+    let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
+    let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
 
     if (!isSet(plugins_local)) plugins_local = {};
     if (!isSet(plugins_user)) plugins_user = {};
@@ -216,7 +210,7 @@ export class Manager extends Worker {
         }
 
         this.inject_user_script(
-          isUserPlugin === true ? plugins_user[uid]['code'] : plugins_local[uid]['code']
+          isUserPlugin === true ? plugins_user[uid]['code']! : plugins_local[uid]['code']!
         );
         this.inject_plugin(isUserPlugin === true ? plugins_user[uid] : plugins_local[uid]);
 
@@ -227,15 +221,15 @@ export class Manager extends Worker {
         });
         await this._sendPluginsEvent(channel, [uid], 'add');
       } else {
-        let filename = plugins_flat[uid]['filename'];
-        let result = await this._getUrl(`${this.network_host[channel]}/plugins/${filename}`);
+        const filename = plugins_flat[uid]['filename'];
+        const result = await this._getUrl(`${this.network_host[channel]}/plugins/${filename}`);
         if (result.data) {
           plugins_flat[uid]['status'] = 'on';
           plugins_flat[uid]['statusChangedAt'] = currentTime;
-          plugins_flat[uid]['code'] = result.data;
+          plugins_flat[uid]['code'] = result.data as string;
           plugins_local[uid] = { ...plugins_flat[uid] };
 
-          this.inject_user_script(plugins_local[uid]['code']);
+          this.inject_user_script(plugins_local[uid]['code']!);
           this.inject_plugin(plugins_local[uid]);
 
           await this._save(channel, {
@@ -302,15 +296,11 @@ export class Manager extends Worker {
    * Allows adding third-party UserScript plugins to IITC.
    * Returns the dictionary of installed or updated plugins.
    *
-   * @async
-   * @param {Object[]} scripts - Array of UserScripts.
-   * @param {plugin} scripts[].meta - Parsed "meta" object of UserScript.
-   * @param {string} scripts[].code - UserScript code.
-   * @return {Promise<Object.<string, plugin>>}
+   * @param scripts - Array of UserScripts.
    */
-  async addUserScripts(scripts) {
+  async addUserScripts(scripts: UserScript[]): Promise<PluginDict> {
     const channel = this.channel;
-    let local = await this.storage.get([
+    const local = await this.storage.get([
       `${channel}_iitc_core_user`,
       `${channel}_categories`,
       `${channel}_plugins_flat`,
@@ -318,24 +308,24 @@ export class Manager extends Worker {
       `${channel}_plugins_user`,
     ]);
 
-    let iitc_core_user = local[`${channel}_iitc_core_user`];
-    let categories = local[`${channel}_categories`];
-    let plugins_flat = local[`${channel}_plugins_flat`];
-    let plugins_local = local[`${channel}_plugins_local`];
-    let plugins_user = local[`${channel}_plugins_user`];
+    let iitc_core_user = local[`${channel}_iitc_core_user`] as Plugin | undefined;
+    let categories = local[`${channel}_categories`] as CategoryDict;
+    let plugins_flat = local[`${channel}_plugins_flat`] as PluginDict;
+    let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
+    let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
 
     if (!isSet(categories)) categories = {};
     if (!isSet(plugins_flat)) plugins_flat = {};
     if (!isSet(plugins_local)) plugins_local = {};
     if (!isSet(plugins_user)) plugins_user = {};
 
-    const added_uids = [];
-    const updated_uids = [];
-    const installed_scripts = {};
+    const added_uids: string[] = [];
+    const updated_uids: string[] = [];
+    const installed_scripts: PluginDict = {};
     const currentTime = Math.floor(Date.now() / 1000);
 
     scripts.forEach(script => {
-      let meta = script['meta'];
+      const meta = script['meta'];
       const code = script['code'];
       const plugin_uid = getUID(meta);
 
@@ -345,21 +335,21 @@ export class Manager extends Worker {
         iitc_core_user = Object.assign(meta, {
           uid: plugin_uid,
           code: code,
-        });
+        }) as Plugin;
         updated_uids.push(plugin_uid);
         installed_scripts[plugin_uid] = iitc_core_user;
       } else {
         const is_user_plugins = plugins_user[plugin_uid] !== undefined;
         plugins_user[plugin_uid] = Object.assign(meta, {
           uid: plugin_uid,
-          status: 'on',
+          status: 'on' as const,
           filename: meta['filename']
             ? meta['filename']
             : sanitizeFileName(`${meta['name']}.user.js`),
           code: code,
           addedAt: currentTime,
           statusChangedAt: currentTime,
-        });
+        }) as Plugin;
 
         if (plugin_uid in plugins_flat && !is_user_plugins) {
           if (plugin_uid in plugins_local && plugins_flat[plugin_uid]['status'] !== 'off') {
@@ -409,14 +399,12 @@ export class Manager extends Worker {
   /**
    * Returns information about requested plugin by UID.
    *
-   * @async
-   * @param {string} uid - Plugin UID.
-   * @return {Promise<plugin|null>}
+   * @param uid - Plugin UID.
    */
-  async getPluginInfo(uid) {
-    let all_plugins = await this.storage
+  async getPluginInfo(uid: string): Promise<Plugin | null> {
+    const all_plugins = (await this.storage
       .get([this.channel + '_plugins_flat'])
-      .then(data => data[this.channel + '_plugins_flat']);
+      .then(data => data[this.channel + '_plugins_flat'])) as PluginDict | undefined;
     if (all_plugins === undefined) return null;
     return all_plugins[uid];
   }
@@ -424,29 +412,25 @@ export class Manager extends Worker {
   /**
    * Returns IITC core script.
    *
-   * @async
-   * @param {Object|undefined} [storage=undefined] - Storage object with keys `channel_iitc_core` and `channel_iitc_core_user`.
-   * If not specified, the data is queried from the storage.
-   * @param {"release" | "beta" | "custom" | undefined} [channel=undefined] - Current channel.
-   * If not specified, the current channel is used.
-   * @return {Promise<plugin|null>}
+   * @param storage - Storage object with keys `channel_iitc_core` and `channel_iitc_core_user`.
+   * @param channel - Current channel.
    */
-  async getIITCCore(storage, channel) {
+  async getIITCCore(storage?: StorageData, channel?: string): Promise<Plugin | null> {
     if (typeof channel === 'undefined') channel = this.channel;
 
     if (storage === undefined || !isSet(storage[`${channel}_iitc_core`])) {
       storage = await this.storage.get([`${channel}_iitc_core`, `${channel}_iitc_core_user`]);
     }
 
-    const iitc_core = storage[`${channel}_iitc_core`];
-    const iitc_core_user = storage[`${channel}_iitc_core_user`];
+    const iitc_core = storage[`${channel}_iitc_core`] as Plugin | undefined;
+    const iitc_core_user = storage[`${channel}_iitc_core_user`] as Plugin | undefined;
 
-    let iitc_script = null;
-    if (isSet(iitc_core_user) && isSet(iitc_core_user['code'])) {
-      iitc_script = iitc_core_user;
+    let iitc_script: Plugin | null = null;
+    if (isSet(iitc_core_user) && isSet(iitc_core_user!['code'])) {
+      iitc_script = iitc_core_user!;
       iitc_script['override'] = true;
-    } else if (isSet(iitc_core) && isSet(iitc_core['code'])) {
-      iitc_script = iitc_core;
+    } else if (isSet(iitc_core) && isSet(iitc_core!['code'])) {
+      iitc_script = iitc_core!;
     }
     return iitc_script;
   }
@@ -454,16 +438,14 @@ export class Manager extends Worker {
   /**
    * Asynchronously retrieves backup data based on the specified parameters.
    *
-   * @async
-   * @param {BackupParams} params - The parameters for the backup data retrieval.
-   * @return {Promise<object>} A promise that resolves to the backup data.
+   * @param params - The parameters for the backup data retrieval.
    */
-  async getBackupData(params) {
+  async getBackupData(params: Partial<BackupParams>): Promise<BackupData> {
     // Process the input parameters using the 'paramsProcessing' function from the 'backup' module.
-    params = backup.paramsProcessing(params);
+    const processedParams = backup.paramsProcessing(params);
 
     // Initialize the backup_data object with its properties.
-    const backup_data = {
+    const backup_data: BackupData = {
       external_plugins: {},
       data: {
         iitc_settings: {},
@@ -475,9 +457,12 @@ export class Manager extends Worker {
     // Retrieve all_storage using the 'get' method of 'storage' module.
     const all_storage = await this.storage.get(null);
 
-    if (params.settings) backup_data.data.iitc_settings = backup.exportIitcSettings(all_storage);
-    if (params.data) backup_data.data.plugins_data = backup.exportPluginsSettings(all_storage);
-    if (params.external) backup_data.external_plugins = backup.exportExternalPlugins(all_storage);
+    if (processedParams.settings)
+      backup_data.data.iitc_settings = backup.exportIitcSettings(all_storage);
+    if (processedParams.data)
+      backup_data.data.plugins_data = backup.exportPluginsSettings(all_storage);
+    if (processedParams.external)
+      backup_data.external_plugins = backup.exportExternalPlugins(all_storage);
 
     // Return the backup_data object.
     return backup_data;
@@ -492,17 +477,18 @@ export class Manager extends Worker {
    * plugin data, and external plugins into the 'this' object using appropriate functions from
    * the 'backup' module.
    *
-   * @async
-   * @param {BackupParams} params - The parameters for setting the backup data.
-   * @param {object} backup_data - The backup data object containing the data to be set.
-   * @return {Promise<void>} A promise that resolves when the backup data is set.
+   * @param params - The parameters for setting the backup data.
+   * @param backup_data - The backup data object containing the data to be set.
    */
-  async setBackupData(params, backup_data) {
+  async setBackupData(params: Partial<BackupParams>, backup_data: BackupData): Promise<void> {
     // Process the input parameters using the 'paramsProcessing' function from the 'backup' module.
-    params = backup.paramsProcessing(params);
+    const processedParams = backup.paramsProcessing(params);
 
-    if (params.settings) await backup.importIitcSettings(this, backup_data.data.iitc_settings);
-    if (params.data) await backup.importPluginsSettings(this, backup_data.data.plugins_data);
-    if (params.external) await backup.importExternalPlugins(this, backup_data.external_plugins);
+    if (processedParams.settings)
+      await backup.importIitcSettings(this, backup_data.data.iitc_settings);
+    if (processedParams.data)
+      await backup.importPluginsSettings(this, backup_data.data.plugins_data);
+    if (processedParams.external)
+      await backup.importExternalPlugins(this, backup_data.external_plugins);
   }
 }

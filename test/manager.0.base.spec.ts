@@ -1,15 +1,16 @@
-// Copyright (C) 2022-2025 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
+// Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { describe, it, before } from 'mocha';
 import { Manager } from '../src/manager.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
+import type { ManagerConfig, Plugin, PluginEventData } from '../src/types.js';
 
 describe('manage.js base integration tests', function () {
-  let manager = null;
+  let manager: Manager | null = null;
   before(function () {
     storage.resetStorage();
-    const params = {
+    const params: ManagerConfig = {
       storage: storage,
       channel: 'beta',
       network_host: {
@@ -17,21 +18,21 @@ describe('manage.js base integration tests', function () {
         beta: 'http://127.0.0.1:31606/beta',
         custom: 'http://127.0.0.1/',
       },
-      inject_user_script: function callBack(data) {
+      inject_user_script: function callBack(data: string) {
         expect(data).to.include('// ==UserScript==');
       },
-      inject_plugin: function callBack(data) {
+      inject_plugin: function callBack(data: Plugin) {
         expect(data['code']).to.include('// ==UserScript==');
       },
-      plugin_event: data => {
+      plugin_event: (data: PluginEventData) => {
         const iitc_main_script_uid =
           'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
         expect(data).to.have.all.keys('event', 'plugins');
         expect(data['event']).to.equal('update');
         expect(data['plugins']).to.have.all.keys(iitc_main_script_uid);
-        expect(data['plugins'][iitc_main_script_uid]['uid']).to.equal(iitc_main_script_uid);
+        expect(data['plugins'][iitc_main_script_uid]).to.have.property('uid', iitc_main_script_uid);
       },
-      progressbar: function callBack(is_show) {
+      progressbar: function callBack(is_show: boolean) {
         expect(is_show).to.be.oneOf([true, false]);
       },
       is_daemon: false,
@@ -41,7 +42,7 @@ describe('manage.js base integration tests', function () {
 
   describe('run', function () {
     it('Should not return an error', async function () {
-      const run = await manager.run();
+      const run = await manager!.run();
       expect(run).to.be.undefined;
     });
   });
@@ -55,14 +56,14 @@ describe('manage.js base integration tests', function () {
 
   describe('setChannel', function () {
     it('Should not return an error', async function () {
-      const channel = await manager.setChannel('release');
+      const channel = await manager!.setChannel('release');
       expect(channel).to.be.undefined;
     });
   });
 
   describe('setUpdateCheckInterval', function () {
     it('Should not return an error', async function () {
-      const fn = await manager.setUpdateCheckInterval(24 * 60 * 60, 'release');
+      const fn = await manager!.setUpdateCheckInterval(24 * 60 * 60, 'release');
       expect(fn).to.be.undefined;
     });
     it('Should set correct interval in seconds', async function () {
@@ -75,7 +76,7 @@ describe('manage.js base integration tests', function () {
 
   describe('inject', function () {
     it('Should not return an error', async function () {
-      const inject = await manager.inject();
+      const inject = await manager!.inject();
       expect(inject).to.be.undefined;
     });
   });

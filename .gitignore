@@ -12,4 +12,5 @@ tmp/
 node_modules/
 jspm_packages/
 out/
+dist/
 package-lock.json

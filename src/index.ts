@@ -26,3 +26,28 @@ export {
   check_matching,
   humanize_match,
 };
+
+export type {
+  Channel,
+  NetworkHost,
+  StorageAPI,
+  StorageValue,
+  StorageObject,
+  StorageData,
+  PluginMeta,
+  Plugin,
+  PluginDict,
+  EmptyObject,
+  PluginEventType,
+  PluginEventData,
+  ManagerConfig,
+  BackupParams,
+  FetchResourceOptions,
+  FetchResourceResult,
+  UserScript,
+  BackupData,
+  CategoryInfo,
+  CategoryDict,
+  MetaJsonResponse,
+  IngressDomain,
+} from './types.js';
