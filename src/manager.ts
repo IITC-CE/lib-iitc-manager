@@ -3,6 +3,7 @@
 import { Worker } from './worker.js';
 import * as migrations from './migrations.js';
 import { getUID, isSet, sanitizeFileName } from './helpers.js';
+import { getGmApiCode } from './gm-api.js';
 import * as backup from './backup.js';
 import type {
   Channel,
@@ -142,23 +143,40 @@ export class Manager extends Worker {
    * the initialization of IITC takes some time, and during this time, plugins can be added to `window.bootPlugins`
    * without being started immediately. Injecting IITC first also prevents plugins from throwing errors
    * when attempting to access IITC, leaflet, or other dependencies during their initialization.
+   *
+   * If `gm_api` config is provided, the bridge adapter and GM API factory are injected first,
+   * and all plugin code is wrapped with GM API bindings.
    */
   async inject(): Promise<void> {
     const plugins = await this.getEnabledPlugins();
 
+    // Inject bridge adapter + GM API factory (if configured)
+    if (this.gm_api) {
+      this.inject_plugin({
+        uid: 'gm_api_bridge_adapter',
+        code: this.gm_api.bridge_adapter_code,
+        name: 'GM API Bridge Adapter',
+      });
+      this.inject_plugin({
+        uid: 'gm_api',
+        code: getGmApiCode(),
+        name: 'GM API',
+      });
+    }
+
     // Ensure IITC core is injected first
     if (plugins[this.iitc_main_script_uid]) {
-      this.inject_user_script(plugins[this.iitc_main_script_uid].code!);
-      this.inject_plugin(plugins[this.iitc_main_script_uid]);
-      delete plugins[this.iitc_main_script_uid]; // Remove IITC core from the list to avoid re-injecting
+      const core = plugins[this.iitc_main_script_uid];
+      this.inject_user_script(core.code!);
+      this.inject_plugin(core);
+      delete plugins[this.iitc_main_script_uid];
     }
 
     // Now inject the rest of the plugins
     for (const uid in plugins) {
       const plugin = plugins[uid];
       if (plugin && plugin.code) {
-        this.inject_user_script(plugin.code);
-        this.inject_plugin(plugin);
+        this._injectWithGmApi(plugin);
       }
     }
   }
@@ -209,10 +227,8 @@ export class Manager extends Worker {
           plugins_local[uid]['statusChangedAt'] = currentTime;
         }
 
-        this.inject_user_script(
-          isUserPlugin === true ? plugins_user[uid]['code']! : plugins_local[uid]['code']!
-        );
-        this.inject_plugin(isUserPlugin === true ? plugins_user[uid] : plugins_local[uid]);
+        const pluginToInject = isUserPlugin === true ? plugins_user[uid] : plugins_local[uid];
+        this._injectWithGmApi(pluginToInject);
 
         await this._save(channel, {
           plugins_flat: plugins_flat,
@@ -229,8 +245,7 @@ export class Manager extends Worker {
           plugins_flat[uid]['code'] = result.data as string;
           plugins_local[uid] = { ...plugins_flat[uid] };
 
-          this.inject_user_script(plugins_local[uid]['code']!);
-          this.inject_plugin(plugins_local[uid]);
+          this._injectWithGmApi(plugins_local[uid]);
 
           await this._save(channel, {
             plugins_flat: plugins_flat,

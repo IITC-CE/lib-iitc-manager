@@ -7,11 +7,14 @@ import {
   ajaxGet,
   getUniqId,
   getUID,
+  getPluginHash,
   check_meta_match_pattern,
   wait,
   clearWait,
 } from './helpers.js';
 import { check_matching, humanize_match } from './matching.js';
+import { getGmApiCode } from './gm-api.js';
+import { wrapPluginCode } from './wrapper.js';
 
 export {
   Manager,
@@ -20,11 +23,14 @@ export {
   ajaxGet,
   getUniqId,
   getUID,
+  getPluginHash,
   check_meta_match_pattern,
   wait,
   clearWait,
   check_matching,
   humanize_match,
+  getGmApiCode,
+  wrapPluginCode,
 };
 
 export type {
@@ -40,6 +46,7 @@ export type {
   EmptyObject,
   PluginEventType,
   PluginEventData,
+  GmApiConfig,
   ManagerConfig,
   BackupParams,
   FetchResourceOptions,
