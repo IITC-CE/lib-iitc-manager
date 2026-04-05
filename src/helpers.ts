@@ -270,6 +270,18 @@ export function clearWait(): void {
 }
 
 /**
+ * Generates a storage key prefix for a plugin based on its UID.
+ * Uses base64 encoding for key isolation between plugins.
+ *
+ * @param uid - Plugin unique identifier.
+ */
+export function getPluginHash(uid: string): string {
+  const bytes = new TextEncoder().encode(uid);
+  const binString = String.fromCodePoint(...bytes);
+  return 'VMin' + btoa(binString);
+}
+
+/**
  * Checks if any value is set.
  *
  * @param value - Any value.
