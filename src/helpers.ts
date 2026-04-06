@@ -1,5 +1,6 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
+import { strToBase64 } from './base64.js';
 import type {
   PluginMeta,
   FetchResourceOptions,
@@ -276,9 +277,7 @@ export function clearWait(): void {
  * @param uid - Plugin unique identifier.
  */
 export function getPluginHash(uid: string): string {
-  const bytes = new TextEncoder().encode(uid);
-  const binString = String.fromCodePoint(...bytes);
-  return 'VMin' + btoa(binString);
+  return 'VMin' + strToBase64(uid);
 }
 
 /**

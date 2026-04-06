@@ -1,5 +1,7 @@
 // Copyright (C) 2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
+import { base64ToStr } from './base64.js';
+
 /**
  * Returns the GM API factory JavaScript code as a string for injection into the page context.
  *
@@ -21,11 +23,7 @@ export function getGmApiCode(): string {
   var cache = {};
   var defineProperty = Object.defineProperty;
 
-  function base64ToStr(base64) {
-    var binString = atob(base64);
-    var bytes = Uint8Array.from(binString, function(m) { return m.codePointAt(0); });
-    return new TextDecoder().decode(bytes);
-  }
+  var base64ToStr = ${base64ToStr.toString()};
 
   function uuidv4() {
     return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, function(c) {

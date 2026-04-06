@@ -13,6 +13,7 @@ import {
   clearWait,
 } from './helpers.js';
 import { check_matching, humanize_match } from './matching.js';
+import { base64ToStr, strToBase64 } from './base64.js';
 import { getGmApiCode } from './gm-api.js';
 import { wrapPluginCode } from './wrapper.js';
 
@@ -29,6 +30,8 @@ export {
   clearWait,
   check_matching,
   humanize_match,
+  base64ToStr,
+  strToBase64,
   getGmApiCode,
   wrapPluginCode,
 };
