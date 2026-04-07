@@ -46,11 +46,10 @@ describe('Manager GM API integration', function () {
       await manager.run();
     });
 
-    it('should not inject GM API bridge adapter', async function () {
+    it('should not inject GM API', async function () {
       injectedPlugins.length = 0;
       await manager.inject();
       const uids = injectedPlugins.map(p => p.uid);
-      expect(uids).to.not.include('gm_api_bridge_adapter');
       expect(uids).to.not.include('gm_api');
     });
 
@@ -72,30 +71,62 @@ describe('Manager GM API integration', function () {
       await manager.run();
     });
 
-    it('should inject bridge adapter first', async function () {
+    it('should inject GM API first with bridge adapter and factory combined', async function () {
       injectedPlugins.length = 0;
       await manager.inject();
       expect(injectedPlugins.length).to.be.greaterThan(0);
-      expect(injectedPlugins[0].uid).to.equal('gm_api_bridge_adapter');
+      expect(injectedPlugins[0].uid).to.equal('gm_api');
       expect(injectedPlugins[0].code).to.include('__iitc_gm_bridge__');
-    });
-
-    it('should inject GM API factory second', async function () {
-      injectedPlugins.length = 0;
-      await manager.inject();
-      expect(injectedPlugins.length).to.be.greaterThan(1);
-      expect(injectedPlugins[1].uid).to.equal('gm_api');
-      expect(injectedPlugins[1].code).to.include('window.GM');
+      expect(injectedPlugins[0].code).to.include('window.GM');
     });
 
     it('should not wrap IITC core code with GM IIFE', async function () {
       injectedPlugins.length = 0;
       await manager.inject();
-      // Third plugin should be IITC core (after bridge adapter and GM API)
-      const iitcPlugin = injectedPlugins[2];
+      // Second plugin should be IITC core (after GM API)
+      const iitcPlugin = injectedPlugins[1];
       expect(iitcPlugin).to.exist;
       expect(iitcPlugin.code).to.include('==UserScript==');
       expect(iitcPlugin.code).to.not.match(/^\(\(GM\)=>\{/);
+    });
+  });
+
+  describe('getEnabledPlugins() with gm_api config', function () {
+    let manager: Manager;
+
+    before(async function () {
+      manager = createManager(true);
+      await manager.run();
+    });
+
+    it('should include GM API with match patterns and combined code', async function () {
+      const plugins = await manager.getEnabledPlugins();
+      const gmApi = plugins['gm_api'];
+
+      expect(gmApi).to.exist;
+      expect(gmApi.match).to.deep.equal(['https://*/*']);
+      expect(gmApi.code).to.include('__iitc_gm_bridge__');
+      expect(gmApi.code).to.include('window.GM');
+    });
+
+    it('should return GM API before IITC core', async function () {
+      const plugins = await manager.getEnabledPlugins();
+      const keys = Object.keys(plugins);
+      expect(keys[0]).to.equal('gm_api');
+    });
+  });
+
+  describe('getEnabledPlugins() without gm_api config', function () {
+    let manager: Manager;
+
+    before(async function () {
+      manager = createManager(false);
+      await manager.run();
+    });
+
+    it('should not include GM API', async function () {
+      const plugins = await manager.getEnabledPlugins();
+      expect(plugins).to.not.have.property('gm_api');
     });
   });
 });

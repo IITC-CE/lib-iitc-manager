@@ -35,6 +35,7 @@ export class Worker {
   gm_api?: GmApiConfig;
 
   iitc_main_script_uid: string;
+  gm_api_uid: string;
   progress_interval_id: ReturnType<typeof setInterval> | null;
   update_timeout_id: ReturnType<typeof setTimeout> | null;
   external_update_timeout_id: ReturnType<typeof setTimeout> | null;
@@ -57,6 +58,7 @@ export class Worker {
     this.external_update_timeout_id = null;
     this.iitc_main_script_uid =
       'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    this.gm_api_uid = 'gm_api';
 
     this.storage =
       typeof this.config.storage !== 'undefined'
@@ -614,6 +616,8 @@ export class Worker {
     const plugins: PluginEventData['plugins'] = {};
 
     for (const uid of uids) {
+      if (uid === this.gm_api_uid) continue;
+
       const isCore = uid === this.iitc_main_script_uid;
       if (isCore && event !== 'update') continue;
 

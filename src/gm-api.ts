@@ -8,8 +8,8 @@ import { base64ToStr } from './base64.js';
  * The code defines `window.GM({ data_key, meta })` factory that provides
  * Greasemonkey-compatible API (GM_info, GM_getValue, GM_setValue, GM_xmlhttpRequest, etc.).
  *
- * Bridge transport is abstracted via `window.__iitc_gm_bridge__` which must be set up
- * by the host app's bridge adapter code before this factory is injected.
+ * Bridge transport is abstracted via `window.__iitc_gm_bridge__` which is set up
+ * by the host app's bridge adapter code concatenated before this factory.
  */
 export function getGmApiCode(): string {
   return `(function() {

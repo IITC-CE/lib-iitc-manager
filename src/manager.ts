@@ -120,6 +120,17 @@ export class Manager extends Worker {
     const plugins_user = (storage[`${channel}_plugins_user`] || {}) as PluginDict;
 
     const enabled_plugins: PluginDict = {};
+
+    // GM API (bridge adapter + factory) must be first
+    if (this.gm_api) {
+      enabled_plugins['gm_api'] = {
+        uid: 'gm_api',
+        code: this.gm_api.bridge_adapter_code + '\n' + getGmApiCode(),
+        name: 'GM API',
+        match: ['https://*/*'],
+      };
+    }
+
     const iitc_script = await this.getIITCCore(storage);
     if (iitc_script !== null) {
       enabled_plugins[this.iitc_main_script_uid] = iitc_script;
@@ -139,43 +150,30 @@ export class Manager extends Worker {
 
   /**
    * Invokes the injection of IITC core script and plugins to the page.
-   * IITC core is injected first to ensure it initializes before any plugins. This is crucial because
-   * the initialization of IITC takes some time, and during this time, plugins can be added to `window.bootPlugins`
-   * without being started immediately. Injecting IITC first also prevents plugins from throwing errors
-   * when attempting to access IITC, leaflet, or other dependencies during their initialization.
    *
-   * If `gm_api` config is provided, the bridge adapter and GM API factory are injected first,
-   * and all plugin code is wrapped with GM API bindings.
+   * Injection order:
+   * 1. GM API components (bridge adapter + factory) - if `gm_api` is configured
+   * 2. IITC core
+   * 3. Plugins
+   *
+   * IITC core is injected before plugins to ensure it initializes first. During this time,
+   * plugins can be added to `window.bootPlugins` without being started immediately.
    */
   async inject(): Promise<void> {
     const plugins = await this.getEnabledPlugins();
-
-    // Inject bridge adapter + GM API factory (if configured)
-    if (this.gm_api) {
-      this.inject_plugin({
-        uid: 'gm_api_bridge_adapter',
-        code: this.gm_api.bridge_adapter_code,
-        name: 'GM API Bridge Adapter',
-      });
-      this.inject_plugin({
-        uid: 'gm_api',
-        code: getGmApiCode(),
-        name: 'GM API',
-      });
-    }
-
-    // Ensure IITC core is injected first
-    if (plugins[this.iitc_main_script_uid]) {
-      const core = plugins[this.iitc_main_script_uid];
-      this.inject_user_script(core.code!);
-      this.inject_plugin(core);
-      delete plugins[this.iitc_main_script_uid];
-    }
-
-    // Now inject the rest of the plugins
     for (const uid in plugins) {
       const plugin = plugins[uid];
-      if (plugin && plugin.code) {
+      if (!plugin || !plugin.code) continue;
+
+      const isGmComponent = uid === this.gm_api_uid;
+      const isCore = uid === this.iitc_main_script_uid;
+
+      if (!isGmComponent) {
+        this.inject_user_script(plugin.code);
+      }
+      if (isGmComponent || isCore) {
+        this.inject_plugin(plugin);
+      } else {
         this._injectWithGmApi(plugin);
       }
     }
