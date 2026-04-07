@@ -33,6 +33,7 @@ export class Worker {
   use_fetch_head_method!: boolean;
   is_initialized: boolean;
   gm_api?: GmApiConfig;
+  source_url_prefix: string;
 
   iitc_main_script_uid: string;
   gm_api_uid: string;
@@ -70,6 +71,7 @@ export class Worker {
     this.inject_plugin = this.config.inject_plugin || function () {};
     this.plugin_event = this.config.plugin_event || function () {};
     this.gm_api = this.config.gm_api;
+    this.source_url_prefix = this.config.source_url_prefix || '';
 
     this.is_initialized = false;
     this._init().then();
@@ -661,7 +663,7 @@ export class Worker {
           const plugin = plugins[uid] as Plugin;
           if (plugin?.code) {
             const wrapped = { ...plugin };
-            wrapped.code = wrapPluginCode(wrapped);
+            wrapped.code = wrapPluginCode(wrapped, this.source_url_prefix);
             plugins[uid] = wrapped;
           }
         }
@@ -683,7 +685,7 @@ export class Worker {
    */
   _injectWithGmApi(plugin: Plugin): void {
     if (this.gm_api && plugin.code) {
-      plugin = { ...plugin, code: wrapPluginCode(plugin) };
+      plugin = { ...plugin, code: wrapPluginCode(plugin, this.source_url_prefix) };
     }
     this.inject_user_script(plugin.code!);
     this.inject_plugin(plugin);

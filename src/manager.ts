@@ -4,6 +4,7 @@ import { Worker } from './worker.js';
 import * as migrations from './migrations.js';
 import { getUID, isSet, sanitizeFileName } from './helpers.js';
 import { getGmApiCode } from './gm-api.js';
+import { appendSourceUrl } from './wrapper.js';
 import * as backup from './backup.js';
 import type {
   Channel,
@@ -125,7 +126,12 @@ export class Manager extends Worker {
     if (this.gm_api) {
       enabled_plugins['gm_api'] = {
         uid: 'gm_api',
-        code: this.gm_api.bridge_adapter_code + '\n' + getGmApiCode(),
+        code: appendSourceUrl({
+          code: this.gm_api.bridge_adapter_code + '\n' + getGmApiCode(),
+          name: 'GM_api',
+          prefix: this.source_url_prefix,
+          suffix: '.js',
+        }),
         name: 'GM API',
         match: ['https://*/*'],
       };
@@ -133,6 +139,13 @@ export class Manager extends Worker {
 
     const iitc_script = await this.getIITCCore(storage);
     if (iitc_script !== null) {
+      if (iitc_script.code) {
+        iitc_script.code = appendSourceUrl({
+          code: iitc_script.code,
+          name: iitc_script.name || 'IITC',
+          prefix: this.source_url_prefix,
+        });
+      }
       enabled_plugins[this.iitc_main_script_uid] = iitc_script;
 
       for (const uid in plugins_flat) {
@@ -168,10 +181,10 @@ export class Manager extends Worker {
       const isGmComponent = uid === this.gm_api_uid;
       const isCore = uid === this.iitc_main_script_uid;
 
-      if (!isGmComponent) {
+      if (isCore) {
         this.inject_user_script(plugin.code);
-      }
-      if (isGmComponent || isCore) {
+        this.inject_plugin(plugin);
+      } else if (isGmComponent) {
         this.inject_plugin(plugin);
       } else {
         this._injectWithGmApi(plugin);

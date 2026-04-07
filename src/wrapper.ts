@@ -4,6 +4,28 @@ import { getUID, getPluginHash } from './helpers.js';
 import type { Plugin } from './types.js';
 
 /**
+ * Appends a `//# sourceURL=...` comment to code.
+ *
+ * @param code - JavaScript code string.
+ * @param name - Human-readable name (will be URI-encoded).
+ * @param suffix - File extension suffix (default: `.user.js`).
+ * @param prefix - URL prefix (e.g. `chrome-extension://id/`). Default: empty.
+ */
+export function appendSourceUrl({
+  code,
+  name,
+  suffix = '.user.js',
+  prefix = '',
+}: {
+  code: string;
+  name: string;
+  suffix?: string;
+  prefix?: string;
+}): string {
+  return code + `\n//# sourceURL=${prefix}${encodeURIComponent(name)}${suffix}`;
+}
+
+/**
  * Wraps plugin code in an IIFE with GM API bindings.
  *
  * The wrapped code calls `window.GM({ data_key, meta })` to obtain a GM API instance,
@@ -13,14 +35,14 @@ import type { Plugin } from './types.js';
  * @param plugin - Plugin object from lib-iitc-manager.
  * @returns Wrapped plugin code ready for injection.
  */
-export function wrapPluginCode(plugin: Plugin): string {
+export function wrapPluginCode(plugin: Plugin, source_url_prefix: string = ''): string {
   const uid = plugin.uid || getUID(plugin);
   const data_key = getPluginHash(uid!);
 
   const meta = { ...plugin };
   delete meta.code;
 
-  return [
+  const code = [
     '((GM)=>{',
     'const GM_info = GM.info;',
     'const unsafeWindow = window;',
@@ -30,9 +52,11 @@ export function wrapPluginCode(plugin: Plugin): string {
     'const GM_getValue = (key, value) => GM._getValueSync(key, value);',
     'const GM_setValue = (key, value) => GM._setValueSync(key, value);',
     'const GM_xmlhttpRequest = (details) => GM.xmlHttpRequest(details);',
-    '',
+    '\n',
     plugin.code,
     plugin.code!.endsWith('\n') ? '' : '\n',
     `})(GM(${JSON.stringify({ data_key, meta })}))`,
   ].join('');
+
+  return appendSourceUrl({ code, name: meta.name || uid || 'plugin', prefix: source_url_prefix });
 }

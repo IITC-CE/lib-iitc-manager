@@ -182,6 +182,13 @@ export interface ManagerConfig {
   gm_api?: GmApiConfig;
 
   /**
+   * URL prefix for `//# sourceURL=` comments added to injected scripts.
+   * Used to group scripts under the host application in browser DevTools.
+   * Example: `browser.runtime.getURL('')` -> `chrome-extension://abc123/`
+   */
+  source_url_prefix?: string;
+
+  /**
    * Sends an information message to user.
    * You then need to map the message name to human-readable text in application.
    *

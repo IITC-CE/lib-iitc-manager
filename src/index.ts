@@ -16,7 +16,7 @@ import {
 import { check_matching, humanize_match } from './matching.js';
 import { base64ToStr, strToBase64 } from './base64.js';
 import { getGmApiCode } from './gm-api.js';
-import { wrapPluginCode } from './wrapper.js';
+import { wrapPluginCode, appendSourceUrl } from './wrapper.js';
 
 export {
   Manager,
@@ -36,6 +36,7 @@ export {
   strToBase64,
   getGmApiCode,
   wrapPluginCode,
+  appendSourceUrl,
 };
 
 export type {
