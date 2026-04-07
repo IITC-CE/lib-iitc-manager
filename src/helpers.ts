@@ -1,5 +1,6 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
+import { strToBase64 } from './base64.js';
 import type {
   PluginMeta,
   FetchResourceOptions,
@@ -267,6 +268,16 @@ export async function wait(seconds: number): Promise<void> {
 export function clearWait(): void {
   clearTimeout(wait_timeout_id!);
   wait_timeout_id = null;
+}
+
+/**
+ * Generates a storage key prefix for a plugin based on its UID.
+ * Uses base64 encoding for key isolation between plugins.
+ *
+ * @param uid - Plugin unique identifier.
+ */
+export function getPluginHash(uid: string): string {
+  return 'VMin' + strToBase64(uid);
 }
 
 /**

@@ -1,9 +1,11 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { fetchResource, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js';
+import { wrapPluginCode } from './wrapper.js';
 import type {
   Channel,
   ManagerConfig,
+  GmApiConfig,
   StorageAPI,
   StorageData,
   NetworkHost,
@@ -30,8 +32,11 @@ export class Worker {
   is_daemon!: boolean;
   use_fetch_head_method!: boolean;
   is_initialized: boolean;
+  gm_api?: GmApiConfig;
+  source_url_prefix: string;
 
   iitc_main_script_uid: string;
+  gm_api_uid: string;
   progress_interval_id: ReturnType<typeof setInterval> | null;
   update_timeout_id: ReturnType<typeof setTimeout> | null;
   external_update_timeout_id: ReturnType<typeof setTimeout> | null;
@@ -54,6 +59,7 @@ export class Worker {
     this.external_update_timeout_id = null;
     this.iitc_main_script_uid =
       'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    this.gm_api_uid = 'gm_api';
 
     this.storage =
       typeof this.config.storage !== 'undefined'
@@ -64,6 +70,8 @@ export class Worker {
     this.inject_user_script = this.config.inject_user_script || function () {};
     this.inject_plugin = this.config.inject_plugin || function () {};
     this.plugin_event = this.config.plugin_event || function () {};
+    this.gm_api = this.config.gm_api;
+    this.source_url_prefix = this.config.source_url_prefix || '';
 
     this.is_initialized = false;
     this._init().then();
@@ -610,6 +618,8 @@ export class Worker {
     const plugins: PluginEventData['plugins'] = {};
 
     for (const uid of uids) {
+      if (uid === this.gm_api_uid) continue;
+
       const isCore = uid === this.iitc_main_script_uid;
       if (isCore && event !== 'update') continue;
 
@@ -647,10 +657,37 @@ export class Worker {
     }
 
     if (Object.keys(plugins).length) {
+      // Wrap plugin code with GM API bindings when gm_api is configured
+      if (this.gm_api && (event === 'add' || event === 'update')) {
+        for (const uid in plugins) {
+          const plugin = plugins[uid] as Plugin;
+          if (plugin?.code) {
+            const wrapped = { ...plugin };
+            wrapped.code = wrapPluginCode(wrapped, this.source_url_prefix);
+            plugins[uid] = wrapped;
+          }
+        }
+      }
+
       this.plugin_event({
         event,
         plugins,
       });
     }
+  }
+
+  /**
+   * Injects a plugin, optionally wrapping its code with GM API bindings
+   * when `gm_api` config is provided.
+   *
+   * @param plugin - Plugin to inject.
+   * @internal
+   */
+  _injectWithGmApi(plugin: Plugin): void {
+    if (this.gm_api && plugin.code) {
+      plugin = { ...plugin, code: wrapPluginCode(plugin, this.source_url_prefix) };
+    }
+    this.inject_user_script(plugin.code!);
+    this.inject_plugin(plugin);
   }
 }

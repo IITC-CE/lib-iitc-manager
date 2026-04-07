@@ -3,6 +3,8 @@
 import { Worker } from './worker.js';
 import * as migrations from './migrations.js';
 import { getUID, isSet, sanitizeFileName } from './helpers.js';
+import { getGmApiCode } from './gm-api.js';
+import { appendSourceUrl } from './wrapper.js';
 import * as backup from './backup.js';
 import type {
   Channel,
@@ -119,8 +121,31 @@ export class Manager extends Worker {
     const plugins_user = (storage[`${channel}_plugins_user`] || {}) as PluginDict;
 
     const enabled_plugins: PluginDict = {};
+
+    // GM API (bridge adapter + factory) must be first
+    if (this.gm_api) {
+      enabled_plugins['gm_api'] = {
+        uid: 'gm_api',
+        code: appendSourceUrl({
+          code: this.gm_api.bridge_adapter_code + '\n' + getGmApiCode(),
+          name: 'GM_api',
+          prefix: this.source_url_prefix,
+          suffix: '.js',
+        }),
+        name: 'GM API',
+        match: ['https://*/*'],
+      };
+    }
+
     const iitc_script = await this.getIITCCore(storage);
     if (iitc_script !== null) {
+      if (iitc_script.code) {
+        iitc_script.code = appendSourceUrl({
+          code: iitc_script.code,
+          name: iitc_script.name || 'IITC',
+          prefix: this.source_url_prefix,
+        });
+      }
       enabled_plugins[this.iitc_main_script_uid] = iitc_script;
 
       for (const uid in plugins_flat) {
@@ -138,27 +163,31 @@ export class Manager extends Worker {
 
   /**
    * Invokes the injection of IITC core script and plugins to the page.
-   * IITC core is injected first to ensure it initializes before any plugins. This is crucial because
-   * the initialization of IITC takes some time, and during this time, plugins can be added to `window.bootPlugins`
-   * without being started immediately. Injecting IITC first also prevents plugins from throwing errors
-   * when attempting to access IITC, leaflet, or other dependencies during their initialization.
+   *
+   * Injection order:
+   * 1. GM API components (bridge adapter + factory) - if `gm_api` is configured
+   * 2. IITC core
+   * 3. Plugins
+   *
+   * IITC core is injected before plugins to ensure it initializes first. During this time,
+   * plugins can be added to `window.bootPlugins` without being started immediately.
    */
   async inject(): Promise<void> {
     const plugins = await this.getEnabledPlugins();
-
-    // Ensure IITC core is injected first
-    if (plugins[this.iitc_main_script_uid]) {
-      this.inject_user_script(plugins[this.iitc_main_script_uid].code!);
-      this.inject_plugin(plugins[this.iitc_main_script_uid]);
-      delete plugins[this.iitc_main_script_uid]; // Remove IITC core from the list to avoid re-injecting
-    }
-
-    // Now inject the rest of the plugins
     for (const uid in plugins) {
       const plugin = plugins[uid];
-      if (plugin && plugin.code) {
+      if (!plugin || !plugin.code) continue;
+
+      const isGmComponent = uid === this.gm_api_uid;
+      const isCore = uid === this.iitc_main_script_uid;
+
+      if (isCore) {
         this.inject_user_script(plugin.code);
         this.inject_plugin(plugin);
+      } else if (isGmComponent) {
+        this.inject_plugin(plugin);
+      } else {
+        this._injectWithGmApi(plugin);
       }
     }
   }
@@ -209,10 +238,8 @@ export class Manager extends Worker {
           plugins_local[uid]['statusChangedAt'] = currentTime;
         }
 
-        this.inject_user_script(
-          isUserPlugin === true ? plugins_user[uid]['code']! : plugins_local[uid]['code']!
-        );
-        this.inject_plugin(isUserPlugin === true ? plugins_user[uid] : plugins_local[uid]);
+        const pluginToInject = isUserPlugin === true ? plugins_user[uid] : plugins_local[uid];
+        this._injectWithGmApi(pluginToInject);
 
         await this._save(channel, {
           plugins_flat: plugins_flat,
@@ -229,8 +256,7 @@ export class Manager extends Worker {
           plugins_flat[uid]['code'] = result.data as string;
           plugins_local[uid] = { ...plugins_flat[uid] };
 
-          this.inject_user_script(plugins_local[uid]['code']!);
-          this.inject_plugin(plugins_local[uid]);
+          this._injectWithGmApi(plugins_local[uid]);
 
           await this._save(channel, {
             plugins_flat: plugins_flat,

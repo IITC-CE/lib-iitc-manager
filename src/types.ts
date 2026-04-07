@@ -134,6 +134,19 @@ export interface PluginEventData {
 }
 
 /**
+ * GM API configuration. When provided, enables GM API wrapping for injected plugins.
+ */
+export interface GmApiConfig {
+  /**
+   * JavaScript code that sets up `window.__iitc_gm_bridge__` in the page context.
+   * Must define an object with two methods:
+   * - `send(data: object): void` — send a request from page to host environment
+   * - `onResponse(callback: (base64Data: string) => void): void` — register response handler
+   */
+  bridge_adapter_code: string;
+}
+
+/**
  * Environment parameters for an instance of Manager class.
  * Specifying only the "storage" parameter is enough to run in lightweight form,
  * but for full functionality you also need to specify callbacks.
@@ -160,6 +173,20 @@ export interface ManagerConfig {
    * Default: true.
    */
   use_fetch_head_method?: boolean;
+
+  /**
+   * GM API configuration. If provided, enables GM API wrapping for injected plugins.
+   * The bridge adapter code is injected before the GM factory, and plugins are
+   * automatically wrapped with GM API bindings in `inject()`.
+   */
+  gm_api?: GmApiConfig;
+
+  /**
+   * URL prefix for `//# sourceURL=` comments added to injected scripts.
+   * Used to group scripts under the host application in browser DevTools.
+   * Example: `browser.runtime.getURL('')` -> `chrome-extension://abc123/`
+   */
+  source_url_prefix?: string;
 
   /**
    * Sends an information message to user.
