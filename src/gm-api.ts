@@ -3,6 +3,21 @@
 import { base64ToStr } from './base64.js';
 
 /**
+ * GM API v3 compatibility bindings.
+ * Maps legacy Greasemonkey function names to the GM v4 object methods.
+ */
+export const GM_V3_BINDINGS = [
+  'const GM_info = GM.info;',
+  'const unsafeWindow = window;',
+  'const exportFunction = GM.exportFunction;',
+  'const createObjectIn = GM.createObjectIn;',
+  'const cloneInto = GM.cloneInto;',
+  'const GM_getValue = (key, value) => GM._getValueSync(key, value);',
+  'const GM_setValue = (key, value) => GM._setValueSync(key, value);',
+  'const GM_xmlhttpRequest = (details) => GM.xmlHttpRequest(details);',
+].join('');
+
+/**
  * Returns the GM API factory JavaScript code as a string for injection into the page context.
  *
  * The code defines `window.GM({ data_key, meta })` factory that provides

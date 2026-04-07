@@ -1,6 +1,7 @@
 // Copyright (C) 2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { getUID, getPluginHash } from './helpers.js';
+import { GM_V3_BINDINGS } from './gm-api.js';
 import type { Plugin } from './types.js';
 
 /**
@@ -44,14 +45,7 @@ export function wrapPluginCode(plugin: Plugin, source_url_prefix: string = ''): 
 
   const code = [
     '((GM)=>{',
-    'const GM_info = GM.info;',
-    'const unsafeWindow = window;',
-    'const exportFunction = GM.exportFunction;',
-    'const createObjectIn = GM.createObjectIn;',
-    'const cloneInto = GM.cloneInto;',
-    'const GM_getValue = (key, value) => GM._getValueSync(key, value);',
-    'const GM_setValue = (key, value) => GM._setValueSync(key, value);',
-    'const GM_xmlhttpRequest = (details) => GM.xmlHttpRequest(details);',
+    GM_V3_BINDINGS,
     '\n',
     plugin.code,
     plugin.code!.endsWith('\n') ? '' : '\n',
