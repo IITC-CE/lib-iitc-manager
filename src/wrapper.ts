@@ -23,7 +23,7 @@ export function appendSourceUrl({
   suffix?: string;
   prefix?: string;
 }): string {
-  return code + `\n//# sourceURL=${prefix}${encodeURIComponent(name)}${suffix}`;
+  return code + `\nvoid 0\n//# sourceURL=${prefix}${encodeURIComponent(name)}${suffix}`;
 }
 
 /**
