@@ -226,6 +226,15 @@ export interface ManagerConfig {
    * @param event - An object containing the event type and a mapping of plugin data.
    */
   plugin_event?: (event: PluginEventData) => void;
+
+  /**
+   * Called whenever the full plugin list changes - after catalog updates,
+   * plugin enable/disable, user script additions/removals, or channel switches.
+   * Receives the current merged view of all plugins (catalog + local state + user overrides).
+   *
+   * @param plugins - Current merged plugin dictionary.
+   */
+  plugins_changed?: (plugins: PluginDict) => void;
 }
 
 /**

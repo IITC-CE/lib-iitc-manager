@@ -46,6 +46,7 @@ export class Worker {
   inject_user_script: (code: string) => void;
   inject_plugin: (plugin: Plugin) => void;
   plugin_event: (event: PluginEventData) => void;
+  plugins_changed?: (plugins: PluginDict) => void;
 
   /**
    * Creates an instance of Manager class with the specified parameters
@@ -72,6 +73,7 @@ export class Worker {
     this.plugin_event = this.config.plugin_event || function () {};
     this.gm_api = this.config.gm_api;
     this.source_url_prefix = this.config.source_url_prefix || '';
+    this.plugins_changed = this.config.plugins_changed;
 
     this.is_initialized = false;
     this._init().then();
@@ -154,7 +156,25 @@ export class Worker {
       }
     });
     await this.storage.set(data);
+
+    const pluginsKeys = [
+      'plugins_catalog',
+      'plugins_local',
+      'plugins_user',
+      'categories',
+      'channel',
+    ];
+    if (Object.keys(options).some(k => pluginsKeys.includes(k)) && channel === this.channel) {
+      this._emitPluginsChanged();
+    }
   }
+
+  /**
+   * Fires the plugins_changed callback with the current merged plugin view.
+   * Overridden in Manager where getPlugins() is available.
+   * @internal
+   */
+  _emitPluginsChanged(): void {}
 
   /**
    * The method requests data from the specified URL.

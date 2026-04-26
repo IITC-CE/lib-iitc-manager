@@ -104,6 +104,30 @@ export class Manager extends Worker {
   }
 
   /**
+   * Returns a merged view of all plugins for the current channel.
+   * Combines server catalog with local installation state and user overrides.
+   */
+  async getPlugins(): Promise<PluginDict> {
+    const channel = this.channel;
+    const storage = await this.storage.get([
+      `${channel}_plugins_catalog`,
+      `${channel}_plugins_local`,
+      `${channel}_plugins_user`,
+    ]);
+
+    const plugins_catalog = (storage[`${channel}_plugins_catalog`] || {}) as PluginDict;
+    const plugins_local = (storage[`${channel}_plugins_local`] || {}) as PluginDict;
+    const plugins_user = (storage[`${channel}_plugins_user`] || {}) as PluginDict;
+
+    return this._computePluginsView(plugins_catalog, plugins_local, plugins_user);
+  }
+
+  _emitPluginsChanged(): void {
+    if (!this.plugins_changed) return;
+    this.getPlugins().then(plugins => this.plugins_changed!(plugins));
+  }
+
+  /**
    * Returns an object of all enabled plugins, including IITC core, with plugin UID as the key.
    */
   async getEnabledPlugins(): Promise<PluginDict> {
@@ -111,14 +135,16 @@ export class Manager extends Worker {
     const storage = await this.storage.get([
       `${channel}_iitc_core`,
       `${channel}_iitc_core_user`,
-      `${channel}_plugins_flat`,
+      `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
       `${channel}_plugins_user`,
     ]);
 
-    const plugins_flat = (storage[`${channel}_plugins_flat`] || {}) as PluginDict;
+    const plugins_catalog = (storage[`${channel}_plugins_catalog`] || {}) as PluginDict;
     const plugins_local = (storage[`${channel}_plugins_local`] || {}) as PluginDict;
     const plugins_user = (storage[`${channel}_plugins_user`] || {}) as PluginDict;
+
+    const all_plugins = this._computePluginsView(plugins_catalog, plugins_local, plugins_user);
 
     const enabled_plugins: PluginDict = {};
 
@@ -148,11 +174,11 @@ export class Manager extends Worker {
       }
       enabled_plugins[this.iitc_main_script_uid] = iitc_script;
 
-      for (const uid in plugins_flat) {
-        if (plugins_flat[uid]['status'] === 'on') {
+      for (const uid in all_plugins) {
+        if (all_plugins[uid]['status'] === 'on') {
           // If the plugin is marked as 'user', use its 'user' version; otherwise, use its 'local' version
           enabled_plugins[uid] =
-            plugins_flat[uid]['user'] === true
+            all_plugins[uid]['user'] === true
               ? plugins_user[uid] || ({} as Plugin)
               : plugins_local[uid] || ({} as Plugin);
         }
@@ -428,11 +454,8 @@ export class Manager extends Worker {
    * @param uid - Plugin UID.
    */
   async getPluginInfo(uid: string): Promise<Plugin | null> {
-    const all_plugins = (await this.storage
-      .get([this.channel + '_plugins_flat'])
-      .then(data => data[this.channel + '_plugins_flat'])) as PluginDict | undefined;
-    if (all_plugins === undefined) return null;
-    return all_plugins[uid];
+    const all_plugins = await this.getPlugins();
+    return all_plugins[uid] ?? null;
   }
 
   /**
