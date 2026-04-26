@@ -142,6 +142,7 @@ export class Worker {
           'iitc_core',
           'iitc_core_user',
           'categories',
+          'plugins_catalog',
           'plugins_flat',
           'plugins_local',
           'plugins_user',
@@ -282,6 +283,7 @@ export class Worker {
     const response = result.data as MetaJsonResponse;
     const last_modified = result.version;
 
+    const plugins_catalog = this._getPluginsCatalog(response);
     let plugins_flat = this._getPluginsFlat(response);
     let categories = this._getCategories(response);
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
@@ -313,6 +315,7 @@ export class Worker {
         iitc_version: response['iitc_version'],
         last_modified: last_modified,
         categories: categories,
+        plugins_catalog: plugins_catalog,
         plugins_flat: plugins_flat,
         plugins_local: plugins_local,
         plugins_user: plugins_user,
@@ -339,6 +342,33 @@ export class Worker {
     });
 
     return categories;
+  }
+
+  /**
+   * Converts a list of categories with plugins into a flat catalog dictionary.
+   * Contains only server-side metadata fields - no runtime state (status, code, user, etc.).
+   *
+   * @param data - Data from received meta.json file.
+   * @internal
+   */
+  _getPluginsCatalog(data: MetaJsonResponse): PluginDict {
+    if (!('categories' in data)) return {};
+    const plugins: PluginDict = {};
+    const categories = data['categories'];
+
+    Object.keys(categories).forEach(cat => {
+      if (cat === 'Obsolete' || cat === 'Deleted') return;
+
+      if ('plugins' in categories[cat] && categories[cat].plugins) {
+        Object.keys(categories[cat].plugins!).forEach(id => {
+          const plugin = { ...(categories[cat].plugins![id] as unknown as Plugin) };
+          plugin['uid'] = getUID(plugin)!;
+          plugin['category'] = cat;
+          plugins[plugin['uid']] = plugin;
+        });
+      }
+    });
+    return plugins;
   }
 
   /**
