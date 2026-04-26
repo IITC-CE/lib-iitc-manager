@@ -45,8 +45,8 @@ describe('test migrations', function () {
 
   describe('check migrations', function () {
     it('Should replace undefined with "Misc" (fix https://github.com/IITC-CE/IITC-Button/issues/68)', async function () {
-      const db_data = await storage.get(['release_plugins_flat']);
-      const ext_plugin = (db_data['release_plugins_flat'] as StorageData)[
+      const db_data = await storage.get(['release_plugins_catalog']);
+      const ext_plugin = (db_data['release_plugins_catalog'] as StorageData)[
         'External+https://github.com/IITC-CE/ingress-intel-total-conversion'
       ] as StorageData;
       expect(ext_plugin['category']).to.equal('Misc');

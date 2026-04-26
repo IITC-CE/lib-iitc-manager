@@ -217,5 +217,6 @@ async function migration_0006(
     }
 
     storage_plugins_catalog[catalogKey] = catalog;
+    storage_plugins_flat[key] = null;
   }
 }

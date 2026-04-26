@@ -145,7 +145,6 @@ export class Worker {
           'iitc_core_user',
           'categories',
           'plugins_catalog',
-          'plugins_flat',
           'plugins_local',
           'plugins_user',
         ].indexOf(key) !== -1
@@ -246,7 +245,6 @@ export class Worker {
       `${channel}_update_check_interval`,
       `${channel}_last_modified`,
       `${channel}_categories`,
-      `${channel}_plugins_flat`,
       `${channel}_plugins_local`,
       `${channel}_plugins_user`,
     ]);
@@ -304,7 +302,6 @@ export class Worker {
     const last_modified = result.version;
 
     const plugins_catalog = this._getPluginsCatalog(response);
-    let plugins_flat = this._getPluginsFlat(response);
     let categories = this._getCategories(response);
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
     let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
@@ -328,15 +325,12 @@ export class Worker {
     };
 
     const p_plugins = async () => {
-      plugins_local = await this._updateLocalPlugins(channel, plugins_flat, plugins_local);
-
-      plugins_flat = this._computePluginsView(plugins_flat, plugins_local, plugins_user);
+      plugins_local = await this._updateLocalPlugins(channel, plugins_catalog, plugins_local);
       await this._save(channel, {
         iitc_version: response['iitc_version'],
         last_modified: last_modified,
         categories: categories,
         plugins_catalog: plugins_catalog,
-        plugins_flat: plugins_flat,
         plugins_local: plugins_local,
         plugins_user: plugins_user,
       });
@@ -383,33 +377,6 @@ export class Worker {
         Object.keys(categories[cat].plugins!).forEach(id => {
           const plugin = { ...(categories[cat].plugins![id] as unknown as Plugin) };
           plugin['uid'] = getUID(plugin)!;
-          plugin['category'] = cat;
-          plugins[plugin['uid']] = plugin;
-        });
-      }
-    });
-    return plugins;
-  }
-
-  /**
-   * Converting a list of categories with plugins inside into a flat structure.
-   *
-   * @param data - Data from received meta.json file.
-   * @internal
-   */
-  _getPluginsFlat(data: MetaJsonResponse): PluginDict {
-    if (!('categories' in data)) return {};
-    const plugins: PluginDict = {};
-    const categories = data['categories'];
-
-    Object.keys(categories).forEach(cat => {
-      if (cat === 'Obsolete' || cat === 'Deleted') return;
-
-      if ('plugins' in categories[cat] && categories[cat].plugins) {
-        Object.keys(categories[cat].plugins!).forEach(id => {
-          const plugin = categories[cat].plugins![id] as unknown as Plugin;
-          plugin['uid'] = getUID(plugin)!;
-          plugin['status'] = 'off';
           plugin['category'] = cat;
           plugins[plugin['uid']] = plugin;
         });
@@ -526,7 +493,7 @@ export class Worker {
    */
   async _updateLocalPlugins(
     channel: Channel,
-    plugins_flat: PluginDict,
+    plugins_catalog: PluginDict,
     plugins_local: PluginDict
   ): Promise<PluginDict> {
     // If no plugins installed
@@ -540,7 +507,7 @@ export class Worker {
     for (const uid of Object.keys(plugins_local)) {
       const filename = plugins_local[uid]['filename'];
 
-      if (filename && plugins_flat[uid]) {
+      if (filename && plugins_catalog[uid]) {
         const result = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
         if (result.data) {
           plugins_local[uid]['code'] = result.data as string;

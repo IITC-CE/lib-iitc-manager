@@ -37,14 +37,12 @@ export class Manager extends Worker {
 
     // Ensure minimal data structures exist for new channel
     const newChannelData = await this.storage.get([
-      `${channel}_plugins_flat`,
       `${channel}_plugins_local`,
       `${channel}_plugins_user`,
     ]);
 
     // Initialize missing structures if needed
     const updates: StorageData = {};
-    if (!newChannelData[`${channel}_plugins_flat`]) updates[`${channel}_plugins_flat`] = {};
     if (!newChannelData[`${channel}_plugins_local`]) updates[`${channel}_plugins_local`] = {};
     if (!newChannelData[`${channel}_plugins_user`]) updates[`${channel}_plugins_user`] = {};
 
@@ -236,12 +234,12 @@ export class Manager extends Worker {
   async managePlugin(uid: string, action: 'on' | 'off' | 'delete'): Promise<void> {
     const channel = this.channel;
     const local = await this.storage.get([
-      `${channel}_plugins_flat`,
+      `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
       `${channel}_plugins_user`,
     ]);
 
-    const plugins_flat = local[`${channel}_plugins_flat`] as PluginDict;
+    const plugins_catalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
     let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
 
@@ -249,13 +247,10 @@ export class Manager extends Worker {
     if (!isSet(plugins_user)) plugins_user = {};
 
     const currentTime = Math.floor(Date.now() / 1000);
+    const isUserPlugin = uid in plugins_user;
 
     if (action === 'on') {
-      const isUserPlugin = plugins_flat[uid]['user'];
-      if ((isUserPlugin === false && plugins_local[uid] !== undefined) || isUserPlugin === true) {
-        plugins_flat[uid]['status'] = 'on';
-        plugins_flat[uid]['statusChangedAt'] = currentTime;
-
+      if (isUserPlugin || plugins_local[uid] !== undefined) {
         if (isUserPlugin) {
           plugins_user[uid]['status'] = 'on';
           plugins_user[uid]['statusChangedAt'] = currentTime;
@@ -264,79 +259,58 @@ export class Manager extends Worker {
           plugins_local[uid]['statusChangedAt'] = currentTime;
         }
 
-        const pluginToInject = isUserPlugin === true ? plugins_user[uid] : plugins_local[uid];
+        const pluginToInject = isUserPlugin ? plugins_user[uid] : plugins_local[uid];
         this._injectWithGmApi(pluginToInject);
 
-        await this._save(channel, {
-          plugins_flat: plugins_flat,
-          plugins_local: plugins_local,
-          plugins_user: plugins_user,
-        });
+        await this._save(channel, { plugins_local, plugins_user });
         await this._sendPluginsEvent(channel, [uid], 'add');
       } else {
-        const filename = plugins_flat[uid]['filename'];
+        const filename = plugins_catalog[uid]?.['filename'];
         const result = await this._getUrl(`${this.network_host[channel]}/plugins/${filename}`);
         if (result.data) {
-          plugins_flat[uid]['status'] = 'on';
-          plugins_flat[uid]['statusChangedAt'] = currentTime;
-          plugins_flat[uid]['code'] = result.data as string;
-          plugins_local[uid] = { ...plugins_flat[uid] };
+          plugins_local[uid] = {
+            ...plugins_catalog[uid],
+            status: 'on',
+            statusChangedAt: currentTime,
+            code: result.data as string,
+          };
 
           this._injectWithGmApi(plugins_local[uid]);
 
-          await this._save(channel, {
-            plugins_flat: plugins_flat,
-            plugins_local: plugins_local,
-          });
+          await this._save(channel, { plugins_local });
           await this._sendPluginsEvent(channel, [uid], 'add');
         }
       }
     }
     if (action === 'off') {
-      plugins_flat[uid]['status'] = 'off';
-      plugins_flat[uid]['statusChangedAt'] = currentTime;
-
-      if (plugins_flat[uid]['user']) {
+      if (isUserPlugin) {
         plugins_user[uid]['status'] = 'off';
         plugins_user[uid]['statusChangedAt'] = currentTime;
-      } else {
+      } else if (plugins_local[uid]) {
         plugins_local[uid]['status'] = 'off';
         plugins_local[uid]['statusChangedAt'] = currentTime;
       }
 
-      await this._save(channel, {
-        plugins_flat: plugins_flat,
-        plugins_local: plugins_local,
-        plugins_user: plugins_user,
-      });
+      await this._save(channel, { plugins_local, plugins_user });
       await this._sendPluginsEvent(channel, [uid], 'remove');
     }
     if (action === 'delete') {
       if (uid === this.iitc_main_script_uid) {
-        await this._save(channel, {
-          iitc_core_user: {},
-        });
+        await this._save(channel, { iitc_core_user: {} });
         await this._sendPluginsEvent(channel, [uid], 'update');
       } else {
-        const isEnabled = plugins_flat[uid]['status'] === 'on';
-        if (plugins_flat[uid]['override']) {
-          if (plugins_local[uid] !== undefined) {
-            plugins_flat[uid] = { ...plugins_local[uid] };
-          }
-          plugins_flat[uid]['user'] = false;
-          plugins_flat[uid]['override'] = false;
-          plugins_flat[uid]['status'] = 'off';
-          delete plugins_flat[uid]['addedAt'];
-        } else {
-          delete plugins_flat[uid];
-        }
-        delete plugins_user[uid];
+        const isEnabled = isUserPlugin
+          ? plugins_user[uid]['status'] === 'on'
+          : plugins_local[uid]?.['status'] === 'on';
 
-        await this._save(channel, {
-          plugins_flat: plugins_flat,
-          plugins_local: plugins_local,
-          plugins_user: plugins_user,
-        });
+        delete plugins_user[uid];
+        // If it was overriding a local (catalog) plugin, reset local status to off
+        if (plugins_local[uid]) {
+          plugins_local[uid]['status'] = 'off';
+          delete plugins_local[uid]['statusChangedAt'];
+        }
+
+        await this._save(channel, { plugins_local, plugins_user });
         if (isEnabled) {
           await this._sendPluginsEvent(channel, [uid], 'remove');
         }
@@ -355,19 +329,18 @@ export class Manager extends Worker {
     const local = await this.storage.get([
       `${channel}_iitc_core_user`,
       `${channel}_categories`,
-      `${channel}_plugins_flat`,
+      `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
       `${channel}_plugins_user`,
     ]);
 
     let iitc_core_user = local[`${channel}_iitc_core_user`] as Plugin | undefined;
     let categories = local[`${channel}_categories`] as CategoryDict;
-    let plugins_flat = local[`${channel}_plugins_flat`] as PluginDict;
+    const plugins_catalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
     let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
 
     if (!isSet(categories)) categories = {};
-    if (!isSet(plugins_flat)) plugins_flat = {};
     if (!isSet(plugins_local)) plugins_local = {};
     if (!isSet(plugins_user)) plugins_user = {};
 
@@ -403,17 +376,24 @@ export class Manager extends Worker {
           statusChangedAt: currentTime,
         }) as Plugin;
 
-        if (plugin_uid in plugins_flat && !is_user_plugins) {
-          if (plugin_uid in plugins_local && plugins_flat[plugin_uid]['status'] !== 'off') {
+        if (plugin_uid in plugins_catalog && !is_user_plugins) {
+          // Override existing catalog plugin: disable its local copy if enabled
+          if (plugins_local[plugin_uid] && plugins_local[plugin_uid]['status'] !== 'off') {
             plugins_local[plugin_uid]['status'] = 'off';
           }
-
-          plugins_flat[plugin_uid]['status'] = 'on';
-          plugins_flat[plugin_uid]['code'] = code;
-          plugins_flat[plugin_uid]['override'] = true;
-          plugins_flat[plugin_uid]['addedAt'] = currentTime;
-          plugins_flat[plugin_uid]['statusChangedAt'] = currentTime;
           updated_uids.push(plugin_uid);
+          // Return merged catalog+user view with override flag (mirrors _computePluginsView)
+          const catalogEntry = plugins_catalog[plugin_uid];
+          const userEntry = plugins_user[plugin_uid];
+          installed_scripts[plugin_uid] = {
+            ...catalogEntry,
+            status: userEntry.status || 'off',
+            code: userEntry.code,
+            user: true,
+            override: true,
+            addedAt: userEntry.addedAt,
+            statusChangedAt: userEntry.statusChangedAt,
+          } as Plugin;
         } else {
           let category = plugins_user[plugin_uid]['category'];
           if (category === undefined) {
@@ -426,18 +406,15 @@ export class Manager extends Worker {
               description: '',
             };
           }
-          plugins_flat[plugin_uid] = { ...plugins_user[plugin_uid] };
           added_uids.push(plugin_uid);
+          installed_scripts[plugin_uid] = { ...plugins_user[plugin_uid], user: true };
         }
-        plugins_flat[plugin_uid]['user'] = true;
-        installed_scripts[plugin_uid] = plugins_flat[plugin_uid];
       }
     });
 
     await this._save(channel, {
       iitc_core_user: iitc_core_user,
       categories: categories,
-      plugins_flat: plugins_flat,
       plugins_local: plugins_local,
       plugins_user: plugins_user,
     });
