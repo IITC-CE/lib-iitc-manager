@@ -308,11 +308,7 @@ export class Worker {
     const p_plugins = async () => {
       plugins_local = await this._updateLocalPlugins(channel, plugins_flat, plugins_local);
 
-      plugins_flat = this._rebuildingArrayCategoriesPlugins(
-        plugins_flat,
-        plugins_local,
-        plugins_user
-      );
+      plugins_flat = this._computePluginsView(plugins_flat, plugins_local, plugins_user);
       await this._save(channel, {
         iitc_version: response['iitc_version'],
         last_modified: last_modified,
@@ -539,14 +535,14 @@ export class Worker {
   }
 
   /**
-   * Rebuilds the plugins array maintaining proper isolation between channels.
+   * Computes a merged view of all plugins from the three sources
    *
    * @param raw_plugins - Dictionary of plugins downloaded from the server.
    * @param plugins_local - Dictionary of installed plugins from IITC-CE distribution.
    * @param plugins_user - Dictionary of external UserScripts.
    * @internal
    */
-  _rebuildingArrayCategoriesPlugins(
+  _computePluginsView(
     raw_plugins: PluginDict,
     plugins_local: PluginDict,
     plugins_user: PluginDict
