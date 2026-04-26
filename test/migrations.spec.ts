@@ -76,5 +76,26 @@ describe('test migrations', function () {
       const db_data = await storage.get(['release_update_check_interval']);
       expect(db_data['release_update_check_interval']).to.be.equal(6 * 60 * 60);
     });
+    it('Should populate plugins_catalog from plugins_flat without runtime fields', async function () {
+      const db_data = await storage.get(['release_plugins_catalog']);
+      const catalog = db_data['release_plugins_catalog'] as StorageData;
+      expect(catalog).to.be.an('object');
+
+      const bookmarkUid =
+        'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion';
+      const plugin = catalog[bookmarkUid] as StorageData;
+      expect(plugin).to.be.an('object');
+      expect(plugin['id']).to.equal('bookmarks');
+      expect(plugin['category']).to.equal('Controls');
+
+      // Runtime fields must not be present in catalog
+      expect(plugin).to.not.have.property('code');
+      expect(plugin).to.not.have.property('status');
+      expect(plugin).to.not.have.property('user');
+      expect(plugin).to.not.have.property('override');
+      expect(plugin).to.not.have.property('addedAt');
+      expect(plugin).to.not.have.property('statusChangedAt');
+      expect(plugin).to.not.have.property('updatedAt');
+    });
   });
 });
