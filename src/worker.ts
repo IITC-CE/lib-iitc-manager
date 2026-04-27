@@ -547,10 +547,13 @@ export class Worker {
     plugins_local: PluginDict,
     plugins_user: PluginDict
   ): PluginDict {
-    const data: PluginDict = { ...raw_plugins };
-
     if (!isSet(plugins_local)) plugins_local = {};
     if (!isSet(plugins_user)) plugins_user = {};
+
+    const data: PluginDict = {};
+    for (const [uid, plugin] of Object.entries(raw_plugins)) {
+      data[uid] = { ...plugin, status: 'off' };
+    }
 
     // Get valid UIDs for current channel to prevent cross-channel contamination
     const currentChannelPluginUIDs = new Set(Object.keys(data));
