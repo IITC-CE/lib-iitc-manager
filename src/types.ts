@@ -113,6 +113,24 @@ export interface PluginDict {
 }
 
 /**
+ * Per-plugin enable state stored globally across all channels.
+ */
+export interface PluginStateEntry extends StorageObject {
+  /** Plugin status: 'on' (enabled) or 'off' (disabled). */
+  status: 'on' | 'off';
+  /** Unix timestamp of when the plugin's status was last changed. */
+  statusChangedAt?: number;
+}
+
+/**
+ * Dictionary of plugin state entries keyed by UID.
+ * Stored under the global `plugins_state` storage key (no channel prefix).
+ */
+export interface PluginStateDict extends StorageObject {
+  [uid: string]: PluginStateEntry;
+}
+
+/**
  * Computed view of a single plugin category.
  */
 export interface CategoryView {
