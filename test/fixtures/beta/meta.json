@@ -1,0 +1,63 @@
+{
+  "categories": {
+    "Info": {
+      "name": "Info",
+      "description": "Display additional information",
+      "plugins": [
+        {
+          "filename": "ap-stats.user.js",
+          "id": "ap-stats",
+          "name": "Available AP statistics",
+          "author": "Hollow011",
+          "description": "Displays the per-team AP gains available in the current view.",
+          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
+          "version": "0.5.0"
+        },
+        {
+          "filename": "missions.user.js",
+          "id": "missions",
+          "name": "Missions",
+          "author": "jonatkins",
+          "description": "View missions. Marking progress on waypoints/missions basis. Showing mission paths on the map.",
+          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
+          "version": "0.4.0"
+        }
+      ]
+    },
+    "Map Tiles": {
+      "name": "Map Tiles",
+      "description": "Alternative map layers",
+      "plugins": [
+        {
+          "filename": "basemap-bing.user.js",
+          "id": "basemap-bing",
+          "name": "Bing maps",
+          "author": "johnd0e",
+          "description": "Add the bing.com map layers.",
+          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
+          "version": "0.4.0"
+        }
+      ]
+    },
+    "Draw": {
+      "name": "Draw",
+      "description": "Draw tools",
+      "plugins": [
+        {
+          "filename": "draw-tools.user.js",
+          "id": "draw-tools",
+          "name": "Draw tools",
+          "author": "breunigs",
+          "description": "Allow drawing lines and markers on the map.",
+          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
+          "version": "0.9.0"
+        }
+      ]
+    },
+    "Obsolete": {
+      "name": "Obsolete",
+      "description": "Plugins that are no longer recommended, due to being superceded by others or similar"
+    }
+  },
+  "iitc_version": "0.33.0"
+}
