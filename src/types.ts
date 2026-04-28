@@ -113,6 +113,33 @@ export interface PluginDict {
 }
 
 /**
+ * Computed view of a single plugin category.
+ */
+export interface CategoryView {
+  /** Category name. */
+  name: string;
+  /** True if this category contains a plugin added within the new_plugin_threshold window. */
+  isNew: boolean;
+}
+
+/**
+ * Dictionary of computed category views, sorted alphabetically by name.
+ */
+export interface CategoryViewDict {
+  [name: string]: CategoryView;
+}
+
+/**
+ * Combined view returned by getPluginsView() and the plugins_view_changed callback.
+ */
+export interface PluginsView {
+  /** Merged view of all plugins (catalog + local state + user overrides). */
+  plugins: PluginDict;
+  /** Non-empty categories derived from the current plugin set, sorted alphabetically. */
+  categories: CategoryViewDict;
+}
+
+/**
  * Empty object, used to represent removed plugins in events.
  */
 export type EmptyObject = Record<string, never>;
@@ -228,13 +255,20 @@ export interface ManagerConfig {
   plugin_event?: (event: PluginEventData) => void;
 
   /**
-   * Called whenever the full plugin list changes - after catalog updates,
-   * plugin enable/disable, user script additions/removals, or channel switches.
-   * Receives the current merged view of all plugins (catalog + local state + user overrides).
-   *
-   * @param plugins - Current merged plugin dictionary.
+   * Threshold in seconds for the isNew flag on categories.
+   * A category is marked as new if it contains a plugin with addedAt within this window.
+   * Default: 3600 (1 hour).
    */
-  plugins_changed?: (plugins: PluginDict) => void;
+  new_plugin_threshold?: number;
+
+  /**
+   * Called whenever the plugin set changes - after catalog updates, plugin enable/disable,
+   * user script additions/removals, or channel switches.
+   * Receives the current merged view of all plugins and computed categories.
+   *
+   * @param view - Current plugins and categories view.
+   */
+  plugins_view_changed?: (view: PluginsView) => void;
 }
 
 /**

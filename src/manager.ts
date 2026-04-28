@@ -10,11 +10,11 @@ import type {
   Channel,
   Plugin,
   PluginDict,
+  PluginsView,
   StorageData,
   BackupParams,
   BackupData,
   UserScript,
-  CategoryDict,
 } from './types.js';
 
 /**
@@ -102,10 +102,10 @@ export class Manager extends Worker {
   }
 
   /**
-   * Returns a merged view of all plugins for the current channel.
+   * Returns the merged view of all plugins and categories for the current channel.
    * Combines server catalog with local installation state and user overrides.
    */
-  async getPlugins(): Promise<PluginDict> {
+  async getPluginsView(): Promise<PluginsView> {
     const channel = this.channel;
     const storage = await this.storage.get([
       `${channel}_plugins_catalog`,
@@ -121,8 +121,8 @@ export class Manager extends Worker {
   }
 
   _emitPluginsChanged(): void {
-    if (!this.plugins_changed) return;
-    this.getPlugins().then(plugins => this.plugins_changed!(plugins));
+    if (!this.plugins_view_changed) return;
+    this.getPluginsView().then(view => this.plugins_view_changed!(view));
   }
 
   /**
@@ -142,7 +142,11 @@ export class Manager extends Worker {
     const plugins_local = (storage[`${channel}_plugins_local`] || {}) as PluginDict;
     const plugins_user = (storage[`${channel}_plugins_user`] || {}) as PluginDict;
 
-    const all_plugins = this._computePluginsView(plugins_catalog, plugins_local, plugins_user);
+    const { plugins: all_plugins } = this._computePluginsView(
+      plugins_catalog,
+      plugins_local,
+      plugins_user
+    );
 
     const enabled_plugins: PluginDict = {};
 
@@ -328,19 +332,16 @@ export class Manager extends Worker {
     const channel = this.channel;
     const local = await this.storage.get([
       `${channel}_iitc_core_user`,
-      `${channel}_categories`,
       `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
       `${channel}_plugins_user`,
     ]);
 
     let iitc_core_user = local[`${channel}_iitc_core_user`] as Plugin | undefined;
-    let categories = local[`${channel}_categories`] as CategoryDict;
     const plugins_catalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
     let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
 
-    if (!isSet(categories)) categories = {};
     if (!isSet(plugins_local)) plugins_local = {};
     if (!isSet(plugins_user)) plugins_user = {};
 
@@ -395,16 +396,8 @@ export class Manager extends Worker {
             statusChangedAt: userEntry.statusChangedAt,
           } as Plugin;
         } else {
-          let category = plugins_user[plugin_uid]['category'];
-          if (category === undefined) {
-            category = 'Misc';
-            plugins_user[plugin_uid]['category'] = category;
-          }
-          if (!(category in categories)) {
-            categories[category] = {
-              name: category,
-              description: '',
-            };
+          if (plugins_user[plugin_uid]['category'] === undefined) {
+            plugins_user[plugin_uid]['category'] = 'Misc';
           }
           added_uids.push(plugin_uid);
           installed_scripts[plugin_uid] = { ...plugins_user[plugin_uid], user: true };
@@ -414,7 +407,6 @@ export class Manager extends Worker {
 
     await this._save(channel, {
       iitc_core_user: iitc_core_user,
-      categories: categories,
       plugins_local: plugins_local,
       plugins_user: plugins_user,
     });
@@ -431,8 +423,8 @@ export class Manager extends Worker {
    * @param uid - Plugin UID.
    */
   async getPluginInfo(uid: string): Promise<Plugin | null> {
-    const all_plugins = await this.getPlugins();
-    return all_plugins[uid] ?? null;
+    const { plugins } = await this.getPluginsView();
+    return plugins[uid] ?? null;
   }
 
   /**

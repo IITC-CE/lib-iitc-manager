@@ -228,17 +228,8 @@ describe('manage.js external plugins integration tests', function () {
     });
 
     it('Check categories before switching channel', async function () {
-      const categories = await storage
-        .get(['release_categories'])
-        .then(data => data['release_categories']);
-      expect(categories).to.have.all.keys(
-        'Info',
-        'Map Tiles',
-        'Obsolete',
-        'Deleted',
-        'Controls',
-        'Misc'
-      );
+      const { categories } = await manager!.getPluginsView();
+      expect(categories).to.include.all.keys('Info', 'Map Tiles', 'Controls', 'Misc');
     });
 
     it('Switching to the Beta channel and back to Release', async function () {
@@ -268,17 +259,8 @@ describe('manage.js external plugins integration tests', function () {
     });
 
     it('Check categories after switching channel', async function () {
-      const categories = await storage
-        .get(['release_categories'])
-        .then(data => data['release_categories']);
-      expect(categories).to.have.all.keys(
-        'Info',
-        'Map Tiles',
-        'Obsolete',
-        'Deleted',
-        'Controls',
-        'Misc'
-      );
+      const { categories } = await manager!.getPluginsView();
+      expect(categories).to.include.all.keys('Info', 'Map Tiles', 'Controls', 'Misc');
     });
 
     it('Disable external plugin', async function () {

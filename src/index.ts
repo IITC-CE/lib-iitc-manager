@@ -49,6 +49,9 @@ export type {
   PluginMeta,
   Plugin,
   PluginDict,
+  CategoryView,
+  CategoryViewDict,
+  PluginsView,
   EmptyObject,
   PluginEventType,
   PluginEventData,
@@ -59,8 +62,6 @@ export type {
   FetchResourceResult,
   UserScript,
   BackupData,
-  CategoryInfo,
-  CategoryDict,
   MetaJsonResponse,
   IngressDomain,
 } from './types.js';

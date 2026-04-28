@@ -81,10 +81,10 @@ describe('manage.js build-in plugins integration tests', function () {
         (plugins_local[first_plugin_uid] as StorageData)['status'],
         'release_plugins_local: ' + first_plugin_uid
       ).to.equal('on');
-      const all_plugins_1 = await manager!.getPlugins();
+      const { plugins: all_plugins_1 } = await manager!.getPluginsView();
       expect(
         all_plugins_1[second_plugin_uid]['status'],
-        'getPlugins(): ' + second_plugin_uid
+        'getPluginsView(): ' + second_plugin_uid
       ).to.not.equal('on');
     });
 

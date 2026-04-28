@@ -13,7 +13,8 @@ type MigrationFn = (
   storage_plugins_user: StorageData,
   storage_misc: StorageData,
   update_check_interval: StorageData,
-  storage_plugins_catalog: StorageData
+  storage_plugins_catalog: StorageData,
+  storage_categories: StorageData
 ) => Promise<void>;
 
 const migrates: MigrationFn[] = [
@@ -42,6 +43,11 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
     'release_plugins_catalog',
     'beta_plugins_catalog',
     'custom_plugins_catalog',
+  ]);
+  const storage_categories = await storage.get([
+    'release_categories',
+    'beta_categories',
+    'custom_categories',
   ]);
   const storage_plugins_user = await storage.get([
     'release_plugins_user',
@@ -77,7 +83,8 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
         storage_plugins_user,
         storage_misc,
         update_check_interval,
-        storage_plugins_catalog
+        storage_plugins_catalog,
+        storage_categories
       );
       is_migrated = true;
     }
@@ -91,6 +98,7 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
     ...storage_plugins_user,
     ...storage_misc,
     ...update_check_interval,
+    ...storage_categories,
   });
   return is_migrated;
 }
@@ -196,7 +204,8 @@ async function migration_0006(
   _storage_plugins_user: StorageData,
   _storage_misc: StorageData,
   _update_check_interval: StorageData,
-  storage_plugins_catalog: StorageData
+  storage_plugins_catalog: StorageData,
+  storage_categories: StorageData
 ): Promise<void> {
   for (const key of Object.keys(storage_plugins_flat)) {
     if (!isSet(storage_plugins_flat[key])) continue;
@@ -218,5 +227,9 @@ async function migration_0006(
 
     storage_plugins_catalog[catalogKey] = catalog;
     storage_plugins_flat[key] = null;
+  }
+
+  for (const key of Object.keys(storage_categories)) {
+    storage_categories[key] = null;
   }
 }
