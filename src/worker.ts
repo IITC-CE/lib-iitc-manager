@@ -11,13 +11,14 @@ import type {
   NetworkHost,
   Plugin,
   PluginDict,
+  PluginsView,
+  CategoryViewDict,
   PluginEventType,
   PluginEventData,
   UpdateType,
   RequestVariant,
   FetchResourceOptions,
   FetchResourceResult,
-  CategoryDict,
   MetaJsonResponse,
 } from './types.js';
 
@@ -46,6 +47,8 @@ export class Worker {
   inject_user_script: (code: string) => void;
   inject_plugin: (plugin: Plugin) => void;
   plugin_event: (event: PluginEventData) => void;
+  plugins_view_changed?: (view: PluginsView) => void;
+  new_plugin_threshold: number;
 
   /**
    * Creates an instance of Manager class with the specified parameters
@@ -72,6 +75,8 @@ export class Worker {
     this.plugin_event = this.config.plugin_event || function () {};
     this.gm_api = this.config.gm_api;
     this.source_url_prefix = this.config.source_url_prefix || '';
+    this.plugins_view_changed = this.config.plugins_view_changed;
+    this.new_plugin_threshold = this.config.new_plugin_threshold ?? 3600;
 
     this.is_initialized = false;
     this._init().then();
@@ -141,8 +146,7 @@ export class Worker {
           'last_modified',
           'iitc_core',
           'iitc_core_user',
-          'categories',
-          'plugins_flat',
+          'plugins_catalog',
           'plugins_local',
           'plugins_user',
         ].indexOf(key) !== -1
@@ -153,7 +157,19 @@ export class Worker {
       }
     });
     await this.storage.set(data);
+
+    const pluginsKeys = ['plugins_catalog', 'plugins_local', 'plugins_user', 'channel'];
+    if (Object.keys(options).some(k => pluginsKeys.includes(k)) && channel === this.channel) {
+      this._emitPluginsChanged();
+    }
   }
+
+  /**
+   * Fires the plugins_changed callback with the current merged plugin view.
+   * Overridden in Manager where getPlugins() is available.
+   * @internal
+   */
+  _emitPluginsChanged(): void {}
 
   /**
    * The method requests data from the specified URL.
@@ -225,7 +241,6 @@ export class Worker {
       `${channel}_update_check_interval`,
       `${channel}_last_modified`,
       `${channel}_categories`,
-      `${channel}_plugins_flat`,
       `${channel}_plugins_local`,
       `${channel}_plugins_user`,
     ]);
@@ -282,13 +297,11 @@ export class Worker {
     const response = result.data as MetaJsonResponse;
     const last_modified = result.version;
 
-    let plugins_flat = this._getPluginsFlat(response);
-    let categories = this._getCategories(response);
+    const plugins_catalog = this._getPluginsCatalog(response);
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
     let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
 
     if (!isSet(plugins_user)) plugins_user = {};
-    categories = this._rebuildingCategories(categories, plugins_user);
 
     const p_iitc = async () => {
       const result = await this._getUrl(
@@ -306,18 +319,11 @@ export class Worker {
     };
 
     const p_plugins = async () => {
-      plugins_local = await this._updateLocalPlugins(channel, plugins_flat, plugins_local);
-
-      plugins_flat = this._rebuildingArrayCategoriesPlugins(
-        plugins_flat,
-        plugins_local,
-        plugins_user
-      );
+      plugins_local = await this._updateLocalPlugins(channel, plugins_catalog, plugins_local);
       await this._save(channel, {
         iitc_version: response['iitc_version'],
         last_modified: last_modified,
-        categories: categories,
-        plugins_flat: plugins_flat,
+        plugins_catalog: plugins_catalog,
         plugins_local: plugins_local,
         plugins_user: plugins_user,
       });
@@ -327,31 +333,13 @@ export class Worker {
   }
 
   /**
-   * Builds a dictionary from received meta.json file, in which it places names and descriptions of categories.
+   * Converts a list of categories with plugins into a flat catalog dictionary.
+   * Contains only server-side metadata fields - no runtime state (status, code, user, etc.).
    *
    * @param data - Data from received meta.json file.
    * @internal
    */
-  _getCategories(data: MetaJsonResponse): CategoryDict {
-    if (!('categories' in data)) return {};
-    const categories = data['categories'];
-
-    Object.keys(categories).forEach(cat => {
-      if ('plugins' in categories[cat]) {
-        delete categories[cat]['plugins'];
-      }
-    });
-
-    return categories;
-  }
-
-  /**
-   * Converting a list of categories with plugins inside into a flat structure.
-   *
-   * @param data - Data from received meta.json file.
-   * @internal
-   */
-  _getPluginsFlat(data: MetaJsonResponse): PluginDict {
+  _getPluginsCatalog(data: MetaJsonResponse): PluginDict {
     if (!('categories' in data)) return {};
     const plugins: PluginDict = {};
     const categories = data['categories'];
@@ -361,9 +349,8 @@ export class Worker {
 
       if ('plugins' in categories[cat] && categories[cat].plugins) {
         Object.keys(categories[cat].plugins!).forEach(id => {
-          const plugin = categories[cat].plugins![id] as unknown as Plugin;
+          const plugin = { ...(categories[cat].plugins![id] as unknown as Plugin) };
           plugin['uid'] = getUID(plugin)!;
-          plugin['status'] = 'off';
           plugin['category'] = cat;
           plugins[plugin['uid']] = plugin;
         });
@@ -480,7 +467,7 @@ export class Worker {
    */
   async _updateLocalPlugins(
     channel: Channel,
-    plugins_flat: PluginDict,
+    plugins_catalog: PluginDict,
     plugins_local: PluginDict
   ): Promise<PluginDict> {
     // If no plugins installed
@@ -494,7 +481,7 @@ export class Worker {
     for (const uid of Object.keys(plugins_local)) {
       const filename = plugins_local[uid]['filename'];
 
-      if (filename && plugins_flat[uid]) {
+      if (filename && plugins_catalog[uid]) {
         const result = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
         if (result.data) {
           plugins_local[uid]['code'] = result.data as string;
@@ -514,47 +501,25 @@ export class Worker {
   }
 
   /**
-   * Updates categories by adding custom categories of external plugins.
-   *
-   * @param categories - Dictionary with names and descriptions of categories.
-   * @param plugins_user - Dictionary of external UserScripts.
-   * @internal
-   */
-  _rebuildingCategories(categories: CategoryDict, plugins_user: PluginDict): CategoryDict {
-    if (Object.keys(plugins_user).length) {
-      Object.keys(plugins_user).forEach(plugin_uid => {
-        let category = plugins_user[plugin_uid]['category'];
-        if (category === undefined) {
-          category = 'Misc';
-        }
-        if (!(category in categories)) {
-          categories[category] = {
-            name: category,
-            description: '',
-          };
-        }
-      });
-    }
-    return categories;
-  }
-
-  /**
-   * Rebuilds the plugins array maintaining proper isolation between channels.
+   * Computes a merged view of all plugins and their categories from the three sources.
    *
    * @param raw_plugins - Dictionary of plugins downloaded from the server.
    * @param plugins_local - Dictionary of installed plugins from IITC-CE distribution.
    * @param plugins_user - Dictionary of external UserScripts.
    * @internal
    */
-  _rebuildingArrayCategoriesPlugins(
+  _computePluginsView(
     raw_plugins: PluginDict,
     plugins_local: PluginDict,
     plugins_user: PluginDict
-  ): PluginDict {
-    const data: PluginDict = { ...raw_plugins };
-
+  ): PluginsView {
     if (!isSet(plugins_local)) plugins_local = {};
     if (!isSet(plugins_user)) plugins_user = {};
+
+    const data: PluginDict = {};
+    for (const [uid, plugin] of Object.entries(raw_plugins)) {
+      data[uid] = { ...plugin, status: 'off' };
+    }
 
     // Get valid UIDs for current channel to prevent cross-channel contamination
     const currentChannelPluginUIDs = new Set(Object.keys(data));
@@ -588,7 +553,24 @@ export class Worker {
       });
     }
 
-    return data;
+    // Derive categories from merged plugins: filter empty, mark isNew, sort alphabetically
+    const now = Math.floor(Date.now() / 1000);
+    const threshold = this.new_plugin_threshold;
+    const rawCategories: CategoryViewDict = {};
+    for (const plugin of Object.values(data)) {
+      const cat = plugin.category || 'Misc';
+      if (!(cat in rawCategories)) {
+        rawCategories[cat] = { name: cat, isNew: false };
+      }
+      if (plugin.addedAt && now - plugin.addedAt <= threshold) {
+        rawCategories[cat].isNew = true;
+      }
+    }
+    const categories: CategoryViewDict = Object.fromEntries(
+      Object.entries(rawCategories).sort(([a], [b]) => a.localeCompare(b))
+    );
+
+    return { plugins: data, categories };
   }
 
   /**

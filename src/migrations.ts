@@ -12,7 +12,9 @@ type MigrationFn = (
   storage_plugins_flat: StorageData,
   storage_plugins_user: StorageData,
   storage_misc: StorageData,
-  update_check_interval: StorageData
+  update_check_interval: StorageData,
+  storage_plugins_catalog: StorageData,
+  storage_categories: StorageData
 ) => Promise<void>;
 
 const migrates: MigrationFn[] = [
@@ -21,6 +23,7 @@ const migrates: MigrationFn[] = [
   migration_0003,
   migration_0004,
   migration_0005,
+  migration_0006,
 ];
 
 export async function migrate(storage: StorageAPI): Promise<boolean> {
@@ -35,6 +38,16 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
     'custom_plugins_flat',
     'test_plugins_flat',
     'local_plugins_flat',
+  ]);
+  const storage_plugins_catalog = await storage.get([
+    'release_plugins_catalog',
+    'beta_plugins_catalog',
+    'custom_plugins_catalog',
+  ]);
+  const storage_categories = await storage.get([
+    'release_categories',
+    'beta_categories',
+    'custom_categories',
   ]);
   const storage_plugins_user = await storage.get([
     'release_plugins_user',
@@ -69,7 +82,9 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
         storage_plugins_flat,
         storage_plugins_user,
         storage_misc,
-        update_check_interval
+        update_check_interval,
+        storage_plugins_catalog,
+        storage_categories
       );
       is_migrated = true;
     }
@@ -79,9 +94,11 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
   await storage.set({
     ...storage_iitc_code,
     ...storage_plugins_flat,
+    ...storage_plugins_catalog,
     ...storage_plugins_user,
     ...storage_misc,
     ...update_check_interval,
+    ...storage_categories,
   });
   return is_migrated;
 }
@@ -168,5 +185,51 @@ async function migration_0005(
     if (interval !== 24 * 60 * 60) {
       update_check_interval[channel] = interval * 60 * 60;
     }
+  }
+}
+
+const RUNTIME_PLUGIN_FIELDS = [
+  'code',
+  'status',
+  'user',
+  'override',
+  'addedAt',
+  'statusChangedAt',
+  'updatedAt',
+];
+
+async function migration_0006(
+  _storage_iitc_code: StorageData,
+  storage_plugins_flat: StorageData,
+  _storage_plugins_user: StorageData,
+  _storage_misc: StorageData,
+  _update_check_interval: StorageData,
+  storage_plugins_catalog: StorageData,
+  storage_categories: StorageData
+): Promise<void> {
+  for (const key of Object.keys(storage_plugins_flat)) {
+    if (!isSet(storage_plugins_flat[key])) continue;
+
+    const flat = storage_plugins_flat[key] as StorageData;
+    const catalogKey = key.replace('_plugins_flat', '_plugins_catalog');
+    const catalog: StorageData = {};
+
+    for (const uid of Object.keys(flat)) {
+      const plugin = flat[uid] as StorageData;
+      const entry: StorageData = {};
+      for (const field of Object.keys(plugin)) {
+        if (!RUNTIME_PLUGIN_FIELDS.includes(field)) {
+          entry[field] = plugin[field];
+        }
+      }
+      catalog[uid] = entry;
+    }
+
+    storage_plugins_catalog[catalogKey] = catalog;
+    storage_plugins_flat[key] = null;
+  }
+
+  for (const key of Object.keys(storage_categories)) {
+    storage_categories[key] = null;
   }
 }

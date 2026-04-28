@@ -119,14 +119,13 @@ describe('manage.js external plugins integration tests', function () {
       delete (run as PluginDict)[external_1_uid]['statusChangedAt'];
       expect(run).to.deep.equal(installed);
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      const plugins_catalog = db_data['release_plugins_catalog'] as StorageData;
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      expect(plugins_catalog, 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
-        third_plugin_uid,
-        external_1_uid
+        third_plugin_uid
       );
       expect(plugins_user, 'release_plugins_user').to.have.all.keys(external_1_uid);
 
@@ -136,13 +135,8 @@ describe('manage.js external plugins integration tests', function () {
       ).to.equal('on');
 
       expect(
-        (plugins_flat[external_1_uid] as StorageData)['status'],
-        "release_plugins_flat['status']: " + external_1_uid
-      ).to.equal('on');
-
-      expect(
-        (plugins_flat[external_1_uid] as StorageData)['code'],
-        "release_plugins_flat['code']: " + external_1_uid
+        (plugins_user[external_1_uid] as StorageData)['code'],
+        "release_plugins_user['code']: " + external_1_uid
       ).to.equal(external_code);
     });
 
@@ -181,15 +175,13 @@ describe('manage.js external plugins integration tests', function () {
       delete (run as PluginDict)[external_2_uid]['statusChangedAt'];
       expect(run).to.deep.equal(installed);
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      const plugins_catalog = db_data['release_plugins_catalog'] as StorageData;
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      expect(plugins_catalog, 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
-        third_plugin_uid,
-        external_1_uid,
-        external_2_uid
+        third_plugin_uid
       );
       expect(plugins_user, 'release_plugins_user').to.have.all.keys(external_1_uid, external_2_uid);
 
@@ -204,18 +196,8 @@ describe('manage.js external plugins integration tests', function () {
       ).to.equal('Misc');
 
       expect(
-        (plugins_flat[external_2_uid] as StorageData)['status'],
-        "release_plugins_flat['status']: " + external_2_uid
-      ).to.equal('on');
-
-      expect(
-        (plugins_flat[external_2_uid] as StorageData)['category'],
-        "release_plugins_flat['category']: " + external_2_uid
-      ).to.equal('Misc');
-
-      expect(
-        (plugins_flat[external_2_uid] as StorageData)['code'],
-        "release_plugins_flat['code']: " + external_2_uid
+        (plugins_user[external_2_uid] as StorageData)['code'],
+        "release_plugins_user['code']: " + external_2_uid
       ).to.equal(external_code);
     });
 
@@ -233,13 +215,11 @@ describe('manage.js external plugins integration tests', function () {
         'The plugin has an incorrect ==UserScript== header'
       );
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      expect(db_data['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
-        third_plugin_uid,
-        external_1_uid,
-        external_2_uid
+        third_plugin_uid
       );
       expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(
         external_1_uid,
@@ -248,17 +228,8 @@ describe('manage.js external plugins integration tests', function () {
     });
 
     it('Check categories before switching channel', async function () {
-      const categories = await storage
-        .get(['release_categories'])
-        .then(data => data['release_categories']);
-      expect(categories).to.have.all.keys(
-        'Info',
-        'Map Tiles',
-        'Obsolete',
-        'Deleted',
-        'Controls',
-        'Misc'
-      );
+      const { categories } = await manager!.getPluginsView();
+      expect(categories).to.include.all.keys('Info', 'Map Tiles', 'Controls', 'Misc');
     });
 
     it('Switching to the Beta channel and back to Release', async function () {
@@ -288,17 +259,8 @@ describe('manage.js external plugins integration tests', function () {
     });
 
     it('Check categories after switching channel', async function () {
-      const categories = await storage
-        .get(['release_categories'])
-        .then(data => data['release_categories']);
-      expect(categories).to.have.all.keys(
-        'Info',
-        'Map Tiles',
-        'Obsolete',
-        'Deleted',
-        'Controls',
-        'Misc'
-      );
+      const { categories } = await manager!.getPluginsView();
+      expect(categories).to.include.all.keys('Info', 'Map Tiles', 'Controls', 'Misc');
     });
 
     it('Disable external plugin', async function () {
@@ -312,22 +274,15 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.managePlugin(external_2_uid, 'off');
       expect(run).to.be.undefined;
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      const plugins_catalog = db_data['release_plugins_catalog'] as StorageData;
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      expect(plugins_catalog, 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
-        third_plugin_uid,
-        external_1_uid,
-        external_2_uid
+        third_plugin_uid
       );
       expect(plugins_user, 'release_plugins_user').to.have.all.keys(external_1_uid, external_2_uid);
-
-      expect(
-        (plugins_flat[external_2_uid] as StorageData)['status'],
-        "release_plugins_flat['status']: " + external_2_uid
-      ).to.equal('off');
 
       expect(
         (plugins_user[external_2_uid] as StorageData)['status'],
@@ -346,22 +301,15 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.managePlugin(external_2_uid, 'on');
       expect(run).to.be.undefined;
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      const plugins_catalog = db_data['release_plugins_catalog'] as StorageData;
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      expect(plugins_catalog, 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
-        third_plugin_uid,
-        external_1_uid,
-        external_2_uid
+        third_plugin_uid
       );
       expect(plugins_user, 'release_plugins_user').to.have.all.keys(external_1_uid, external_2_uid);
-
-      expect(
-        (plugins_flat[external_2_uid] as StorageData)['status'],
-        "release_plugins_flat['status']: " + external_2_uid
-      ).to.equal('on');
 
       expect(
         (plugins_user[external_2_uid] as StorageData)['status'],
@@ -380,12 +328,11 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.managePlugin(external_2_uid, 'delete');
       expect(run).to.be.undefined;
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      expect(db_data['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
-        third_plugin_uid,
-        external_1_uid
+        third_plugin_uid
       );
       expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(
         external_1_uid
@@ -403,8 +350,8 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.managePlugin(external_1_uid, 'delete');
       expect(run).to.be.undefined;
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      expect(db_data['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
         third_plugin_uid
@@ -464,18 +411,17 @@ describe('manage.js external plugins integration tests', function () {
     });
 
     it('Check external plugin', async function () {
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      expect(db_data['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
-        third_plugin_uid,
-        external_1_uid
+        third_plugin_uid
       );
-      expect((plugins_flat[external_1_uid] as StorageData)['override']).to.be.undefined;
       expect(db_data['release_plugins_user'], 'release_plugins_user').to.have.all.keys(
         external_1_uid
       );
+      const plugin_info = await manager!.getPluginInfo(external_1_uid);
+      expect(plugin_info!.override).to.be.undefined;
     });
 
     it('Remove the external plugin', async function () {
@@ -489,8 +435,8 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.managePlugin(external_1_uid, 'delete');
       expect(run).to.be.undefined;
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      expect(db_data['release_plugins_flat'], 'release_plugins_flat').to.have.all.keys(
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      expect(db_data['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
         third_plugin_uid
@@ -541,10 +487,10 @@ describe('manage.js external plugins integration tests', function () {
       delete (run as PluginDict)[external_1_uid]['statusChangedAt'];
       expect(run).to.deep.equal(installed);
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      const plugins_catalog = db_data['release_plugins_catalog'] as StorageData;
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      expect(plugins_catalog, 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
         third_plugin_uid
@@ -556,15 +502,8 @@ describe('manage.js external plugins integration tests', function () {
         "release_plugins_user['code']: " + external_1_uid
       ).to.equal(external_code);
 
-      expect(
-        (plugins_flat[external_1_uid] as StorageData)['code'],
-        "release_plugins_flat['code']: " + external_1_uid
-      ).to.equal(external_code);
-
-      expect(
-        (plugins_flat[external_1_uid] as StorageData)['override'],
-        "release_plugins_flat['override']: " + external_1_uid
-      ).to.be.true;
+      const plugin_view = await manager!.getPluginInfo(external_1_uid);
+      expect(plugin_view!.override, "getPluginInfo()['override']: " + external_1_uid).to.be.true;
     });
 
     it('Info about plugin', async function () {
@@ -588,20 +527,15 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.managePlugin(external_1_uid, 'off');
       expect(run).to.be.undefined;
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      const plugins_catalog = db_data['release_plugins_catalog'] as StorageData;
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      expect(plugins_catalog, 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
         third_plugin_uid
       );
       expect(plugins_user, 'release_plugins_user').to.have.all.keys(external_1_uid);
-
-      expect(
-        (plugins_flat[external_1_uid] as StorageData)['status'],
-        "release_plugins_flat['status']: " + external_1_uid
-      ).to.equal('off');
 
       expect(
         (plugins_user[external_1_uid] as StorageData)['status'],
@@ -617,29 +551,20 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.managePlugin(external_1_uid, 'delete');
       expect(run).to.be.undefined;
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      expect(db_data['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
         third_plugin_uid
       );
       expect(db_data['release_plugins_user'], 'release_plugins_user').to.be.empty;
 
-      expect(
-        (plugins_flat[external_1_uid] as StorageData)['status'],
-        "release_plugins_flat['status']: " + external_1_uid
-      ).to.equal('off');
-
-      expect(
-        (plugins_flat[external_1_uid] as StorageData)['code'],
-        "release_plugins_flat['code']: " + external_1_uid
-      ).to.have.lengthOf(external_code.length);
-
-      expect(
-        (plugins_flat[external_1_uid] as StorageData)['override'],
-        "release_plugins_flat['override']: " + external_1_uid
-      ).to.not.be.true;
+      const plugin_after = await manager!.getPluginInfo(external_1_uid);
+      expect(plugin_after!.status, "getPluginInfo()['status']: " + external_1_uid).to.not.equal(
+        'on'
+      );
+      expect(plugin_after!.override, "getPluginInfo()['override']: " + external_1_uid).to.not.be
+        .true;
     });
   });
 
@@ -683,10 +608,10 @@ describe('manage.js external plugins integration tests', function () {
       delete (run as PluginDict)[external_3_uid]['statusChangedAt'];
       expect(run).to.deep.equal(installed);
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      const plugins_catalog = db_data['release_plugins_catalog'] as StorageData;
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      expect(plugins_catalog, 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
         third_plugin_uid
@@ -697,14 +622,8 @@ describe('manage.js external plugins integration tests', function () {
         (plugins_user[external_3_uid] as StorageData)['code'],
         "release_plugins_user['code']: " + external_3_uid
       ).to.equal(external_code);
-      expect(
-        (plugins_flat[external_3_uid] as StorageData)['code'],
-        "release_plugins_flat['code']: " + external_3_uid
-      ).to.equal(external_code);
-      expect(
-        (plugins_flat[external_3_uid] as StorageData)['override'],
-        "release_plugins_flat['override']: " + external_3_uid
-      ).to.be.true;
+      const plugin_view_3 = await manager!.getPluginInfo(external_3_uid);
+      expect(plugin_view_3!.override, "getPluginInfo()['override']: " + external_3_uid).to.be.true;
     });
 
     it('Remove external plugin and replace it with built-in plugin', async function () {
@@ -718,23 +637,20 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.managePlugin(external_3_uid, 'delete');
       expect(run).to.be.undefined;
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
-      expect(plugins_flat, 'release_plugins_flat').to.have.all.keys(
+      const db_data = await storage.get(['release_plugins_catalog', 'release_plugins_user']);
+      expect(db_data['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
         first_plugin_uid,
         second_plugin_uid,
         third_plugin_uid
       );
       expect(db_data['release_plugins_user'], 'release_plugins_user').to.be.empty;
 
-      expect(
-        (plugins_flat[external_3_uid] as StorageData)['status'],
-        "release_plugins_flat['status']: " + external_3_uid
-      ).to.equal('off');
-      expect(
-        (plugins_flat[external_3_uid] as StorageData)['override'],
-        "release_plugins_flat['override']: " + external_3_uid
-      ).to.be.false;
+      const plugin_after_3 = await manager!.getPluginInfo(external_3_uid);
+      expect(plugin_after_3!.status, "getPluginInfo()['status']: " + external_3_uid).to.not.equal(
+        'on'
+      );
+      expect(plugin_after_3!.override, "getPluginInfo()['override']: " + external_3_uid).to.not.be
+        .true;
     });
 
     it('Enable and disable build-in plugin', async function () {
@@ -758,20 +674,19 @@ describe('manage.js external plugins integration tests', function () {
       const run2 = await manager!.managePlugin(external_3_uid, 'off');
       expect(run2).to.be.undefined;
 
-      const db_data = await storage.get(['release_plugins_flat']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
+      const db_data = await storage.get(['release_plugins_local']);
+      const plugins_local = db_data['release_plugins_local'] as StorageData;
       expect(
-        (plugins_flat[external_3_uid] as StorageData)['status'],
-        "release_plugins_flat['status']: " + external_3_uid
+        (plugins_local[external_3_uid] as StorageData)['status'],
+        "release_plugins_local['status']: " + external_3_uid
       ).to.equal('off');
       expect(
-        (plugins_flat[external_3_uid] as StorageData)['code'],
-        "release_plugins_flat['code']: " + external_3_uid
+        (plugins_local[external_3_uid] as StorageData)['code'],
+        "release_plugins_local['code']: " + external_3_uid
       ).to.not.equal(external_code);
-      expect(
-        (plugins_flat[external_3_uid] as StorageData)['override'],
-        "release_plugins_flat['override']: " + external_3_uid
-      ).to.be.false;
+      const plugin_view_after = await manager!.getPluginInfo(external_3_uid);
+      expect(plugin_view_after!.override, "getPluginInfo()['override']: " + external_3_uid).to.not
+        .be.true;
     });
   });
 
@@ -908,11 +823,9 @@ describe('manage.js external plugins integration tests', function () {
       await manager!.addUserScripts([plugin_data]);
 
       // Get stored data
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+      const db_data = await storage.get(['release_plugins_user']);
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
       const user_plugin = plugins_user[external_plugin_uid] as StorageData;
-      const flat_plugin = plugins_flat[external_plugin_uid] as StorageData;
 
       // Check timestamps in plugins_user
       expect(user_plugin).to.have.property('addedAt');
@@ -921,13 +834,6 @@ describe('manage.js external plugins integration tests', function () {
 
       expect(user_plugin).to.have.property('statusChangedAt');
       expect(user_plugin.statusChangedAt).to.equal(user_plugin.addedAt);
-
-      // Check timestamps in plugins_flat
-      expect(flat_plugin).to.have.property('addedAt');
-      expect(flat_plugin.addedAt).to.equal(user_plugin.addedAt);
-
-      expect(flat_plugin).to.have.property('statusChangedAt');
-      expect(flat_plugin.statusChangedAt).to.equal(user_plugin.statusChangedAt);
     });
 
     it('should update statusChangedAt when toggling plugin status', async function () {
@@ -942,15 +848,12 @@ describe('manage.js external plugins integration tests', function () {
       // Toggle plugin off
       await manager!.managePlugin(external_plugin_uid, 'off');
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+      const db_data = await storage.get(['release_plugins_user']);
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
       const user_plugin = plugins_user[external_plugin_uid] as StorageData;
-      const flat_plugin = plugins_flat[external_plugin_uid] as StorageData;
 
       // Check new statusChangedAt
       expect(user_plugin.statusChangedAt as number).to.be.above(oldStatusChangedAt);
-      expect(flat_plugin.statusChangedAt).to.equal(user_plugin.statusChangedAt);
 
       // Original addedAt should remain unchanged
       expect(user_plugin.addedAt).to.equal(
@@ -961,7 +864,7 @@ describe('manage.js external plugins integration tests', function () {
 
     it('should handle timestamps correctly when removing plugin', async function () {
       // Get initial data
-      const before = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+      const before = await storage.get(['release_plugins_user']);
       const before_user = (before['release_plugins_user'] as StorageData)[
         external_plugin_uid
       ] as StorageData;
@@ -972,13 +875,10 @@ describe('manage.js external plugins integration tests', function () {
       await manager!.managePlugin(external_plugin_uid, 'delete');
 
       // Check data after removal
-      const after = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+      const after = await storage.get(['release_plugins_user']);
 
       // Plugin should be removed from plugins_user
       expect(after['release_plugins_user']).to.not.have.property(external_plugin_uid);
-
-      // Plugin should be removed from plugins_flat
-      expect(after['release_plugins_flat']).to.not.have.property(external_plugin_uid);
     });
   });
 
@@ -1026,20 +926,14 @@ describe('manage.js external plugins integration tests', function () {
       // Add overriding plugin
       await manager!.addUserScripts([override_plugin]);
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+      const db_data = await storage.get(['release_plugins_user']);
       const plugins_user = db_data['release_plugins_user'] as StorageData;
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
       const user_plugin = plugins_user[built_in_plugin_uid] as StorageData;
-      const flat_plugin = plugins_flat[built_in_plugin_uid] as StorageData;
 
       // Check timestamps in plugins_user
       expect(user_plugin).to.have.property('addedAt');
       expect(user_plugin).to.have.property('statusChangedAt');
       expect(user_plugin.statusChangedAt).to.equal(user_plugin.addedAt);
-
-      // Check timestamps copied to plugins_flat
-      expect(flat_plugin.addedAt).to.equal(user_plugin.addedAt);
-      expect(flat_plugin.statusChangedAt).to.equal(user_plugin.statusChangedAt);
     });
 
     it('should update statusChangedAt when toggling overridden plugin', async function () {
@@ -1056,34 +950,29 @@ describe('manage.js external plugins integration tests', function () {
       // Toggle plugin off
       await manager!.managePlugin(built_in_plugin_uid, 'off');
 
-      const after = await storage.get(['release_plugins_flat', 'release_plugins_user']);
+      const after = await storage.get(['release_plugins_user']);
       const after_user = (after['release_plugins_user'] as StorageData)[
-        built_in_plugin_uid
-      ] as StorageData;
-      const after_flat = (after['release_plugins_flat'] as StorageData)[
         built_in_plugin_uid
       ] as StorageData;
 
       // Check statusChangedAt updated
       expect(after_user.statusChangedAt as number).to.be.above(oldStatusChangedAt);
-      expect(after_flat.statusChangedAt).to.equal(after_user.statusChangedAt);
 
       // Check addedAt preserved
       expect(after_user.addedAt).to.equal(addedAt);
-      expect(after_flat.addedAt).to.equal(addedAt);
     });
 
     it('should handle timestamps correctly when removing override', async function () {
       // Remove override
       await manager!.managePlugin(built_in_plugin_uid, 'delete');
 
-      const db_data = await storage.get(['release_plugins_flat', 'release_plugins_user']);
-      const plugins_flat = db_data['release_plugins_flat'] as StorageData;
+      const db_data = await storage.get(['release_plugins_user']);
 
       // Override should be removed from plugins_user
       expect(db_data['release_plugins_user']).to.not.have.property(built_in_plugin_uid);
-      // Built-in plugin should be restored in plugins_flat without override timestamps
-      expect(plugins_flat[built_in_plugin_uid] as StorageData).to.not.have.property('addedAt');
+      // Built-in plugin restored in catalog view should not have addedAt
+      const plugin_view = await manager!.getPluginInfo(built_in_plugin_uid);
+      expect(plugin_view!).to.not.have.property('addedAt');
     });
   });
 });
