@@ -95,49 +95,36 @@ export const exportExternalPlugins = (
   all_storage: StorageData
 ): { [channel: string]: { [filename: string]: string } } => {
   const external_plugins: { [channel: string]: { [filename: string]: string } } = {};
+  const channels = ['release', 'beta', 'custom'];
+  const current_channel = (all_storage['channel'] as string) || 'release';
 
-  // An array of predefined keys for external plugins
-  const storage_keys = [
-    'release_iitc_core_user',
-    'beta_iitc_core_user',
-    'custom_iitc_core_user',
-    'release_plugins_user',
-    'beta_plugins_user',
-    'custom_plugins_user',
-  ];
+  // Export per-channel IITC core user scripts
+  for (const channel of channels) {
+    const storageValue = all_storage[`${channel}_iitc_core_user`] as StorageData;
+    if (isSet(storageValue) && isSet(storageValue['code'])) {
+      if (!(channel in external_plugins)) external_plugins[channel] = {};
+      external_plugins[channel]['total-conversion-build.user.js'] = storageValue['code'] as string;
+    }
+  }
 
-  // Loop through all_storage and check if the keys are present in storage_keys
-  // If present, process and add the external plugins to the external_plugins object
-  for (const key in all_storage) {
-    if (storage_keys.includes(key)) {
-      // Extract the channel name from the key by splitting at '_'
-      const channel = key.split('_')[0];
-      const variant = key.split('_')[1];
-
-      // Create a channel if it doesn't exist
-      if (!(channel in external_plugins)) {
-        external_plugins[channel] = {};
+  // Export global user plugins under the current channel
+  const plugins_user = all_storage['plugins_user'] as StorageData | null | undefined;
+  if (isSet(plugins_user) && plugins_user) {
+    if (!(current_channel in external_plugins)) external_plugins[current_channel] = {};
+    for (const plugin_uid in plugins_user) {
+      const plugin = plugins_user[plugin_uid] as StorageData;
+      let plugin_filename = plugin['filename'] as string;
+      if (!plugin_filename) {
+        plugin_filename = sanitizeFileName(`${plugin['name']}.user.js`);
       }
+      external_plugins[current_channel][plugin_filename] = plugin['code'] as string;
+    }
+  }
 
-      // Add a custom IITC core to the external_plugins object
-      const storageValue = all_storage[key] as StorageData;
-      if (variant === 'iitc' && isSet(storageValue) && isSet(storageValue['code'])) {
-        const plugin_filename = 'total-conversion-build.user.js';
-        external_plugins[channel][plugin_filename] = storageValue['code'] as string;
-        continue;
-      }
-
-      // Loop through each plugin UID in the current key's storage data
-      const plugins = all_storage[key] as StorageData;
-      for (const plugin_uid in plugins) {
-        // Get the plugin's filename and code from the storage data and add to the external_plugins object
-        const plugin = plugins[plugin_uid] as StorageData;
-        let plugin_filename = plugin['filename'] as string;
-        if (!plugin_filename) {
-          plugin_filename = sanitizeFileName(`${plugin['name']}.user.js`);
-        }
-        external_plugins[channel][plugin_filename] = plugin['code'] as string;
-      }
+  // Ensure all known channels appear in the output (even if empty)
+  for (const channel of channels) {
+    if (!(channel in external_plugins)) {
+      external_plugins[channel] = {};
     }
   }
 

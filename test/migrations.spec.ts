@@ -51,15 +51,13 @@ describe('test migrations', function () {
       ] as StorageData;
       expect(ext_plugin['category']).to.equal('Misc');
     });
-    it('Custom plugins should have status and uid', async function () {
-      const db_data = await storage.get(['release_plugins_user']);
-      const ext_plugin = (db_data['release_plugins_user'] as StorageData)[
-        'ext+https://github.com/IITC-CE/ingress-intel-total-conversion'
-      ] as StorageData;
-      expect(ext_plugin['uid']).to.equal(
-        'ext+https://github.com/IITC-CE/ingress-intel-total-conversion'
-      );
-      expect(ext_plugin['status']).to.equal('off');
+    it('Custom plugins should have uid and status in plugins_state', async function () {
+      const db_data = await storage.get(['plugins_user', 'plugins_state']);
+      const ext_uid = 'ext+https://github.com/IITC-CE/ingress-intel-total-conversion';
+      const ext_plugin = (db_data['plugins_user'] as StorageData)[ext_uid] as StorageData;
+      expect(ext_plugin['uid']).to.equal(ext_uid);
+      const ext_state = (db_data['plugins_state'] as StorageData)[ext_uid] as StorageData;
+      expect(ext_state['status']).to.equal('off');
     });
     it('The value of storage_version field has changed', async function () {
       const db_data = await storage.get(['storage_version']);
