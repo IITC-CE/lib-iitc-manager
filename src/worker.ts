@@ -142,14 +142,9 @@ export class Worker {
     const data: StorageData = {};
     Object.keys(options).forEach(key => {
       if (
-        [
-          'iitc_version',
-          'last_modified',
-          'iitc_core',
-          'iitc_core_user',
-          'plugins_catalog',
-          'plugins_local',
-        ].indexOf(key) !== -1
+        ['iitc_version', 'last_modified', 'iitc_core', 'plugins_catalog', 'plugins_local'].indexOf(
+          key
+        ) !== -1
       ) {
         data[`${channel}_${key}`] = options[key];
       } else {
@@ -618,7 +613,7 @@ export class Worker {
       if (isCore && event !== 'update') continue;
 
       const storageKeys = isCore
-        ? [`${channel}_iitc_core`, `${channel}_iitc_core_user`]
+        ? [`${channel}_iitc_core`, 'iitc_core_user']
         : [`${channel}_plugins_local`];
       const storage = await this.storage.get(storageKeys);
 
@@ -626,7 +621,7 @@ export class Worker {
         ? (storage[`${channel}_iitc_core`] as Plugin | undefined)
         : (storage[`${channel}_plugins_local`] as PluginDict)?.[uid];
       const plugin_user = isCore
-        ? (storage[`${channel}_iitc_core_user`] as Plugin | undefined)
+        ? (storage['iitc_core_user'] as Plugin | undefined)
         : all_plugins_user[uid];
 
       if (event === 'remove' || (!isSet(plugin_local) && !isSet(plugin_user))) {

@@ -745,11 +745,10 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.addUserScripts([iitc_custom]);
       expect(run).to.have.all.keys(iitc_custom_uid);
 
-      const db_data = await storage.get(['release_iitc_core_user']);
-      expect(
-        (db_data['release_iitc_core_user'] as StorageData)['code'],
-        "iitc_core_user['code']"
-      ).to.equal(external_code);
+      const db_data = await storage.get(['iitc_core_user']);
+      expect((db_data['iitc_core_user'] as StorageData)['code'], "iitc_core_user['code']").to.equal(
+        external_code
+      );
     });
     it('Check getIITCCore() for custom IITC', async function () {
       const script = await manager!.getIITCCore();
@@ -780,11 +779,8 @@ describe('manage.js external plugins integration tests', function () {
       const run = await manager!.managePlugin(iitc_custom_uid, 'delete');
       expect(run).to.be.undefined;
 
-      const db_data = await storage.get(['release_iitc_core_user']);
-      expect(
-        db_data['release_iitc_core_user'],
-        'iitc_core_user must be empty object'
-      ).to.deep.equal({});
+      const db_data = await storage.get(['iitc_core_user']);
+      expect(db_data['iitc_core_user'], 'iitc_core_user must be empty object').to.deep.equal({});
     });
     it('Check getIITCCore() for standard IITC', async function () {
       const script = await manager!.getIITCCore();

@@ -206,8 +206,8 @@ describe('getBackupData and setBackupData', function () {
         VMin9999: 'backup2',
       });
 
-      const externalCore = await storage.get(['beta_iitc_core_user']);
-      expect(externalCore['beta_iitc_core_user'] as StorageData).to.deep.equal({
+      const externalCore = await storage.get(['iitc_core_user']);
+      expect(externalCore['iitc_core_user'] as StorageData).to.deep.equal({
         uid: 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion',
         name: 'IITC: Ingress intel map total conversion',
         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',

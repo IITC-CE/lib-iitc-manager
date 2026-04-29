@@ -16,7 +16,8 @@ type MigrationFn = (
   storage_plugins_catalog: StorageData,
   storage_categories: StorageData,
   storage_plugins_local: StorageData,
-  storage_global: StorageData
+  storage_global: StorageData,
+  storage_iitc_core_user: StorageData
 ) => Promise<void>;
 
 const migrates: MigrationFn[] = [
@@ -27,6 +28,7 @@ const migrates: MigrationFn[] = [
   migration_0005,
   migration_0006,
   migration_0007,
+  migration_0008,
 ];
 
 export async function migrate(storage: StorageAPI): Promise<boolean> {
@@ -77,7 +79,13 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
     'external_update_check_interval',
   ]);
 
-  // Output object for migration_0007: global plugins_state and plugins_user
+  const storage_iitc_core_user = await storage.get([
+    'release_iitc_core_user',
+    'beta_iitc_core_user',
+    'custom_iitc_core_user',
+  ]);
+
+  // Output object for migration_0007+: global plugins_state, plugins_user, iitc_core_user
   const storage_global: StorageData = {};
 
   if (!isSet(storage_misc['storage_version']) && isSet(storage_misc['lastversion'])) {
@@ -97,7 +105,8 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
         storage_plugins_catalog,
         storage_categories,
         storage_plugins_local,
-        storage_global
+        storage_global,
+        storage_iitc_core_user
       );
       is_migrated = true;
     }
@@ -113,6 +122,7 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
     ...storage_misc,
     ...update_check_interval,
     ...storage_categories,
+    ...storage_iitc_core_user,
     ...storage_global,
   });
   return is_migrated;
@@ -328,4 +338,26 @@ async function migration_0007(
 
   storage_global['plugins_state'] = plugins_state;
   storage_global['plugins_user'] = plugins_user_merged;
+}
+
+async function migration_0008(
+  _storage_iitc_code: StorageData,
+  _storage_plugins_flat: StorageData,
+  _storage_plugins_user: StorageData,
+  _storage_misc: StorageData,
+  _update_check_interval: StorageData,
+  _storage_plugins_catalog: StorageData,
+  _storage_categories: StorageData,
+  _storage_plugins_local: StorageData,
+  storage_global: StorageData,
+  storage_iitc_core_user: StorageData
+): Promise<void> {
+  for (const channel of ['release', 'beta', 'custom']) {
+    const key = `${channel}_iitc_core_user`;
+    const core = storage_iitc_core_user[key] as StorageData | undefined;
+    if (isSet(core) && isSet(core!['code'])) {
+      storage_global['iitc_core_user'] = core;
+    }
+    storage_iitc_core_user[key] = null;
+  }
 }

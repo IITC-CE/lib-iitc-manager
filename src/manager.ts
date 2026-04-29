@@ -93,6 +93,15 @@ export class Manager extends Worker {
     }
     const is_migrated = await migrations.migrate(this.storage);
     await this.checkUpdates(is_migrated);
+    if (is_migrated) {
+      const local = await this.storage.get(['plugins_user']);
+      const plugins_user = (local['plugins_user'] || {}) as PluginDict;
+      const all_uids = Object.keys(plugins_user);
+      if (all_uids.length) {
+        await this._sendPluginsEvent(this.channel, all_uids, 'remove', 'user');
+        await this._sendPluginsEvent(this.channel, all_uids, 'add', 'user');
+      }
+    }
   }
 
   /**
@@ -128,7 +137,7 @@ export class Manager extends Worker {
     const channel = this.channel;
     const storage = await this.storage.get([
       `${channel}_iitc_core`,
-      `${channel}_iitc_core_user`,
+      'iitc_core_user',
       `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
       'plugins_user',
@@ -309,14 +318,14 @@ export class Manager extends Worker {
   async addUserScripts(scripts: UserScript[]): Promise<PluginDict> {
     const channel = this.channel;
     const local = await this.storage.get([
-      `${channel}_iitc_core_user`,
+      'iitc_core_user',
       `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
       'plugins_user',
       'plugins_state',
     ]);
 
-    let iitc_core_user = local[`${channel}_iitc_core_user`] as Plugin | undefined;
+    let iitc_core_user = local['iitc_core_user'] as Plugin | undefined;
     const plugins_catalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
     const plugins_user = (local['plugins_user'] || {}) as PluginDict;
@@ -412,18 +421,18 @@ export class Manager extends Worker {
   /**
    * Returns IITC core script.
    *
-   * @param storage - Storage object with keys `channel_iitc_core` and `channel_iitc_core_user`.
+   * @param storage - Storage object with keys `channel_iitc_core` and `iitc_core_user`.
    * @param channel - Current channel.
    */
   async getIITCCore(storage?: StorageData, channel?: string): Promise<Plugin | null> {
     if (typeof channel === 'undefined') channel = this.channel;
 
     if (storage === undefined || !isSet(storage[`${channel}_iitc_core`])) {
-      storage = await this.storage.get([`${channel}_iitc_core`, `${channel}_iitc_core_user`]);
+      storage = await this.storage.get([`${channel}_iitc_core`, 'iitc_core_user']);
     }
 
     const iitc_core = storage[`${channel}_iitc_core`] as Plugin | undefined;
-    const iitc_core_user = storage[`${channel}_iitc_core_user`] as Plugin | undefined;
+    const iitc_core_user = storage['iitc_core_user'] as Plugin | undefined;
 
     let iitc_script: Plugin | null = null;
     if (isSet(iitc_core_user) && isSet(iitc_core_user!['code'])) {

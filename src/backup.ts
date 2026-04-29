@@ -98,13 +98,13 @@ export const exportExternalPlugins = (
   const channels = ['release', 'beta', 'custom'];
   const current_channel = (all_storage['channel'] as string) || 'release';
 
-  // Export per-channel IITC core user scripts
-  for (const channel of channels) {
-    const storageValue = all_storage[`${channel}_iitc_core_user`] as StorageData;
-    if (isSet(storageValue) && isSet(storageValue['code'])) {
-      if (!(channel in external_plugins)) external_plugins[channel] = {};
-      external_plugins[channel]['total-conversion-build.user.js'] = storageValue['code'] as string;
-    }
+  // Export global IITC core user script under the current channel
+  const iitc_core_user = all_storage['iitc_core_user'] as StorageData;
+  if (isSet(iitc_core_user) && isSet(iitc_core_user['code'])) {
+    if (!(current_channel in external_plugins)) external_plugins[current_channel] = {};
+    external_plugins[current_channel]['total-conversion-build.user.js'] = iitc_core_user[
+      'code'
+    ] as string;
   }
 
   // Export global user plugins under the current channel
