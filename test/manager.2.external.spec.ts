@@ -243,8 +243,10 @@ describe('manage.js external plugins integration tests', function () {
     });
 
     it('Switching to the Beta channel and back to Release', async function () {
-      // User plugins are global: they stay injected across channel switches
-      // Only IITC core fires 'remove' then 'update'
+      // Enable a built-in plugin to test cross-channel code hydration
+      plugin_event_callback = () => {};
+      await manager!.managePlugin(first_plugin_uid, 'on');
+
       const seen_events: string[] = [];
       plugin_event_callback = (data: PluginEventData) => {
         expect(data).to.have.all.keys('event', 'plugins');
@@ -253,8 +255,20 @@ describe('manage.js external plugins integration tests', function () {
         expect(data['plugins']).to.not.have.any.keys(external_1_uid, external_2_uid);
       };
       expect(await manager!.setChannel('beta')).to.be.undefined;
-      // No enabled built-in plugins - no 'remove' fires; IITC core update fires via checkUpdates
+      // 'remove' for first_plugin_uid (was enabled in release)
+      // 'update' for IITC core
+      // 'add' for first_plugin_uid hydrated with beta-channel code
+      expect(seen_events).to.include('remove');
       expect(seen_events).to.include('update');
+      expect(seen_events).to.include('add');
+
+      // Verify beta-specific code was downloaded for the enabled built-in plugin
+      const beta_local = await storage.get(['beta_plugins_local']);
+      const beta_first_plugin = (beta_local['beta_plugins_local'] as StorageData)[
+        first_plugin_uid
+      ] as StorageData;
+      expect(beta_first_plugin).to.have.property('code');
+      expect(beta_first_plugin['code'] as string).to.include('0.5.0');
 
       // Beta catalog has a 'Draw' category (draw-tools plugin) not present in release
       const { categories: beta_categories, plugins: beta_plugins } =
@@ -266,6 +280,8 @@ describe('manage.js external plugins integration tests', function () {
       // User plugins are still visible in the view after channel switch
       expect(beta_plugins).to.have.property(external_1_uid);
       expect(beta_plugins[external_1_uid]).to.have.property('status', 'on');
+      // Built-in plugin is still enabled after channel switch
+      expect(beta_plugins[first_plugin_uid]).to.have.property('status', 'on');
 
       seen_events.length = 0;
       expect(await manager!.setChannel('release')).to.be.undefined;

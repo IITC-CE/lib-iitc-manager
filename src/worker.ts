@@ -214,8 +214,8 @@ export class Worker {
 
       const result = await fetchResource(url, options);
 
+      clearInterval(this.progress_interval_id!);
       if (result.data !== null || result.version !== null) {
-        clearInterval(this.progress_interval_id!);
         this.progressbar!(false);
       }
       return result;
@@ -314,13 +314,20 @@ export class Worker {
     };
 
     const p_plugins = async () => {
-      plugins_local = await this._updateLocalPlugins(channel, plugins_catalog, plugins_local);
+      const result = await this._updateLocalPlugins(channel, plugins_catalog, plugins_local);
+      plugins_local = result.plugins_local;
       await this._save(channel, {
         iitc_version: response['iitc_version'],
         last_modified: last_modified,
         plugins_catalog: plugins_catalog,
         plugins_local: plugins_local,
       });
+      if (result.updated_uids.length)
+        await this._sendPluginsEvent(channel, result.updated_uids, 'update', 'local');
+      if (result.removed_uids.length)
+        await this._sendPluginsEvent(channel, result.removed_uids, 'remove', 'local');
+      if (result.added_uids.length)
+        await this._sendPluginsEvent(channel, result.added_uids, 'add', 'local');
     };
 
     await Promise.all([p_iitc, p_plugins].map(fn => fn()));
@@ -462,35 +469,62 @@ export class Worker {
     channel: Channel,
     plugins_catalog: PluginDict,
     plugins_local: PluginDict
-  ): Promise<PluginDict> {
-    // If no plugins installed
-    if (!isSet(plugins_local)) return {};
+  ): Promise<{
+    plugins_local: PluginDict;
+    added_uids: string[];
+    updated_uids: string[];
+    removed_uids: string[];
+  }> {
+    if (!isSet(plugins_local))
+      return { plugins_local: {}, added_uids: [], updated_uids: [], removed_uids: [] };
 
     const updated_uids: string[] = [];
     const removed_uids: string[] = [];
+    const added_uids: string[] = [];
     const currentTime = Math.floor(Date.now() / 1000);
 
-    // Iteration local plugins
-    for (const uid of Object.keys(plugins_local)) {
-      const filename = plugins_local[uid]['filename'];
+    const globalData = await this.storage.get(['plugins_state']);
+    const plugins_state = (globalData['plugins_state'] || {}) as PluginStateDict;
 
-      if (filename && plugins_catalog[uid]) {
-        const result = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
-        if (result.data) {
-          plugins_local[uid]['code'] = result.data as string;
-          plugins_local[uid]['updatedAt'] = currentTime;
-          updated_uids.push(uid);
+    // For each uid in local cache or catalog:
+    // already cached + in catalog -> re-download (update)
+    // already cached + gone from catalog -> remove
+    // not cached + in catalog + enabled -> download (add)
+    const all_uids = new Set([...Object.keys(plugins_local), ...Object.keys(plugins_catalog)]);
+    for (const uid of all_uids) {
+      if (uid in plugins_local) {
+        const filename = plugins_local[uid]['filename'] as string;
+        if (filename && plugins_catalog[uid]) {
+          const result = await this._getUrl(
+            `${this.network_host[this.channel]}/plugins/${filename}`
+          );
+          if (result.data) {
+            plugins_local[uid]['code'] = result.data as string;
+            plugins_local[uid]['updatedAt'] = currentTime;
+            updated_uids.push(uid);
+          }
+        } else {
+          delete plugins_local[uid];
+          removed_uids.push(uid);
         }
-      } else {
-        delete plugins_local[uid];
-        removed_uids.push(uid);
+      } else if (plugins_state[uid]?.status === 'on') {
+        const filename = (plugins_catalog[uid] as Plugin)['filename'] as string;
+        if (filename) {
+          const result = await this._getUrl(
+            `${this.network_host[this.channel]}/plugins/${filename}`
+          );
+          if (result.data) {
+            plugins_local[uid] = {
+              ...(plugins_catalog[uid] as Plugin),
+              code: result.data as string,
+            };
+            added_uids.push(uid);
+          }
+        }
       }
     }
 
-    if (updated_uids.length) await this._sendPluginsEvent(channel, updated_uids, 'update', 'local');
-    if (removed_uids.length) await this._sendPluginsEvent(channel, removed_uids, 'remove', 'local');
-
-    return plugins_local;
+    return { plugins_local, added_uids, updated_uids, removed_uids };
   }
 
   /**
