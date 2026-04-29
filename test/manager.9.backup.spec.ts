@@ -20,9 +20,7 @@ describe('getBackupData and setBackupData', function () {
     'return false;';
   const initialBackupData: BackupData = {
     external_plugins: {
-      beta: {},
-      custom: {},
-      release: {
+      shared: {
         'total-conversion-build.user.js': external_iitc_code,
         'Bookmarks for maps and portals.user.js': external_code,
       },
@@ -34,6 +32,11 @@ describe('getBackupData and setBackupData', function () {
           release: 'http://127.0.0.1:31606/release',
           beta: 'http://127.0.0.1:31606/beta',
           custom: 'http://127.0.0.1/',
+        },
+        plugins_state: {
+          [first_plugin_uid]: { status: 'on' },
+          'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion':
+            { status: 'on' },
         },
       },
       plugins_data: {

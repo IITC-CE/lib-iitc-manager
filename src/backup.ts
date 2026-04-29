@@ -57,6 +57,18 @@ export const exportIitcSettings = (all_storage: StorageData): StorageData => {
       iitc_settings[key] = all_storage[key];
     }
   }
+
+  // Export plugin on/off state without runtime timestamps
+  const plugins_state = all_storage['plugins_state'] as StorageData | undefined;
+  if (isSet(plugins_state) && plugins_state) {
+    const state_export: StorageData = {};
+    for (const uid of Object.keys(plugins_state)) {
+      const entry = plugins_state[uid] as StorageData;
+      if (entry?.status) state_export[uid] = { status: entry.status };
+    }
+    if (Object.keys(state_export).length) iitc_settings['plugins_state'] = state_export;
+  }
+
   return iitc_settings;
 };
 
@@ -95,38 +107,28 @@ export const exportExternalPlugins = (
   all_storage: StorageData
 ): { [channel: string]: { [filename: string]: string } } => {
   const external_plugins: { [channel: string]: { [filename: string]: string } } = {};
-  const channels = ['release', 'beta', 'custom'];
-  const current_channel = (all_storage['channel'] as string) || 'release';
+  const shared: { [filename: string]: string } = {};
 
-  // Export global IITC core user script under the current channel
+  // Export global IITC core user script
   const iitc_core_user = all_storage['iitc_core_user'] as StorageData;
   if (isSet(iitc_core_user) && isSet(iitc_core_user['code'])) {
-    if (!(current_channel in external_plugins)) external_plugins[current_channel] = {};
-    external_plugins[current_channel]['total-conversion-build.user.js'] = iitc_core_user[
-      'code'
-    ] as string;
+    shared['total-conversion-build.user.js'] = iitc_core_user['code'] as string;
   }
 
-  // Export global user plugins under the current channel
+  // Export global user plugins
   const plugins_user = all_storage['plugins_user'] as StorageData | null | undefined;
   if (isSet(plugins_user) && plugins_user) {
-    if (!(current_channel in external_plugins)) external_plugins[current_channel] = {};
     for (const plugin_uid in plugins_user) {
       const plugin = plugins_user[plugin_uid] as StorageData;
       let plugin_filename = plugin['filename'] as string;
       if (!plugin_filename) {
         plugin_filename = sanitizeFileName(`${plugin['name']}.user.js`);
       }
-      external_plugins[current_channel][plugin_filename] = plugin['code'] as string;
+      shared[plugin_filename] = plugin['code'] as string;
     }
   }
 
-  // Ensure all known channels appear in the output (even if empty)
-  for (const channel of channels) {
-    if (!(channel in external_plugins)) {
-      external_plugins[channel] = {};
-    }
-  }
+  if (Object.keys(shared).length) external_plugins['shared'] = shared;
 
   return external_plugins;
 };
@@ -197,31 +199,41 @@ export const importExternalPlugins = async (
   self: Manager,
   backup: { [channel: string]: { [filename: string]: string } }
 ): Promise<void> => {
-  const default_channel = self.channel;
-
-  // Iterate through each channel in the backup object
-  for (const channel of Object.keys(backup)) {
-    // Initialize an empty array to store the plugin information (metadata and code)
+  // New format: 'shared' key holds global plugins not tied to any channel
+  if ('shared' in backup) {
     const scripts: { meta: import('./types.js').PluginMeta; code: string }[] = [];
-    await self.setChannel(channel as import('./types.js').Channel);
-
-    // Iterate through each plugin in the current channel and extract plugin information
-    for (const [filename, code] of Object.entries(backup[channel])) {
-      // Parse the metadata from the plugin code using the 'parseMeta()' function
+    for (const [filename, code] of Object.entries(backup['shared'])) {
       const meta = parseMeta(code)!;
       meta['filename'] = filename;
-
-      // Push the plugin information (metadata and code) to the 'scripts' array
-      scripts.push({ meta: meta, code: code });
+      scripts.push({ meta, code });
     }
-
-    // Add the external plugins using the 'self.addUserScripts()' method
-    await self.addUserScripts(scripts);
+    if (scripts.length) await self.addUserScripts(scripts);
   }
 
-  // If the current channel is different from the default channel,
-  // set the default channel using the 'self.setChannel()' method
-  if (self.channel !== default_channel) {
-    await self.setChannel(default_channel);
+  // Legacy / per-channel format: temporarily switch channel to associate plugins correctly
+  const legacy_channels = Object.keys(backup).filter(
+    ch => ch !== 'shared' && Object.keys(backup[ch]).length > 0
+  );
+  if (legacy_channels.length > 0) {
+    const default_channel = self.channel;
+
+    for (const channel of legacy_channels) {
+      const scripts: { meta: import('./types.js').PluginMeta; code: string }[] = [];
+      await self.setChannel(channel as import('./types.js').Channel);
+
+      for (const [filename, code] of Object.entries(backup[channel])) {
+        const meta = parseMeta(code)!;
+        meta['filename'] = filename;
+        scripts.push({ meta, code });
+      }
+
+      await self.addUserScripts(scripts);
+    }
+
+    // If the current channel is different from the default channel,
+    // set the default channel using the 'self.setChannel()' method
+    if (self.channel !== default_channel) {
+      await self.setChannel(default_channel);
+    }
   }
 };
