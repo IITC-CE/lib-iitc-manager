@@ -4,7 +4,7 @@ import { describe, it, before } from 'mocha';
 import { Manager } from '../src/manager.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
-import type { ManagerConfig, PluginEventData, StorageData } from '../src/types.js';
+import type { ManagerConfig, Plugin, PluginEventData, StorageData } from '../src/types.js';
 
 const base_config: Omit<ManagerConfig, 'channel' | 'plugin_event'> = {
   storage,
@@ -59,16 +59,21 @@ describe('Cross-channel plugin state preservation', function () {
       expect(state?.status).to.equal('on');
     });
 
-    it('after switching back to beta: Draw tools is visible and enabled', async function () {
-      const draw_events: string[] = [];
+    it('after switching back to beta: Beta plugin A is visible and enabled', async function () {
+      const draw_events: PluginEventData[] = [];
       manager.plugin_event = (data: PluginEventData) => {
-        if (draw_tools_uid in data.plugins) draw_events.push(data.event);
+        if (draw_tools_uid in data.plugins) draw_events.push(data);
       };
       await manager.setChannel('beta');
       const { plugins } = await manager.getPluginsView();
       expect(plugins).to.have.property(draw_tools_uid);
       expect(plugins[draw_tools_uid].status).to.equal('on');
-      expect(draw_events.some(e => e === 'add' || e === 'update')).to.be.true;
+      const inject_event = draw_events.find(e => e.event === 'add' || e.event === 'update');
+      expect(inject_event, 'add or update event must fire').to.exist;
+      const plugin = inject_event!.plugins[draw_tools_uid] as Plugin;
+      expect(plugin.code, 'plugin in event must carry code, not be empty')
+        .to.be.a('string')
+        .and.include('// ==UserScript==');
     });
   });
 
@@ -169,11 +174,11 @@ describe('Cross-channel plugin state preservation', function () {
 
   describe('Catalog catch-up: enabled plugin auto-downloaded when it appears in catalog', function () {
     let manager: Manager;
-    const seen_events: string[] = [];
+    const seen_events: PluginEventData[] = [];
 
     before(async function () {
       storage.resetStorage();
-      // Simulate scenario: plugins_state says Draw tools is on but local cache is empty.
+      // Simulate scenario: plugins_state says Beta plugin A is on but local cache is empty.
       // This can happen after a storage migration or when switching to a channel that
       // now includes a plugin the user had previously enabled.
       await storage.set({
@@ -184,7 +189,7 @@ describe('Cross-channel plugin state preservation', function () {
         ...base_config,
         channel: 'beta',
         plugin_event: (data: PluginEventData) => {
-          if (draw_tools_uid in data.plugins) seen_events.push(data.event);
+          if (draw_tools_uid in data.plugins) seen_events.push(data);
         },
       });
       await manager.run();
@@ -198,8 +203,14 @@ describe('Cross-channel plugin state preservation', function () {
       expect(plugin.code).to.be.a('string').and.include('// ==UserScript==');
     });
 
-    it('a plugin event was emitted for Draw tools during run()', async function () {
-      expect(seen_events.length).to.be.above(0);
+    it('add event for Beta plugin A carries plugin code, not an empty object', async function () {
+      const add_event = seen_events.find(e => e.event === 'add');
+      expect(add_event, 'add event must fire').to.exist;
+      const plugin = add_event!.plugins[draw_tools_uid] as Plugin;
+      expect(plugin.code, 'plugin in add event must carry code, not be empty')
+        .to.be.a('string')
+        .and.include('// ==UserScript==');
     });
   });
 });
+
