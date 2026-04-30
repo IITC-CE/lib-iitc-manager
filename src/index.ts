@@ -1,6 +1,7 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { Manager } from './manager.js';
+import { IITC_CORE_UID, GM_API_UID } from './worker.js';
 import {
   parseMeta,
   fetchResource,
@@ -20,6 +21,8 @@ import { wrapPluginCode, appendSourceUrl } from './wrapper.js';
 
 export {
   Manager,
+  IITC_CORE_UID,
+  GM_API_UID,
   parseMeta,
   fetchResource,
   ajaxGet,

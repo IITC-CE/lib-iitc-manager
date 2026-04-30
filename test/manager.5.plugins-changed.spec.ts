@@ -2,6 +2,7 @@
 
 import { describe, it, before } from 'mocha';
 import { Manager } from '../src/manager.js';
+import { IITC_CORE_UID } from '../src/worker.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
 import type { ManagerConfig, PluginsView } from '../src/types.js';
@@ -25,9 +26,6 @@ describe('plugins_view_changed callback', function () {
   const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
   const second_plugin_uid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
   const third_plugin_uid = 'Plugin C+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const iitc_core_uid =
-    'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
-
   const base_config: Omit<ManagerConfig, 'plugins_view_changed'> = {
     storage,
     channel: 'release',
@@ -210,7 +208,7 @@ describe('plugins_view_changed callback', function () {
     it('core is populated with code after run()', async function () {
       const { core } = await manager.getPluginsView();
       expect(core, 'core must not be null after run()').to.not.be.null;
-      expect(core!.uid).to.equal(iitc_core_uid);
+      expect(core!.uid).to.equal(IITC_CORE_UID);
       expect(core!.code).to.be.a('string').and.include('// ==UserScript==');
     });
 
@@ -226,7 +224,7 @@ describe('plugins_view_changed callback', function () {
       ]);
       const { core } = await manager.getPluginsView();
       expect(core!.override).to.be.true;
-      await manager.managePlugin(iitc_core_uid, 'delete');
+      await manager.managePlugin(IITC_CORE_UID, 'delete');
     });
   });
 });
