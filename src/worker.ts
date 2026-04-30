@@ -527,6 +527,89 @@ export class Worker {
     return { plugins_local, added_uids, updated_uids, removed_uids };
   }
 
+  /** @internal */
+  _computePlugins(
+    raw_plugins: PluginDict,
+    plugins_local: PluginDict,
+    plugins_user: PluginDict,
+    plugins_state: PluginStateDict
+  ): PluginDict {
+    if (!isSet(plugins_local)) plugins_local = {};
+    if (!isSet(plugins_user)) plugins_user = {};
+
+    const data: PluginDict = {};
+    for (const [uid, plugin] of Object.entries(raw_plugins)) {
+      data[uid] = { ...plugin, status: 'off' };
+    }
+
+    // Build a set of catalog UIDs to skip stale local entries removed from the server catalog
+    const currentChannelPluginUIDs = new Set(Object.keys(data));
+
+    Object.keys(plugins_local).forEach(plugin_uid => {
+      if (currentChannelPluginUIDs.has(plugin_uid)) {
+        const localPlugin = plugins_local[plugin_uid];
+        const state = plugins_state[plugin_uid];
+        data[plugin_uid].status = state?.status ?? 'off';
+        data[plugin_uid].statusChangedAt = state?.statusChangedAt;
+        data[plugin_uid].code = localPlugin.code;
+        data[plugin_uid].updatedAt = localPlugin.updatedAt;
+      }
+    });
+
+    Object.keys(plugins_user).forEach(plugin_uid => {
+      const userPlugin = plugins_user[plugin_uid];
+      const state = plugins_state[plugin_uid];
+      const pluginStatus = state?.status ?? 'off';
+      if (plugin_uid in data) {
+        data[plugin_uid].status = pluginStatus;
+        data[plugin_uid].statusChangedAt = state?.statusChangedAt;
+        data[plugin_uid].code = userPlugin.code;
+        data[plugin_uid].user = true;
+        data[plugin_uid].override = true;
+        data[plugin_uid].addedAt = userPlugin.addedAt;
+        data[plugin_uid].updatedAt = userPlugin.updatedAt;
+      } else {
+        data[plugin_uid] = {
+          ...userPlugin,
+          status: pluginStatus,
+          statusChangedAt: state?.statusChangedAt,
+        };
+      }
+      data[plugin_uid].user = true;
+    });
+
+    return data;
+  }
+
+  /** @internal */
+  _computeCategories(plugins: PluginDict): CategoryViewDict {
+    const now = Math.floor(Date.now() / 1000);
+    const threshold = this.new_plugin_threshold;
+    const rawCategories: CategoryViewDict = {};
+    for (const plugin of Object.values(plugins)) {
+      const cat = plugin.category || 'Misc';
+      if (!(cat in rawCategories)) {
+        rawCategories[cat] = { name: cat, isNew: false };
+      }
+      if (plugin.addedAt && now - plugin.addedAt <= threshold) {
+        rawCategories[cat].isNew = true;
+      }
+    }
+    return Object.fromEntries(Object.entries(rawCategories).sort(([a], [b]) => a.localeCompare(b)));
+  }
+
+  /** @internal */
+  _computeCore(iitc_core: Plugin | undefined, iitc_core_user: Plugin | undefined): Plugin | null {
+    if (isSet(iitc_core_user) && isSet(iitc_core_user!['code'])) {
+      iitc_core_user!['override'] = true;
+      return iitc_core_user!;
+    }
+    if (isSet(iitc_core) && isSet(iitc_core!['code'])) {
+      return iitc_core!;
+    }
+    return null;
+  }
+
   /**
    * Computes a merged view of all plugins, categories and IITC core.
    *
@@ -545,79 +628,10 @@ export class Worker {
     iitc_core?: Plugin,
     iitc_core_user?: Plugin
   ): PluginsView {
-    if (!isSet(plugins_local)) plugins_local = {};
-    if (!isSet(plugins_user)) plugins_user = {};
-
-    const data: PluginDict = {};
-    for (const [uid, plugin] of Object.entries(raw_plugins)) {
-      data[uid] = { ...plugin, status: 'off' };
-    }
-
-    // Build a set of catalog UIDs to skip stale local entries removed from the server catalog
-    const currentChannelPluginUIDs = new Set(Object.keys(data));
-
-    // Apply local code for installed built-in plugins
-    Object.keys(plugins_local).forEach(plugin_uid => {
-      if (currentChannelPluginUIDs.has(plugin_uid)) {
-        const localPlugin = plugins_local[plugin_uid];
-        const state = plugins_state[plugin_uid];
-        data[plugin_uid].status = state?.status ?? 'off';
-        data[plugin_uid].statusChangedAt = state?.statusChangedAt;
-        data[plugin_uid].code = localPlugin.code;
-        data[plugin_uid].updatedAt = localPlugin.updatedAt;
-      }
-    });
-
-    // Apply user plugins
-    if (Object.keys(plugins_user).length) {
-      Object.keys(plugins_user).forEach(plugin_uid => {
-        const userPlugin = plugins_user[plugin_uid];
-        const state = plugins_state[plugin_uid];
-        const pluginStatus = state?.status ?? 'off';
-        if (plugin_uid in data) {
-          data[plugin_uid].status = pluginStatus;
-          data[plugin_uid].statusChangedAt = state?.statusChangedAt;
-          data[plugin_uid].code = userPlugin.code;
-          data[plugin_uid].user = true;
-          data[plugin_uid].override = true;
-          data[plugin_uid].addedAt = userPlugin.addedAt;
-          data[plugin_uid].updatedAt = userPlugin.updatedAt;
-        } else {
-          data[plugin_uid] = {
-            ...userPlugin,
-            status: pluginStatus,
-            statusChangedAt: state?.statusChangedAt,
-          };
-        }
-        data[plugin_uid].user = true;
-      });
-    }
-
-    // Derive categories from merged plugins: filter empty, mark isNew, sort alphabetically
-    const now = Math.floor(Date.now() / 1000);
-    const threshold = this.new_plugin_threshold;
-    const rawCategories: CategoryViewDict = {};
-    for (const plugin of Object.values(data)) {
-      const cat = plugin.category || 'Misc';
-      if (!(cat in rawCategories)) {
-        rawCategories[cat] = { name: cat, isNew: false };
-      }
-      if (plugin.addedAt && now - plugin.addedAt <= threshold) {
-        rawCategories[cat].isNew = true;
-      }
-    }
-    const categories: CategoryViewDict = Object.fromEntries(
-      Object.entries(rawCategories).sort(([a], [b]) => a.localeCompare(b))
-    );
-
-    let core: Plugin | null = null;
-    if (isSet(iitc_core_user) && isSet(iitc_core_user!['code'])) {
-      core = iitc_core_user!;
-      core['override'] = true;
-    } else if (isSet(iitc_core) && isSet(iitc_core!['code'])) {
-      core = iitc_core!;
-    }
-    return { plugins: data, categories, core };
+    const plugins = this._computePlugins(raw_plugins, plugins_local, plugins_user, plugins_state);
+    const categories = this._computeCategories(plugins);
+    const core = this._computeCore(iitc_core, iitc_core_user);
+    return { plugins, categories, core };
   }
 
   /**
