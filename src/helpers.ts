@@ -127,6 +127,20 @@ export async function fetchResource(
 }
 
 /**
+ * Convenience wrapper over {@link fetchResource} that returns only the data, discarding the version header.
+ *
+ * @param url - URL of the resource you want to fetch.
+ * @param options - Fetch options.
+ */
+export async function fetchData(
+  url: string,
+  options: FetchResourceOptions = {}
+): Promise<string | object | null> {
+  const { data } = await fetchResource(url, options);
+  return data;
+}
+
+/**
  * This is a wrapper over the fetch() API method with pre-built parameters.
  *
  * @deprecated Use {@link fetchResource} instead for better version tracking.
