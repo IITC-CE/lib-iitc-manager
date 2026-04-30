@@ -89,6 +89,9 @@ export async function fetchResource(
           (nodeFetch as unknown as typeof fetch)(...args)
         );
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
   try {
     // If headOnly requested but HEAD not allowed, use GET anyway
     const method = headOnly && use_fetch_head_method ? 'HEAD' : 'GET';
@@ -96,6 +99,7 @@ export async function fetchResource(
     const response = await c_fetch(url + '?' + Date.now(), {
       method: method,
       cache: 'no-cache',
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -117,6 +121,8 @@ export async function fetchResource(
   } catch (error) {
     console.error('Error in fetchResource:', error);
     return { data: null, version: null };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
