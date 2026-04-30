@@ -11,6 +11,7 @@ import type {
   NetworkHost,
   Plugin,
   PluginDict,
+  PluginStateDict,
   PluginsView,
   CategoryViewDict,
   PluginEventType,
@@ -141,15 +142,9 @@ export class Worker {
     const data: StorageData = {};
     Object.keys(options).forEach(key => {
       if (
-        [
-          'iitc_version',
-          'last_modified',
-          'iitc_core',
-          'iitc_core_user',
-          'plugins_catalog',
-          'plugins_local',
-          'plugins_user',
-        ].indexOf(key) !== -1
+        ['iitc_version', 'last_modified', 'iitc_core', 'plugins_catalog', 'plugins_local'].indexOf(
+          key
+        ) !== -1
       ) {
         data[`${channel}_${key}`] = options[key];
       } else {
@@ -158,8 +153,13 @@ export class Worker {
     });
     await this.storage.set(data);
 
-    const pluginsKeys = ['plugins_catalog', 'plugins_local', 'plugins_user', 'channel'];
-    if (Object.keys(options).some(k => pluginsKeys.includes(k)) && channel === this.channel) {
+    // Channel-scoped changes only affect the view when they belong to the active channel
+    const channelScopedKeys = ['plugins_catalog', 'plugins_local'];
+    const globalPluginsKeys = ['plugins_user', 'plugins_state', 'channel'];
+    const affectsView =
+      (Object.keys(options).some(k => channelScopedKeys.includes(k)) && channel === this.channel) ||
+      Object.keys(options).some(k => globalPluginsKeys.includes(k));
+    if (affectsView) {
       this._emitPluginsChanged();
     }
   }
@@ -214,8 +214,8 @@ export class Worker {
 
       const result = await fetchResource(url, options);
 
+      clearInterval(this.progress_interval_id!);
       if (result.data !== null || result.version !== null) {
-        clearInterval(this.progress_interval_id!);
         this.progressbar!(false);
       }
       return result;
@@ -240,9 +240,7 @@ export class Worker {
       'last_check_update',
       `${channel}_update_check_interval`,
       `${channel}_last_modified`,
-      `${channel}_categories`,
       `${channel}_plugins_local`,
-      `${channel}_plugins_user`,
     ]);
 
     let update_check_interval = storage[`${channel}_update_check_interval`] as number;
@@ -299,9 +297,6 @@ export class Worker {
 
     const plugins_catalog = this._getPluginsCatalog(response);
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
-    let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
-
-    if (!isSet(plugins_user)) plugins_user = {};
 
     const p_iitc = async () => {
       const result = await this._getUrl(
@@ -319,14 +314,20 @@ export class Worker {
     };
 
     const p_plugins = async () => {
-      plugins_local = await this._updateLocalPlugins(channel, plugins_catalog, plugins_local);
+      const result = await this._updateLocalPlugins(channel, plugins_catalog, plugins_local);
+      plugins_local = result.plugins_local;
       await this._save(channel, {
         iitc_version: response['iitc_version'],
         last_modified: last_modified,
         plugins_catalog: plugins_catalog,
         plugins_local: plugins_local,
-        plugins_user: plugins_user,
       });
+      if (result.updated_uids.length)
+        await this._sendPluginsEvent(channel, result.updated_uids, 'update', 'local');
+      if (result.removed_uids.length)
+        await this._sendPluginsEvent(channel, result.removed_uids, 'remove', 'local');
+      if (result.added_uids.length)
+        await this._sendPluginsEvent(channel, result.added_uids, 'add', 'local');
     };
 
     await Promise.all([p_iitc, p_plugins].map(fn => fn()));
@@ -371,7 +372,7 @@ export class Worker {
       'channel',
       'last_check_external_update',
       'external_update_check_interval',
-      `${channel}_plugins_user`,
+      'plugins_user',
     ]);
 
     let update_check_interval = local['external_update_check_interval'] as number;
@@ -412,7 +413,7 @@ export class Worker {
    * @internal
    */
   async _updateExternalPlugins(channel: Channel, local: StorageData): Promise<void> {
-    const plugins_user = local[`${channel}_plugins_user`] as PluginDict | undefined;
+    const plugins_user = local['plugins_user'] as PluginDict | undefined;
     if (plugins_user) {
       let exist_updates = false;
       const hash = `?${Date.now()}`;
@@ -439,7 +440,6 @@ export class Worker {
                   code: result_code.data as string,
                   updatedAt: currentTime,
                   addedAt: plugin.addedAt,
-                  statusChangedAt: plugin.statusChangedAt,
                 } as Plugin;
                 updated_uids.push(uid);
               }
@@ -469,35 +469,62 @@ export class Worker {
     channel: Channel,
     plugins_catalog: PluginDict,
     plugins_local: PluginDict
-  ): Promise<PluginDict> {
-    // If no plugins installed
-    if (!isSet(plugins_local)) return {};
+  ): Promise<{
+    plugins_local: PluginDict;
+    added_uids: string[];
+    updated_uids: string[];
+    removed_uids: string[];
+  }> {
+    if (!isSet(plugins_local))
+      return { plugins_local: {}, added_uids: [], updated_uids: [], removed_uids: [] };
 
     const updated_uids: string[] = [];
     const removed_uids: string[] = [];
+    const added_uids: string[] = [];
     const currentTime = Math.floor(Date.now() / 1000);
 
-    // Iteration local plugins
-    for (const uid of Object.keys(plugins_local)) {
-      const filename = plugins_local[uid]['filename'];
+    const globalData = await this.storage.get(['plugins_state']);
+    const plugins_state = (globalData['plugins_state'] || {}) as PluginStateDict;
 
-      if (filename && plugins_catalog[uid]) {
-        const result = await this._getUrl(`${this.network_host[this.channel]}/plugins/${filename}`);
-        if (result.data) {
-          plugins_local[uid]['code'] = result.data as string;
-          plugins_local[uid]['updatedAt'] = currentTime;
-          updated_uids.push(uid);
+    // For each uid in local cache or catalog:
+    // already cached + in catalog -> re-download (update)
+    // already cached + gone from catalog -> remove
+    // not cached + in catalog + enabled -> download (add)
+    const all_uids = new Set([...Object.keys(plugins_local), ...Object.keys(plugins_catalog)]);
+    for (const uid of all_uids) {
+      if (uid in plugins_local) {
+        const filename = plugins_local[uid]['filename'] as string;
+        if (filename && plugins_catalog[uid]) {
+          const result = await this._getUrl(
+            `${this.network_host[this.channel]}/plugins/${filename}`
+          );
+          if (result.data) {
+            plugins_local[uid]['code'] = result.data as string;
+            plugins_local[uid]['updatedAt'] = currentTime;
+            updated_uids.push(uid);
+          }
+        } else {
+          delete plugins_local[uid];
+          removed_uids.push(uid);
         }
-      } else {
-        delete plugins_local[uid];
-        removed_uids.push(uid);
+      } else if (plugins_state[uid]?.status === 'on') {
+        const filename = (plugins_catalog[uid] as Plugin)['filename'] as string;
+        if (filename) {
+          const result = await this._getUrl(
+            `${this.network_host[this.channel]}/plugins/${filename}`
+          );
+          if (result.data) {
+            plugins_local[uid] = {
+              ...(plugins_catalog[uid] as Plugin),
+              code: result.data as string,
+            };
+            added_uids.push(uid);
+          }
+        }
       }
     }
 
-    if (updated_uids.length) await this._sendPluginsEvent(channel, updated_uids, 'update', 'local');
-    if (removed_uids.length) await this._sendPluginsEvent(channel, removed_uids, 'remove', 'local');
-
-    return plugins_local;
+    return { plugins_local, added_uids, updated_uids, removed_uids };
   }
 
   /**
@@ -511,7 +538,8 @@ export class Worker {
   _computePluginsView(
     raw_plugins: PluginDict,
     plugins_local: PluginDict,
-    plugins_user: PluginDict
+    plugins_user: PluginDict,
+    plugins_state: PluginStateDict
   ): PluginsView {
     if (!isSet(plugins_local)) plugins_local = {};
     if (!isSet(plugins_user)) plugins_user = {};
@@ -521,16 +549,18 @@ export class Worker {
       data[uid] = { ...plugin, status: 'off' };
     }
 
-    // Get valid UIDs for current channel to prevent cross-channel contamination
+    // Build a set of catalog UIDs to skip stale local entries removed from the server catalog
     const currentChannelPluginUIDs = new Set(Object.keys(data));
 
-    // Apply data from local plugins - only for plugins that exist in current channel
+    // Apply local code for installed built-in plugins
     Object.keys(plugins_local).forEach(plugin_uid => {
       if (currentChannelPluginUIDs.has(plugin_uid)) {
         const localPlugin = plugins_local[plugin_uid];
-        data[plugin_uid].status = localPlugin.status || 'off';
+        const state = plugins_state[plugin_uid];
+        data[plugin_uid].status = state?.status ?? 'off';
+        data[plugin_uid].statusChangedAt = state?.statusChangedAt;
+        data[plugin_uid].code = localPlugin.code;
         data[plugin_uid].updatedAt = localPlugin.updatedAt;
-        data[plugin_uid].statusChangedAt = localPlugin.statusChangedAt;
       }
     });
 
@@ -538,16 +568,22 @@ export class Worker {
     if (Object.keys(plugins_user).length) {
       Object.keys(plugins_user).forEach(plugin_uid => {
         const userPlugin = plugins_user[plugin_uid];
+        const state = plugins_state[plugin_uid];
+        const pluginStatus = state?.status ?? 'off';
         if (plugin_uid in data) {
-          data[plugin_uid].status = userPlugin.status || 'off';
+          data[plugin_uid].status = pluginStatus;
+          data[plugin_uid].statusChangedAt = state?.statusChangedAt;
           data[plugin_uid].code = userPlugin.code;
           data[plugin_uid].user = true;
           data[plugin_uid].override = true;
           data[plugin_uid].addedAt = userPlugin.addedAt;
           data[plugin_uid].updatedAt = userPlugin.updatedAt;
-          data[plugin_uid].statusChangedAt = userPlugin.statusChangedAt;
         } else {
-          data[plugin_uid] = userPlugin;
+          data[plugin_uid] = {
+            ...userPlugin,
+            status: pluginStatus,
+            statusChangedAt: state?.statusChangedAt,
+          };
         }
         data[plugin_uid].user = true;
       });
@@ -597,6 +633,11 @@ export class Worker {
     const validEvents: PluginEventType[] = ['add', 'update', 'remove'];
     if (!validEvents.includes(event)) return;
 
+    // Read global state once for status checks across all uids
+    const globalData = await this.storage.get(['plugins_user', 'plugins_state']);
+    const all_plugins_user = (globalData['plugins_user'] || {}) as PluginDict;
+    const all_plugins_state = (globalData['plugins_state'] || {}) as PluginStateDict;
+
     const plugins: PluginEventData['plugins'] = {};
 
     for (const uid of uids) {
@@ -606,16 +647,16 @@ export class Worker {
       if (isCore && event !== 'update') continue;
 
       const storageKeys = isCore
-        ? [`${channel}_iitc_core`, `${channel}_iitc_core_user`]
-        : [`${channel}_plugins_local`, `${channel}_plugins_user`];
+        ? [`${channel}_iitc_core`, 'iitc_core_user']
+        : [`${channel}_plugins_local`];
       const storage = await this.storage.get(storageKeys);
 
       const plugin_local = isCore
         ? (storage[`${channel}_iitc_core`] as Plugin | undefined)
         : (storage[`${channel}_plugins_local`] as PluginDict)?.[uid];
       const plugin_user = isCore
-        ? (storage[`${channel}_iitc_core_user`] as Plugin | undefined)
-        : (storage[`${channel}_plugins_user`] as PluginDict)?.[uid];
+        ? (storage['iitc_core_user'] as Plugin | undefined)
+        : all_plugins_user[uid];
 
       if (event === 'remove' || (!isSet(plugin_local) && !isSet(plugin_user))) {
         plugins[uid] = {};
@@ -633,7 +674,7 @@ export class Worker {
       }
 
       // Updating a disabled plugin should not trigger the event
-      if (!isCore && (plugins[uid] as Plugin)?.status !== 'on') {
+      if (!isCore && all_plugins_state[uid]?.status !== 'on') {
         delete plugins[uid];
       }
     }

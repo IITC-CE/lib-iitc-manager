@@ -22,10 +22,9 @@ function nextPluginsViewChanged(manager: Manager): Promise<PluginsView> {
 }
 
 describe('plugins_view_changed callback', function () {
-  const first_plugin_uid =
-    'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const second_plugin_uid = 'Bing maps+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const third_plugin_uid = 'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const second_plugin_uid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const third_plugin_uid = 'Plugin C+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
   const base_config: Omit<ManagerConfig, 'plugins_view_changed'> = {
     storage,
@@ -139,7 +138,7 @@ describe('plugins_view_changed callback', function () {
         {
           meta: {
             namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-            name: 'Missions',
+            name: 'Plugin C',
           },
           code: '// ==UserScript==\nreturn false;',
         },

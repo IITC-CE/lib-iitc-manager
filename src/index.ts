@@ -49,6 +49,8 @@ export type {
   PluginMeta,
   Plugin,
   PluginDict,
+  PluginStateEntry,
+  PluginStateDict,
   CategoryView,
   CategoryViewDict,
   PluginsView,

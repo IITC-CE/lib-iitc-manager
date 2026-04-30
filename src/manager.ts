@@ -10,6 +10,7 @@ import type {
   Channel,
   Plugin,
   PluginDict,
+  PluginStateDict,
   PluginsView,
   StorageData,
   BackupParams,
@@ -27,34 +28,27 @@ export class Manager extends Worker {
    * @param channel - Update channel for IITC and plugins.
    */
   async setChannel(channel: Channel): Promise<void> {
-    // Get active plugins from current channel and notify about removal
+    const globalData = await this.storage.get(['plugins_user']);
+    const plugins_user = (globalData['plugins_user'] || {}) as PluginDict;
+
+    // Fire 'remove' for channel-specific enabled plugins; core and gm_api are filtered in _sendPluginsEvent
     const oldEnabledPlugins = await this.getEnabledPlugins();
-    await this._sendPluginsEvent(channel, Object.keys(oldEnabledPlugins), 'remove');
+    const channelSpecificUids = Object.keys(oldEnabledPlugins).filter(uid => !plugins_user[uid]);
+    if (channelSpecificUids.length) {
+      await this._sendPluginsEvent(this.channel, channelSpecificUids, 'remove');
+    }
 
     // Change channel in storage and object
     this.channel = channel;
     await this._save(channel, { channel: channel, last_check_update: null });
 
-    // Ensure minimal data structures exist for new channel
-    const newChannelData = await this.storage.get([
-      `${channel}_plugins_local`,
-      `${channel}_plugins_user`,
-    ]);
-
-    // Initialize missing structures if needed
-    const updates: StorageData = {};
-    if (!newChannelData[`${channel}_plugins_local`]) updates[`${channel}_plugins_local`] = {};
-    if (!newChannelData[`${channel}_plugins_user`]) updates[`${channel}_plugins_user`] = {};
-
-    // Save initializations if needed
-    if (Object.keys(updates).length > 0) {
-      await this.storage.set(updates);
+    // Ensure local code cache exists for new channel
+    const newChannelData = await this.storage.get([`${channel}_plugins_local`]);
+    if (!newChannelData[`${channel}_plugins_local`]) {
+      await this.storage.set({ [`${channel}_plugins_local`]: {} });
     }
 
-    // Get active plugins from new channel and notify about addition
-    const newEnabledPlugins = await this.getEnabledPlugins();
-    await this._sendPluginsEvent(channel, Object.keys(newEnabledPlugins), 'add');
-
+    // checkUpdates fires 'update' for IITC core and re-injects enabled built-ins
     await this.checkUpdates(true);
   }
 
@@ -99,6 +93,15 @@ export class Manager extends Worker {
     }
     const is_migrated = await migrations.migrate(this.storage);
     await this.checkUpdates(is_migrated);
+    if (is_migrated) {
+      const local = await this.storage.get(['plugins_user']);
+      const plugins_user = (local['plugins_user'] || {}) as PluginDict;
+      const all_uids = Object.keys(plugins_user);
+      if (all_uids.length) {
+        await this._sendPluginsEvent(this.channel, all_uids, 'remove', 'user');
+        await this._sendPluginsEvent(this.channel, all_uids, 'add', 'user');
+      }
+    }
   }
 
   /**
@@ -110,14 +113,16 @@ export class Manager extends Worker {
     const storage = await this.storage.get([
       `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
-      `${channel}_plugins_user`,
+      'plugins_user',
+      'plugins_state',
     ]);
 
     const plugins_catalog = (storage[`${channel}_plugins_catalog`] || {}) as PluginDict;
     const plugins_local = (storage[`${channel}_plugins_local`] || {}) as PluginDict;
-    const plugins_user = (storage[`${channel}_plugins_user`] || {}) as PluginDict;
+    const plugins_user = (storage['plugins_user'] || {}) as PluginDict;
+    const plugins_state = (storage['plugins_state'] || {}) as PluginStateDict;
 
-    return this._computePluginsView(plugins_catalog, plugins_local, plugins_user);
+    return this._computePluginsView(plugins_catalog, plugins_local, plugins_user, plugins_state);
   }
 
   _emitPluginsChanged(): void {
@@ -132,20 +137,23 @@ export class Manager extends Worker {
     const channel = this.channel;
     const storage = await this.storage.get([
       `${channel}_iitc_core`,
-      `${channel}_iitc_core_user`,
+      'iitc_core_user',
       `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
-      `${channel}_plugins_user`,
+      'plugins_user',
+      'plugins_state',
     ]);
 
     const plugins_catalog = (storage[`${channel}_plugins_catalog`] || {}) as PluginDict;
     const plugins_local = (storage[`${channel}_plugins_local`] || {}) as PluginDict;
-    const plugins_user = (storage[`${channel}_plugins_user`] || {}) as PluginDict;
+    const plugins_user = (storage['plugins_user'] || {}) as PluginDict;
+    const plugins_state = (storage['plugins_state'] || {}) as PluginStateDict;
 
     const { plugins: all_plugins } = this._computePluginsView(
       plugins_catalog,
       plugins_local,
-      plugins_user
+      plugins_user,
+      plugins_state
     );
 
     const enabled_plugins: PluginDict = {};
@@ -240,33 +248,26 @@ export class Manager extends Worker {
     const local = await this.storage.get([
       `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
-      `${channel}_plugins_user`,
+      'plugins_user',
+      'plugins_state',
     ]);
 
     const plugins_catalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
-    let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
+    const plugins_user = (local['plugins_user'] || {}) as PluginDict;
+    const plugins_state = (local['plugins_state'] || {}) as PluginStateDict;
 
     if (!isSet(plugins_local)) plugins_local = {};
-    if (!isSet(plugins_user)) plugins_user = {};
 
     const currentTime = Math.floor(Date.now() / 1000);
     const isUserPlugin = uid in plugins_user;
 
     if (action === 'on') {
       if (isUserPlugin || plugins_local[uid] !== undefined) {
-        if (isUserPlugin) {
-          plugins_user[uid]['status'] = 'on';
-          plugins_user[uid]['statusChangedAt'] = currentTime;
-        } else {
-          plugins_local[uid]['status'] = 'on';
-          plugins_local[uid]['statusChangedAt'] = currentTime;
-        }
-
+        plugins_state[uid] = { status: 'on', statusChangedAt: currentTime };
         const pluginToInject = isUserPlugin ? plugins_user[uid] : plugins_local[uid];
         this._injectWithGmApi(pluginToInject);
-
-        await this._save(channel, { plugins_local, plugins_user });
+        await this._save(channel, { plugins_state });
         await this._sendPluginsEvent(channel, [uid], 'add');
       } else {
         const filename = plugins_catalog[uid]?.['filename'];
@@ -274,28 +275,20 @@ export class Manager extends Worker {
         if (result.data) {
           plugins_local[uid] = {
             ...plugins_catalog[uid],
-            status: 'on',
-            statusChangedAt: currentTime,
             code: result.data as string,
           };
+          plugins_state[uid] = { status: 'on', statusChangedAt: currentTime };
 
           this._injectWithGmApi(plugins_local[uid]);
 
-          await this._save(channel, { plugins_local });
+          await this._save(channel, { plugins_local, plugins_state });
           await this._sendPluginsEvent(channel, [uid], 'add');
         }
       }
     }
     if (action === 'off') {
-      if (isUserPlugin) {
-        plugins_user[uid]['status'] = 'off';
-        plugins_user[uid]['statusChangedAt'] = currentTime;
-      } else if (plugins_local[uid]) {
-        plugins_local[uid]['status'] = 'off';
-        plugins_local[uid]['statusChangedAt'] = currentTime;
-      }
-
-      await this._save(channel, { plugins_local, plugins_user });
+      plugins_state[uid] = { status: 'off', statusChangedAt: currentTime };
+      await this._save(channel, { plugins_state });
       await this._sendPluginsEvent(channel, [uid], 'remove');
     }
     if (action === 'delete') {
@@ -303,18 +296,12 @@ export class Manager extends Worker {
         await this._save(channel, { iitc_core_user: {} });
         await this._sendPluginsEvent(channel, [uid], 'update');
       } else {
-        const isEnabled = isUserPlugin
-          ? plugins_user[uid]['status'] === 'on'
-          : plugins_local[uid]?.['status'] === 'on';
+        const isEnabled = plugins_state[uid]?.status === 'on';
 
         delete plugins_user[uid];
-        // If it was overriding a local (catalog) plugin, reset local status to off
-        if (plugins_local[uid]) {
-          plugins_local[uid]['status'] = 'off';
-          delete plugins_local[uid]['statusChangedAt'];
-        }
+        plugins_state[uid] = { status: 'off' };
 
-        await this._save(channel, { plugins_local, plugins_user });
+        await this._save(channel, { plugins_user, plugins_state });
         if (isEnabled) {
           await this._sendPluginsEvent(channel, [uid], 'remove');
         }
@@ -331,19 +318,20 @@ export class Manager extends Worker {
   async addUserScripts(scripts: UserScript[]): Promise<PluginDict> {
     const channel = this.channel;
     const local = await this.storage.get([
-      `${channel}_iitc_core_user`,
+      'iitc_core_user',
       `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
-      `${channel}_plugins_user`,
+      'plugins_user',
+      'plugins_state',
     ]);
 
-    let iitc_core_user = local[`${channel}_iitc_core_user`] as Plugin | undefined;
+    let iitc_core_user = local['iitc_core_user'] as Plugin | undefined;
     const plugins_catalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
     let plugins_local = local[`${channel}_plugins_local`] as PluginDict;
-    let plugins_user = local[`${channel}_plugins_user`] as PluginDict;
+    const plugins_user = (local['plugins_user'] || {}) as PluginDict;
+    const plugins_state = (local['plugins_state'] || {}) as PluginStateDict;
 
     if (!isSet(plugins_local)) plugins_local = {};
-    if (!isSet(plugins_user)) plugins_user = {};
 
     const added_uids: string[] = [];
     const updated_uids: string[] = [];
@@ -368,39 +356,41 @@ export class Manager extends Worker {
         const is_user_plugins = plugins_user[plugin_uid] !== undefined;
         plugins_user[plugin_uid] = Object.assign(meta, {
           uid: plugin_uid,
-          status: 'on' as const,
           filename: meta['filename']
             ? meta['filename']
             : sanitizeFileName(`${meta['name']}.user.js`),
           code: code,
           addedAt: currentTime,
-          statusChangedAt: currentTime,
         }) as Plugin;
+        plugins_state[plugin_uid] = { status: 'on', statusChangedAt: currentTime };
 
         if (plugin_uid in plugins_catalog && !is_user_plugins) {
-          // Override existing catalog plugin: disable its local copy if enabled
-          if (plugins_local[plugin_uid] && plugins_local[plugin_uid]['status'] !== 'off') {
-            plugins_local[plugin_uid]['status'] = 'off';
-          }
           updated_uids.push(plugin_uid);
           // Return merged catalog+user view with override flag (mirrors _computePluginsView)
           const catalogEntry = plugins_catalog[plugin_uid];
           const userEntry = plugins_user[plugin_uid];
+          const state = plugins_state[plugin_uid];
           installed_scripts[plugin_uid] = {
             ...catalogEntry,
-            status: userEntry.status || 'off',
+            status: state.status,
             code: userEntry.code,
             user: true,
             override: true,
             addedAt: userEntry.addedAt,
-            statusChangedAt: userEntry.statusChangedAt,
+            statusChangedAt: state.statusChangedAt,
           } as Plugin;
         } else {
           if (plugins_user[plugin_uid]['category'] === undefined) {
             plugins_user[plugin_uid]['category'] = 'Misc';
           }
           added_uids.push(plugin_uid);
-          installed_scripts[plugin_uid] = { ...plugins_user[plugin_uid], user: true };
+          const state = plugins_state[plugin_uid];
+          installed_scripts[plugin_uid] = {
+            ...plugins_user[plugin_uid],
+            status: state.status,
+            statusChangedAt: state.statusChangedAt,
+            user: true,
+          };
         }
       }
     });
@@ -409,6 +399,7 @@ export class Manager extends Worker {
       iitc_core_user: iitc_core_user,
       plugins_local: plugins_local,
       plugins_user: plugins_user,
+      plugins_state: plugins_state,
     });
 
     if (added_uids.length) await this._sendPluginsEvent(channel, added_uids, 'add');
@@ -430,18 +421,18 @@ export class Manager extends Worker {
   /**
    * Returns IITC core script.
    *
-   * @param storage - Storage object with keys `channel_iitc_core` and `channel_iitc_core_user`.
+   * @param storage - Storage object with keys `channel_iitc_core` and `iitc_core_user`.
    * @param channel - Current channel.
    */
   async getIITCCore(storage?: StorageData, channel?: string): Promise<Plugin | null> {
     if (typeof channel === 'undefined') channel = this.channel;
 
     if (storage === undefined || !isSet(storage[`${channel}_iitc_core`])) {
-      storage = await this.storage.get([`${channel}_iitc_core`, `${channel}_iitc_core_user`]);
+      storage = await this.storage.get([`${channel}_iitc_core`, 'iitc_core_user']);
     }
 
     const iitc_core = storage[`${channel}_iitc_core`] as Plugin | undefined;
-    const iitc_core_user = storage[`${channel}_iitc_core_user`] as Plugin | undefined;
+    const iitc_core_user = storage['iitc_core_user'] as Plugin | undefined;
 
     let iitc_script: Plugin | null = null;
     if (isSet(iitc_core_user) && isSet(iitc_core_user!['code'])) {

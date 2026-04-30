@@ -14,7 +14,10 @@ type MigrationFn = (
   storage_misc: StorageData,
   update_check_interval: StorageData,
   storage_plugins_catalog: StorageData,
-  storage_categories: StorageData
+  storage_categories: StorageData,
+  storage_plugins_local: StorageData,
+  storage_global: StorageData,
+  storage_iitc_core_user: StorageData
 ) => Promise<void>;
 
 const migrates: MigrationFn[] = [
@@ -24,6 +27,8 @@ const migrates: MigrationFn[] = [
   migration_0004,
   migration_0005,
   migration_0006,
+  migration_0007,
+  migration_0008,
 ];
 
 export async function migrate(storage: StorageAPI): Promise<boolean> {
@@ -56,6 +61,11 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
     'test_plugins_user',
     'local_plugins_user',
   ]);
+  const storage_plugins_local = await storage.get([
+    'release_plugins_local',
+    'beta_plugins_local',
+    'custom_plugins_local',
+  ]);
   const storage_misc = await storage.get([
     'channel',
     'network_host',
@@ -68,6 +78,15 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
     'custom_update_check_interval',
     'external_update_check_interval',
   ]);
+
+  const storage_iitc_core_user = await storage.get([
+    'release_iitc_core_user',
+    'beta_iitc_core_user',
+    'custom_iitc_core_user',
+  ]);
+
+  // Output object for migration_0007+: global plugins_state, plugins_user, iitc_core_user
+  const storage_global: StorageData = {};
 
   if (!isSet(storage_misc['storage_version']) && isSet(storage_misc['lastversion'])) {
     storage_misc['storage_version'] = 0;
@@ -84,7 +103,10 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
         storage_misc,
         update_check_interval,
         storage_plugins_catalog,
-        storage_categories
+        storage_categories,
+        storage_plugins_local,
+        storage_global,
+        storage_iitc_core_user
       );
       is_migrated = true;
     }
@@ -96,9 +118,12 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
     ...storage_plugins_flat,
     ...storage_plugins_catalog,
     ...storage_plugins_user,
+    ...storage_plugins_local,
     ...storage_misc,
     ...update_check_interval,
     ...storage_categories,
+    ...storage_iitc_core_user,
+    ...storage_global,
   });
   return is_migrated;
 }
@@ -231,5 +256,108 @@ async function migration_0006(
 
   for (const key of Object.keys(storage_categories)) {
     storage_categories[key] = null;
+  }
+}
+
+async function migration_0007(
+  _storage_iitc_code: StorageData,
+  _storage_plugins_flat: StorageData,
+  storage_plugins_user: StorageData,
+  _storage_misc: StorageData,
+  _update_check_interval: StorageData,
+  _storage_plugins_catalog: StorageData,
+  _storage_categories: StorageData,
+  storage_plugins_local: StorageData,
+  storage_global: StorageData
+): Promise<void> {
+  const plugins_state: StorageData = {};
+  const plugins_user_merged: StorageData = {};
+
+  // Merges status into plugins_state, keeping entry with most recent statusChangedAt
+  const mergeState = (uid: string, status: 'on' | 'off', statusChangedAt: number | undefined) => {
+    const existing = plugins_state[uid] as StorageData | undefined;
+    const existingTs = existing?.['statusChangedAt'] as number | undefined;
+    const isNewer =
+      !existing ||
+      statusChangedAt === undefined ||
+      existingTs === undefined ||
+      statusChangedAt > existingTs;
+    if (isNewer) {
+      plugins_state[uid] = statusChangedAt !== undefined ? { status, statusChangedAt } : { status };
+    }
+  };
+
+  // Merge per-channel plugins_user into global; move status/statusChangedAt to plugins_state
+  for (const key of Object.keys(storage_plugins_user)) {
+    if (!isSet(storage_plugins_user[key])) continue;
+    const channel_plugins = storage_plugins_user[key] as StorageData;
+    for (const uid of Object.keys(channel_plugins)) {
+      const plugin = channel_plugins[uid] as StorageData;
+      mergeState(
+        uid,
+        (plugin['status'] as 'on' | 'off') || 'off',
+        plugin['statusChangedAt'] as number | undefined
+      );
+      // Conflict: most recently updated/added version wins
+      const newTs = (plugin['updatedAt'] as number) || (plugin['addedAt'] as number) || 0;
+      const existing = plugins_user_merged[uid] as StorageData | undefined;
+      const oldTs = existing
+        ? (existing['updatedAt'] as number) || (existing['addedAt'] as number) || 0
+        : -1;
+      if (!existing || newTs > oldTs) {
+        const clean: StorageData = {};
+        for (const [f, v] of Object.entries(plugin)) {
+          if (f !== 'status' && f !== 'statusChangedAt') clean[f] = v;
+        }
+        plugins_user_merged[uid] = clean;
+      }
+    }
+    storage_plugins_user[key] = null;
+  }
+
+  // Strip status/statusChangedAt from per-channel plugins_local
+  for (const key of Object.keys(storage_plugins_local)) {
+    if (!isSet(storage_plugins_local[key])) continue;
+    const channel_plugins = storage_plugins_local[key] as StorageData;
+    const stripped: StorageData = {};
+    for (const uid of Object.keys(channel_plugins)) {
+      const plugin = channel_plugins[uid] as StorageData;
+      mergeState(
+        uid,
+        (plugin['status'] as 'on' | 'off') || 'off',
+        plugin['statusChangedAt'] as number | undefined
+      );
+      const clean: StorageData = {};
+      for (const [f, v] of Object.entries(plugin)) {
+        if (f !== 'status' && f !== 'statusChangedAt') clean[f] = v;
+      }
+      stripped[uid] = clean;
+    }
+    storage_plugins_local[key] = stripped;
+  }
+
+  storage_global['plugins_state'] = plugins_state;
+  storage_global['plugins_user'] = plugins_user_merged;
+}
+
+async function migration_0008(
+  _storage_iitc_code: StorageData,
+  _storage_plugins_flat: StorageData,
+  _storage_plugins_user: StorageData,
+  _storage_misc: StorageData,
+  _update_check_interval: StorageData,
+  _storage_plugins_catalog: StorageData,
+  _storage_categories: StorageData,
+  _storage_plugins_local: StorageData,
+  storage_global: StorageData,
+  storage_iitc_core_user: StorageData
+): Promise<void> {
+  for (const channel of ['release', 'beta', 'custom']) {
+    const key = `${channel}_iitc_core_user`;
+    const core = storage_iitc_core_user[key] as StorageData | undefined;
+    if (isSet(core) && isSet(core!['code'])) {
+      storage_global['iitc_core_user'] = core;
+    }
+    storage_iitc_core_user[key] = null;
   }
 }

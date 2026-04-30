@@ -11,7 +11,7 @@
           "author": "test-author",
           "description": "Plugin A.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.1.0"
+          "version": "0.2.0"
         },
         {
           "filename": "plugin-c.user.js",
@@ -20,7 +20,7 @@
           "author": "test-author",
           "description": "Plugin C.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.1.0"
+          "version": "0.2.0"
         }
       ]
     },
@@ -35,6 +35,21 @@
           "author": "test-author",
           "description": "Plugin B.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
+          "version": "0.2.0"
+        }
+      ]
+    },
+    "Beta": {
+      "name": "Beta",
+      "description": "Beta-only plugins",
+      "plugins": [
+        {
+          "filename": "beta-plugin-a.user.js",
+          "id": "beta-plugin-a",
+          "name": "Beta plugin A",
+          "author": "test-author",
+          "description": "Beta plugin A.",
+          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
           "version": "0.1.0"
         }
       ]
@@ -42,22 +57,7 @@
     "Obsolete": {
       "name": "Obsolete",
       "description": "Plugins that are no longer recommended, due to being superceded by others or similar"
-    },
-    "Deleted": {
-      "name": "Deleted",
-      "description": "Deleted plugins – listed here for reference only. No download available",
-      "plugins": [
-        {
-          "filename": "plugin-b.user.js",
-          "id": "deleted-plugin-b",
-          "name": "Old Plugin B",
-          "author": "test-author",
-          "description": "Plugin B.",
-          "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.0.1"
-        }
-      ]
     }
   },
-  "iitc_version": "0.32.1"
+  "iitc_version": "0.33.0"
 }

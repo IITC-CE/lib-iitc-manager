@@ -8,8 +8,7 @@ import type { BackupData, ManagerConfig, Plugin, PluginDict, StorageData } from 
 
 describe('getBackupData and setBackupData', function () {
   let manager: Manager | null = null;
-  const first_plugin_uid =
-    'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
   const external_code =
     '// ==UserScript==\n// @name IITC plugin\n// ==/UserScript==\nreturn false;';
   const external_iitc_code =
@@ -20,9 +19,7 @@ describe('getBackupData and setBackupData', function () {
     'return false;';
   const initialBackupData: BackupData = {
     external_plugins: {
-      beta: {},
-      custom: {},
-      release: {
+      shared: {
         'total-conversion-build.user.js': external_iitc_code,
         'Bookmarks for maps and portals.user.js': external_code,
       },
@@ -35,6 +32,11 @@ describe('getBackupData and setBackupData', function () {
           beta: 'http://127.0.0.1:31606/beta',
           custom: 'http://127.0.0.1/',
         },
+        plugins_state: {
+          [first_plugin_uid]: { status: 'on' },
+          'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion':
+            { status: 'on' },
+        },
       },
       plugins_data: {
         VMin5555: 'test',
@@ -43,14 +45,26 @@ describe('getBackupData and setBackupData', function () {
     },
   };
 
+  const backup_code_2 =
+    '// ==UserScript==\n' +
+    '// @name Bookmarks2 for maps\n' +
+    '// @namespace https://github.com/IITC-CE/ingress-intel-total-conversion\n' +
+    '// ==/UserScript==\n' +
+    'return false;';
+  const backup_code_3 =
+    '// ==UserScript==\n' +
+    '// @name Bookmarks3 for maps\n' +
+    '// @namespace https://github.com/IITC-CE/ingress-intel-total-conversion\n' +
+    '// ==/UserScript==\n' +
+    'return false;';
   const backupData: BackupData = {
     external_plugins: {
       release: {
-        'bookmarks2.user.js': external_code,
+        'Bookmarks2 for maps.user.js': backup_code_2,
       },
       beta: {
         'total-conversion-build.user.js': external_iitc_code,
-        'bookmarks3.user.js': external_code,
+        'Bookmarks3 for maps.user.js': backup_code_3,
       },
     },
     data: {
@@ -194,8 +208,8 @@ describe('getBackupData and setBackupData', function () {
         VMin9999: 'backup2',
       });
 
-      const externalCore = await storage.get(['beta_iitc_core_user']);
-      expect(externalCore['beta_iitc_core_user'] as StorageData).to.deep.equal({
+      const externalCore = await storage.get(['iitc_core_user']);
+      expect(externalCore['iitc_core_user'] as StorageData).to.deep.equal({
         uid: 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion',
         name: 'IITC: Ingress intel map total conversion',
         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
@@ -203,13 +217,12 @@ describe('getBackupData and setBackupData', function () {
         filename: 'total-conversion-build.user.js',
       });
 
-      const externalPlugins = await storage.get(['release_plugins_user', 'beta_plugins_user']);
-      expect(externalPlugins['release_plugins_user']).to.have.all.keys(
+      const externalPlugins = await storage.get(['plugins_user']);
+      const plugins_user = externalPlugins['plugins_user'] as StorageData;
+      expect(plugins_user).to.include.all.keys(
         'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
-        'bookmarks2.user.js+IITC plugin'
-      );
-      expect(externalPlugins['beta_plugins_user']).to.have.all.keys(
-        'bookmarks3.user.js+IITC plugin'
+        'Bookmarks2 for maps+https://github.com/IITC-CE/ingress-intel-total-conversion',
+        'Bookmarks3 for maps+https://github.com/IITC-CE/ingress-intel-total-conversion'
       );
     });
   });
