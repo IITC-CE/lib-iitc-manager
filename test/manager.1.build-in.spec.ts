@@ -43,10 +43,9 @@ describe('manage.js build-in plugins integration tests', function () {
     manager = new Manager(params);
   });
 
-  const first_plugin_uid =
-    'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const second_plugin_uid = 'Bing maps+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const third_plugin_uid = 'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const second_plugin_uid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const third_plugin_uid = 'Plugin C+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
   describe('run', function () {
     it('Should not return an error', async function () {
@@ -293,12 +292,11 @@ describe('Delete external plugins - comprehensive tests', function () {
     expect(run).to.be.undefined;
 
     // Setup: Add external plugin that overrides built-in plugin
-    const built_in_uid =
-      'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    const built_in_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
     const override_plugin = {
       meta: {
         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-        name: 'Available AP statistics',
+        name: 'Plugin A',
       },
       code: '// ==UserScript==\nreturn false;',
     };
@@ -331,7 +329,7 @@ describe('Delete external plugins - comprehensive tests', function () {
   describe('Timestamps for built-in plugins', function () {
     let manager: Manager | null = null;
     const built_in_plugin_uid =
-      'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+      'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
     beforeEach(async function () {
       // Reset storage before each test

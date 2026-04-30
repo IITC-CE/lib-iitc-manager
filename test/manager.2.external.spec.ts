@@ -65,10 +65,9 @@ describe('manage.js external plugins integration tests', function () {
     manager = new Manager(params);
   });
 
-  const first_plugin_uid =
-    'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const second_plugin_uid = 'Bing maps+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const third_plugin_uid = 'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const second_plugin_uid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const third_plugin_uid = 'Plugin C+https://github.com/IITC-CE/ingress-intel-total-conversion';
   const external_code = '// ==UserScript==\nreturn false;';
 
   describe('run', function () {
@@ -268,13 +267,13 @@ describe('manage.js external plugins integration tests', function () {
         first_plugin_uid
       ] as StorageData;
       expect(beta_first_plugin).to.have.property('code');
-      expect(beta_first_plugin['code'] as string).to.include('0.5.0');
+      expect(beta_first_plugin['code'] as string).to.include('0.2.0');
 
-      // Beta catalog has a 'Draw' category (draw-tools plugin) not present in release
+      // Beta catalog has a 'Beta' category (beta-plugin-a) not present in release
       const { categories: beta_categories, plugins: beta_plugins } =
         await manager!.getPluginsView();
-      expect(beta_categories).to.include.all.keys('Info', 'Map Tiles', 'Draw', 'Controls', 'Misc');
-      const draw_uid = 'Draw tools+https://github.com/IITC-CE/ingress-intel-total-conversion';
+      expect(beta_categories).to.include.all.keys('Info', 'Map Tiles', 'Beta', 'Controls', 'Misc');
+      const draw_uid = 'Beta plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
       expect(beta_plugins).to.have.property(draw_uid);
       expect(beta_plugins[draw_uid]).to.have.property('status', 'off');
       // User plugins are still visible in the view after channel switch
@@ -292,8 +291,8 @@ describe('manage.js external plugins integration tests', function () {
       const { categories, plugins } = await manager!.getPluginsView();
       // Release catalog does not have 'Draw' category
       expect(categories).to.include.all.keys('Info', 'Map Tiles', 'Controls', 'Misc');
-      expect(categories).to.not.have.key('Draw');
-      const draw_uid = 'Draw tools+https://github.com/IITC-CE/ingress-intel-total-conversion';
+      expect(categories).to.not.have.key('Beta');
+      const draw_uid = 'Beta plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
       expect(plugins).to.not.have.property(draw_uid);
     });
 
@@ -486,8 +485,7 @@ describe('manage.js external plugins integration tests', function () {
   });
 
   describe('Manage external plugins that replace built-in plugins', function () {
-    const external_1_uid =
-      'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    const external_1_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
     it('Add external plugin and replace built-in plugin', async function () {
       plugin_event_callback = (data: PluginEventData) => {
@@ -501,7 +499,7 @@ describe('manage.js external plugins integration tests', function () {
         {
           meta: {
             namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-            name: 'Available AP statistics',
+            name: 'Plugin A',
           },
           code: external_code,
         },
@@ -509,17 +507,17 @@ describe('manage.js external plugins integration tests', function () {
       const installed: PluginDict = {};
       installed[external_1_uid] = {
         uid: external_1_uid,
-        id: 'ap-stats',
-        author: 'Hollow011',
-        description: 'Displays the per-team AP gains available in the current view.',
-        filename: 'ap-stats.user.js',
+        id: 'plugin-a',
+        author: 'test-author',
+        description: 'Plugin A.',
+        filename: 'plugin-a.user.js',
         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-        name: 'Available AP statistics',
+        name: 'Plugin A',
         category: 'Info',
         status: 'on',
         override: true,
         user: true,
-        version: '0.4.2',
+        version: '0.1.0',
         code: external_code,
       };
       const run = await manager!.addUserScripts(scripts);
@@ -614,11 +612,11 @@ describe('manage.js external plugins integration tests', function () {
   });
 
   describe('Adding and removing an external plugin that overwrites a built-in plugin', function () {
-    const external_3_uid = 'Missions+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    const external_3_uid = 'Plugin C+https://github.com/IITC-CE/ingress-intel-total-conversion';
     const external_3_plugin = {
       meta: {
         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-        name: 'Missions',
+        name: 'Plugin C',
       },
       code: external_code,
     };
@@ -634,18 +632,17 @@ describe('manage.js external plugins integration tests', function () {
       const installed: PluginDict = {};
       installed[external_3_uid] = {
         uid: external_3_uid,
-        id: 'missions',
-        author: 'jonatkins',
-        description:
-          'View missions. Marking progress on waypoints/missions basis. Showing mission paths on the map.',
-        filename: 'missions.user.js',
+        id: 'plugin-c',
+        author: 'test-author',
+        description: 'Plugin C.',
+        filename: 'plugin-c.user.js',
         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-        name: 'Missions',
+        name: 'Plugin C',
         category: 'Info',
         status: 'on',
         override: true,
         user: true,
-        version: '0.3.0',
+        version: '0.1.0',
         code: external_code,
       };
       const run = await manager!.addUserScripts([external_3_plugin]);
@@ -933,7 +930,7 @@ describe('manage.js external plugins integration tests', function () {
   describe('Timestamps for plugins overriding built-in plugins', function () {
     let manager: Manager | null = null;
     const built_in_plugin_uid =
-      'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+      'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
     before(async function () {
       storage.resetStorage();
@@ -966,7 +963,7 @@ describe('manage.js external plugins integration tests', function () {
       const override_plugin = {
         meta: {
           namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-          name: 'Available AP statistics',
+          name: 'Plugin A',
         },
         code: '// ==UserScript==\nreturn false;',
       };

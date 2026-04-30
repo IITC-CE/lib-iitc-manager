@@ -20,9 +20,8 @@ const base_config: Omit<ManagerConfig, 'channel' | 'plugin_event'> = {
 };
 
 describe('Cross-channel plugin state preservation', function () {
-  const first_plugin_uid =
-    'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const draw_tools_uid = 'Draw tools+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const draw_tools_uid = 'Beta plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
   describe('Beta-only plugin state survives channel switch and recovers on return', function () {
     let manager: Manager;
@@ -35,25 +34,25 @@ describe('Cross-channel plugin state preservation', function () {
       await manager.managePlugin(draw_tools_uid, 'on');
     });
 
-    it('Draw tools is enabled in beta', async function () {
+    it('Beta plugin A is enabled in beta', async function () {
       const { plugins } = await manager.getPluginsView();
       expect(plugins).to.have.property(draw_tools_uid);
       expect(plugins[draw_tools_uid].status).to.equal('on');
     });
 
-    it('plugins_state records Draw tools as on', async function () {
+    it('plugins_state records Beta plugin A as on', async function () {
       const db = await storage.get(['plugins_state']);
       const state = (db['plugins_state'] as StorageData)[draw_tools_uid] as StorageData;
       expect(state?.status).to.equal('on');
     });
 
-    it('after switching to release: Draw tools absent from getPluginsView()', async function () {
+    it('after switching to release: Beta plugin A absent from getPluginsView()', async function () {
       await manager.setChannel('release');
       const { plugins } = await manager.getPluginsView();
       expect(plugins).to.not.have.property(draw_tools_uid);
     });
 
-    it('after switching to release: plugins_state still records Draw tools as on', async function () {
+    it('after switching to release: plugins_state still records Beta plugin A as on', async function () {
       const db = await storage.get(['plugins_state']);
       const state = (db['plugins_state'] as StorageData)[draw_tools_uid] as StorageData;
       expect(state?.status).to.equal('on');
@@ -140,7 +139,7 @@ describe('Cross-channel plugin state preservation', function () {
         {
           meta: {
             namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-            name: 'Available AP statistics',
+            name: 'Plugin A',
           },
           code: '// ==UserScript==\nreturn false;',
         },
@@ -195,7 +194,7 @@ describe('Cross-channel plugin state preservation', function () {
       await manager.run();
     });
 
-    it('Draw tools code is present in beta_plugins_local after run()', async function () {
+    it('Beta plugin A code is present in beta_plugins_local after run()', async function () {
       const db = await storage.get(['beta_plugins_local']);
       const local = db['beta_plugins_local'] as StorageData;
       expect(local).to.have.property(draw_tools_uid);
@@ -213,4 +212,3 @@ describe('Cross-channel plugin state preservation', function () {
     });
   });
 });
-

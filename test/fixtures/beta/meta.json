@@ -2,25 +2,25 @@
   "categories": {
     "Info": {
       "name": "Info",
-      "description": "Display additional information",
+      "description": "Informational plugins",
       "plugins": [
         {
-          "filename": "ap-stats.user.js",
-          "id": "ap-stats",
-          "name": "Available AP statistics",
-          "author": "Hollow011",
-          "description": "Displays the per-team AP gains available in the current view.",
+          "filename": "plugin-a.user.js",
+          "id": "plugin-a",
+          "name": "Plugin A",
+          "author": "test-author",
+          "description": "Plugin A.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.5.0"
+          "version": "0.2.0"
         },
         {
-          "filename": "missions.user.js",
-          "id": "missions",
-          "name": "Missions",
-          "author": "jonatkins",
-          "description": "View missions. Marking progress on waypoints/missions basis. Showing mission paths on the map.",
+          "filename": "plugin-c.user.js",
+          "id": "plugin-c",
+          "name": "Plugin C",
+          "author": "test-author",
+          "description": "Plugin C.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.4.0"
+          "version": "0.2.0"
         }
       ]
     },
@@ -29,28 +29,28 @@
       "description": "Alternative map layers",
       "plugins": [
         {
-          "filename": "basemap-bing.user.js",
-          "id": "basemap-bing",
-          "name": "Bing maps",
-          "author": "johnd0e",
-          "description": "Add the bing.com map layers.",
+          "filename": "plugin-b.user.js",
+          "id": "plugin-b",
+          "name": "Plugin B",
+          "author": "test-author",
+          "description": "Plugin B.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.4.0"
+          "version": "0.2.0"
         }
       ]
     },
-    "Draw": {
-      "name": "Draw",
-      "description": "Draw tools",
+    "Beta": {
+      "name": "Beta",
+      "description": "Beta-only plugins",
       "plugins": [
         {
-          "filename": "draw-tools.user.js",
-          "id": "draw-tools",
-          "name": "Draw tools",
-          "author": "breunigs",
-          "description": "Allow drawing lines and markers on the map.",
+          "filename": "beta-plugin-a.user.js",
+          "id": "beta-plugin-a",
+          "name": "Beta plugin A",
+          "author": "test-author",
+          "description": "Beta plugin A.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.9.0"
+          "version": "0.1.0"
         }
       ]
     },

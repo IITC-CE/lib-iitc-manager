@@ -2,25 +2,25 @@
   "categories": {
     "Info": {
       "name": "Info",
-      "description": "Display additional information",
+      "description": "Informational plugins",
       "plugins": [
         {
-          "filename": "ap-stats.user.js",
-          "id": "ap-stats",
-          "name": "Available AP statistics",
-          "author": "Hollow011",
-          "description": "Displays the per-team AP gains available in the current view.",
+          "filename": "plugin-a.user.js",
+          "id": "plugin-a",
+          "name": "Plugin A",
+          "author": "test-author",
+          "description": "Plugin A.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.4.2"
+          "version": "0.1.0"
         },
         {
-          "filename": "missions.user.js",
-          "id": "missions",
-          "name": "Missions",
-          "author": "jonatkins",
-          "description": "View missions. Marking progress on waypoints/missions basis. Showing mission paths on the map.",
+          "filename": "plugin-c.user.js",
+          "id": "plugin-c",
+          "name": "Plugin C",
+          "author": "test-author",
+          "description": "Plugin C.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.3.0"
+          "version": "0.1.0"
         }
       ]
     },
@@ -29,13 +29,13 @@
       "description": "Alternative map layers",
       "plugins": [
         {
-          "filename": "basemap-bing.user.js",
-          "id": "basemap-bing",
-          "name": "Bing maps",
-          "author": "johnd0e",
-          "description": "Add the bing.com map layers.",
+          "filename": "plugin-b.user.js",
+          "id": "plugin-b",
+          "name": "Plugin B",
+          "author": "test-author",
+          "description": "Plugin B.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.3.0"
+          "version": "0.1.0"
         }
       ]
     },
@@ -48,13 +48,13 @@
       "description": "Deleted plugins – listed here for reference only. No download available",
       "plugins": [
         {
-          "filename": "basemap-bing.user.js",
-          "id": "deleted-basemap-bing",
-          "name": "Old Bing maps",
-          "author": "johnd0e",
-          "description": "Add the bing.com map layers.",
+          "filename": "plugin-b.user.js",
+          "id": "deleted-plugin-b",
+          "name": "Old Plugin B",
+          "author": "test-author",
+          "description": "Plugin B.",
           "namespace": "https://github.com/IITC-CE/ingress-intel-total-conversion",
-          "version": "0.2.0"
+          "version": "0.0.1"
         }
       ]
     }

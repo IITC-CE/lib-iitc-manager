@@ -8,8 +8,7 @@ import type { BackupData, ManagerConfig, Plugin, PluginDict, StorageData } from 
 
 describe('getBackupData and setBackupData', function () {
   let manager: Manager | null = null;
-  const first_plugin_uid =
-    'Available AP statistics+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
   const external_code =
     '// ==UserScript==\n// @name IITC plugin\n// ==/UserScript==\nreturn false;';
   const external_iitc_code =
