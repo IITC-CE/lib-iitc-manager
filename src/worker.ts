@@ -23,6 +23,10 @@ import type {
   MetaJsonResponse,
 } from './types.js';
 
+export const IITC_CORE_UID =
+  'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
+export const GM_API_UID = 'gm_api';
+
 /**
  * This class contains methods for managing IITC and plugins.
  */
@@ -36,9 +40,6 @@ export class Worker {
   is_initialized: boolean;
   gm_api?: GmApiConfig;
   source_url_prefix: string;
-
-  iitc_main_script_uid: string;
-  gm_api_uid: string;
   progress_interval_id: ReturnType<typeof setInterval> | null;
   update_timeout_id: ReturnType<typeof setTimeout> | null;
   external_update_timeout_id: ReturnType<typeof setTimeout> | null;
@@ -61,10 +62,6 @@ export class Worker {
     this.progress_interval_id = null;
     this.update_timeout_id = null;
     this.external_update_timeout_id = null;
-    this.iitc_main_script_uid =
-      'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
-    this.gm_api_uid = 'gm_api';
-
     this.storage =
       typeof this.config.storage !== 'undefined'
         ? this.config.storage
@@ -666,9 +663,9 @@ export class Worker {
     const plugins: PluginEventData['plugins'] = {};
 
     for (const uid of uids) {
-      if (uid === this.gm_api_uid) continue;
+      if (uid === GM_API_UID) continue;
 
-      const isCore = uid === this.iitc_main_script_uid;
+      const isCore = uid === IITC_CORE_UID;
       if (isCore && event !== 'update') continue;
 
       const storageKeys = isCore

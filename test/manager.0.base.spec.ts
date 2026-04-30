@@ -2,6 +2,7 @@
 
 import { describe, it, before } from 'mocha';
 import { Manager } from '../src/manager.js';
+import { IITC_CORE_UID } from '../src/worker.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
 import type { ManagerConfig, Plugin, PluginEventData } from '../src/types.js';
@@ -25,12 +26,10 @@ describe('manage.js base integration tests', function () {
         expect(data['code']).to.include('// ==UserScript==');
       },
       plugin_event: (data: PluginEventData) => {
-        const iitc_main_script_uid =
-          'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
         expect(data).to.have.all.keys('event', 'plugins');
         expect(data['event']).to.equal('update');
-        expect(data['plugins']).to.have.all.keys(iitc_main_script_uid);
-        expect(data['plugins'][iitc_main_script_uid]).to.have.property('uid', iitc_main_script_uid);
+        expect(data['plugins']).to.have.all.keys(IITC_CORE_UID);
+        expect(data['plugins'][IITC_CORE_UID]).to.have.property('uid', IITC_CORE_UID);
       },
       progressbar: function callBack(is_show: boolean) {
         expect(is_show).to.be.oneOf([true, false]);

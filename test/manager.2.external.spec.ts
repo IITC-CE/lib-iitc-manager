@@ -2,6 +2,7 @@
 
 import { describe, it, before } from 'mocha';
 import { Manager } from '../src/manager.js';
+import { IITC_CORE_UID } from '../src/worker.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
 import type {
@@ -30,13 +31,11 @@ const expectThrowsAsync = async (
 
 describe('manage.js external plugins integration tests', function () {
   let manager: Manager | null = null;
-  const iitc_main_script_uid =
-    'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
   let plugin_event_callback = (data: PluginEventData) => {
     expect(data).to.have.all.keys('event', 'plugins');
     expect(data['event']).to.equal('update');
-    expect(data['plugins']).to.have.all.keys(iitc_main_script_uid);
-    expect(data['plugins'][iitc_main_script_uid]).to.have.property('uid', iitc_main_script_uid);
+    expect(data['plugins']).to.have.all.keys(IITC_CORE_UID);
+    expect(data['plugins'][IITC_CORE_UID]).to.have.property('uid', IITC_CORE_UID);
   };
   before(function () {
     storage.resetStorage();

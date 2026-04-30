@@ -1,6 +1,6 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { Worker } from './worker.js';
+import { Worker, IITC_CORE_UID, GM_API_UID } from './worker.js';
 import * as migrations from './migrations.js';
 import { getUID, isSet, sanitizeFileName } from './helpers.js';
 import { getGmApiCode } from './gm-api.js';
@@ -195,7 +195,7 @@ export class Manager extends Worker {
           prefix: this.source_url_prefix,
         });
       }
-      enabled_plugins[this.iitc_main_script_uid] = iitc_script;
+      enabled_plugins[IITC_CORE_UID] = iitc_script;
 
       for (const uid in all_plugins) {
         if (all_plugins[uid]['status'] === 'on') {
@@ -227,8 +227,8 @@ export class Manager extends Worker {
       const plugin = plugins[uid];
       if (!plugin || !plugin.code) continue;
 
-      const isGmComponent = uid === this.gm_api_uid;
-      const isCore = uid === this.iitc_main_script_uid;
+      const isGmComponent = uid === GM_API_UID;
+      const isCore = uid === IITC_CORE_UID;
 
       if (isCore) {
         this.inject_user_script(plugin.code);
@@ -305,7 +305,7 @@ export class Manager extends Worker {
       await this._sendPluginsEvent(channel, [uid], 'remove');
     }
     if (action === 'delete') {
-      if (uid === this.iitc_main_script_uid) {
+      if (uid === IITC_CORE_UID) {
         await this._save(channel, { iitc_core_user: {} });
         await this._sendPluginsEvent(channel, [uid], 'update');
       } else {
@@ -358,7 +358,7 @@ export class Manager extends Worker {
 
       if (plugin_uid === null) throw new Error('The plugin has an incorrect ==UserScript== header');
 
-      if (plugin_uid === this.iitc_main_script_uid) {
+      if (plugin_uid === IITC_CORE_UID) {
         iitc_core_user = Object.assign(meta, {
           uid: plugin_uid,
           code: code,
