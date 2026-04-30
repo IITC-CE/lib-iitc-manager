@@ -763,9 +763,9 @@ describe('manage.js external plugins integration tests', function () {
         external_code
       );
     });
-    it('Check getIITCCore() for custom IITC', async function () {
-      const script = await manager!.getIITCCore();
-      expect(script, 'getIITCCore()').to.have.all.keys(
+    it('Check core in view for custom IITC', async function () {
+      const { core } = await manager!.getPluginsView();
+      expect(core, 'core').to.have.all.keys(
         'author',
         'code',
         'description',
@@ -776,10 +776,8 @@ describe('manage.js external plugins integration tests', function () {
         'uid',
         'version'
       );
-      expect(
-        script!['override'],
-        "getIITCCore() object must have the 'override' parameter set to true"
-      ).to.be.true;
+      expect(core!['override'], "core object must have the 'override' parameter set to true").to.be
+        .true;
     });
     it('Remove custom IITC core script', async function () {
       plugin_event_callback = (data: PluginEventData) => {
@@ -795,9 +793,9 @@ describe('manage.js external plugins integration tests', function () {
       const db_data = await storage.get(['iitc_core_user']);
       expect(db_data['iitc_core_user'], 'iitc_core_user must be empty object').to.deep.equal({});
     });
-    it('Check getIITCCore() for standard IITC', async function () {
-      const script = await manager!.getIITCCore();
-      expect(script, 'getIITCCore()').to.have.all.keys(
+    it('Check core in view for standard IITC', async function () {
+      const { core: script } = await manager!.getPluginsView();
+      expect(script, 'core').to.have.all.keys(
         'uid',
         'author',
         'code',

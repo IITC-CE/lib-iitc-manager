@@ -25,6 +25,8 @@ describe('plugins_view_changed callback', function () {
   const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
   const second_plugin_uid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
   const third_plugin_uid = 'Plugin C+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const iitc_core_uid =
+    'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
   const base_config: Omit<ManagerConfig, 'plugins_view_changed'> = {
     storage,
@@ -203,6 +205,28 @@ describe('plugins_view_changed callback', function () {
       for (const cat of Object.values(categories)) {
         expect(cat.isNew, `category ${cat.name} should not be new`).to.be.false;
       }
+    });
+
+    it('core is populated with code after run()', async function () {
+      const { core } = await manager.getPluginsView();
+      expect(core, 'core must not be null after run()').to.not.be.null;
+      expect(core!.uid).to.equal(iitc_core_uid);
+      expect(core!.code).to.be.a('string').and.include('// ==UserScript==');
+    });
+
+    it('core has override flag after user installs iitc core script', async function () {
+      await manager.addUserScripts([
+        {
+          meta: {
+            namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+            name: 'IITC: Ingress intel map total conversion',
+          },
+          code: '// ==UserScript==\nreturn false;',
+        },
+      ]);
+      const { core } = await manager.getPluginsView();
+      expect(core!.override).to.be.true;
+      await manager.managePlugin(iitc_core_uid, 'delete');
     });
   });
 });
