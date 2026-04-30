@@ -113,6 +113,8 @@ export class Manager extends Worker {
     const storage = await this.storage.get([
       `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
+      `${channel}_iitc_core`,
+      'iitc_core_user',
       'plugins_user',
       'plugins_state',
     ]);
@@ -121,8 +123,17 @@ export class Manager extends Worker {
     const plugins_local = (storage[`${channel}_plugins_local`] || {}) as PluginDict;
     const plugins_user = (storage['plugins_user'] || {}) as PluginDict;
     const plugins_state = (storage['plugins_state'] || {}) as PluginStateDict;
+    const iitc_core = storage[`${channel}_iitc_core`] as Plugin | undefined;
+    const iitc_core_user = storage['iitc_core_user'] as Plugin | undefined;
 
-    return this._computePluginsView(plugins_catalog, plugins_local, plugins_user, plugins_state);
+    return this._computePluginsView(
+      plugins_catalog,
+      plugins_local,
+      plugins_user,
+      plugins_state,
+      iitc_core,
+      iitc_core_user
+    );
   }
 
   _emitPluginsChanged(): void {
@@ -148,12 +159,16 @@ export class Manager extends Worker {
     const plugins_local = (storage[`${channel}_plugins_local`] || {}) as PluginDict;
     const plugins_user = (storage['plugins_user'] || {}) as PluginDict;
     const plugins_state = (storage['plugins_state'] || {}) as PluginStateDict;
+    const iitc_core = storage[`${channel}_iitc_core`] as Plugin | undefined;
+    const iitc_core_user = storage['iitc_core_user'] as Plugin | undefined;
 
-    const { plugins: all_plugins } = this._computePluginsView(
+    const { plugins: all_plugins, core: iitc_script } = this._computePluginsView(
       plugins_catalog,
       plugins_local,
       plugins_user,
-      plugins_state
+      plugins_state,
+      iitc_core,
+      iitc_core_user
     );
 
     const enabled_plugins: PluginDict = {};
@@ -172,8 +187,6 @@ export class Manager extends Worker {
         match: ['https://*/*'],
       };
     }
-
-    const iitc_script = await this.getIITCCore(storage);
     if (iitc_script !== null) {
       if (iitc_script.code) {
         iitc_script.code = appendSourceUrl({
@@ -416,32 +429,6 @@ export class Manager extends Worker {
   async getPluginInfo(uid: string): Promise<Plugin | null> {
     const { plugins } = await this.getPluginsView();
     return plugins[uid] ?? null;
-  }
-
-  /**
-   * Returns IITC core script.
-   *
-   * @param storage - Storage object with keys `channel_iitc_core` and `iitc_core_user`.
-   * @param channel - Current channel.
-   */
-  async getIITCCore(storage?: StorageData, channel?: string): Promise<Plugin | null> {
-    if (typeof channel === 'undefined') channel = this.channel;
-
-    if (storage === undefined || !isSet(storage[`${channel}_iitc_core`])) {
-      storage = await this.storage.get([`${channel}_iitc_core`, 'iitc_core_user']);
-    }
-
-    const iitc_core = storage[`${channel}_iitc_core`] as Plugin | undefined;
-    const iitc_core_user = storage['iitc_core_user'] as Plugin | undefined;
-
-    let iitc_script: Plugin | null = null;
-    if (isSet(iitc_core_user) && isSet(iitc_core_user!['code'])) {
-      iitc_script = iitc_core_user!;
-      iitc_script['override'] = true;
-    } else if (isSet(iitc_core) && isSet(iitc_core!['code'])) {
-      iitc_script = iitc_core!;
-    }
-    return iitc_script;
   }
 
   /**

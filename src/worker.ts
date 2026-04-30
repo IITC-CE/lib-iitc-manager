@@ -154,8 +154,8 @@ export class Worker {
     await this.storage.set(data);
 
     // Channel-scoped changes only affect the view when they belong to the active channel
-    const channelScopedKeys = ['plugins_catalog', 'plugins_local'];
-    const globalPluginsKeys = ['plugins_user', 'plugins_state', 'channel'];
+    const channelScopedKeys = ['plugins_catalog', 'plugins_local', 'iitc_core'];
+    const globalPluginsKeys = ['plugins_user', 'plugins_state', 'channel', 'iitc_core_user'];
     const affectsView =
       (Object.keys(options).some(k => channelScopedKeys.includes(k)) && channel === this.channel) ||
       Object.keys(options).some(k => globalPluginsKeys.includes(k));
@@ -528,18 +528,22 @@ export class Worker {
   }
 
   /**
-   * Computes a merged view of all plugins and their categories from the three sources.
+   * Computes a merged view of all plugins, categories and IITC core.
    *
    * @param raw_plugins - Dictionary of plugins downloaded from the server.
    * @param plugins_local - Dictionary of installed plugins from IITC-CE distribution.
    * @param plugins_user - Dictionary of external UserScripts.
+   * @param iitc_core - Channel core plugin from storage.
+   * @param iitc_core_user - User-installed core override from storage.
    * @internal
    */
   _computePluginsView(
     raw_plugins: PluginDict,
     plugins_local: PluginDict,
     plugins_user: PluginDict,
-    plugins_state: PluginStateDict
+    plugins_state: PluginStateDict,
+    iitc_core?: Plugin,
+    iitc_core_user?: Plugin
   ): PluginsView {
     if (!isSet(plugins_local)) plugins_local = {};
     if (!isSet(plugins_user)) plugins_user = {};
@@ -606,7 +610,14 @@ export class Worker {
       Object.entries(rawCategories).sort(([a], [b]) => a.localeCompare(b))
     );
 
-    return { plugins: data, categories };
+    let core: Plugin | null = null;
+    if (isSet(iitc_core_user) && isSet(iitc_core_user!['code'])) {
+      core = iitc_core_user!;
+      core['override'] = true;
+    } else if (isSet(iitc_core) && isSet(iitc_core!['code'])) {
+      core = iitc_core!;
+    }
+    return { plugins: data, categories, core };
   }
 
   /**

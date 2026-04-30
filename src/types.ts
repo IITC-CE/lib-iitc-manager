@@ -155,6 +155,8 @@ export interface PluginsView {
   plugins: PluginDict;
   /** Non-empty categories derived from the current plugin set, sorted alphabetically. */
   categories: CategoryViewDict;
+  /** Current IITC core script, or null if not yet downloaded. */
+  core: Plugin | null;
 }
 
 /**

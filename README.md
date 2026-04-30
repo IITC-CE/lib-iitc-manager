@@ -28,22 +28,24 @@ const manager = new Manager({
         console.log("Injecting plugin:", plugin.name);
         console.log(plugin.code);
     },
-    plugins_view_changed: ({ plugins, categories }) => {
-        // Called whenever the plugin set changes.
+    plugins_view_changed: ({ plugins, categories, core }) => {
+        // Called whenever the plugin set or IITC core changes.
         // plugins - merged view of all plugins (catalog + state + user overrides).
         // categories - non-empty categories derived from plugins, sorted alphabetically.
+        // core - current IITC core Plugin object, or null if not yet downloaded.
         console.log("Plugin list updated:", Object.keys(plugins).length, "plugins");
         console.log("Categories:", Object.keys(categories));
+        console.log("IITC core version:", core?.version ?? "not downloaded");
     },
 });
 
 manager.run().then();
 ```
 
-### Getting the current plugin list and categories
+### Getting the current plugin list, categories and core
 
 ```js
-const { plugins, categories } = await manager.getPluginsView();
+const { plugins, categories, core } = await manager.getPluginsView();
 
 // plugins is a PluginDict - keyed by uid, each entry is a merged Plugin object.
 // Fields: uid, name, category, status ('on'/'off'), user, override, code, ...
@@ -56,6 +58,12 @@ for (const [uid, plugin] of Object.entries(plugins)) {
 // isNew is true if any plugin in that category was added within new_plugin_threshold seconds.
 for (const [name, cat] of Object.entries(categories)) {
     console.log(name, cat.isNew ? '(new)' : '');
+}
+
+// core is the active IITC core Plugin object, or null if not yet downloaded.
+// core.override is true when the user has installed a custom IITC core script.
+if (core) {
+    console.log("IITC core version:", core.version, core.override ? "(user override)" : "");
 }
 ```
 
@@ -110,6 +118,10 @@ The library uses two kinds of storage keys.
 ### `${channel}_plugins_state` and `${channel}_plugins_user` merged into global keys
 
 Per-channel state keys (`release_plugins_state`, `beta_plugins_state`, …) and per-channel user-plugin keys (`release_plugins_user`, …) have been replaced by a single `plugins_state` and `plugins_user` shared across all channels. The migration runs automatically on the first `run()` call.
+
+### `getIITCCore()` removed
+
+`getIITCCore()` is no longer part of the public API. Use `getPluginsView()` instead - it now returns a `core: Plugin | null` field alongside `plugins` and `categories`.
 
 ### `${channel}_iitc_core_user` merged into global `iitc_core_user`
 
