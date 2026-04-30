@@ -5,6 +5,7 @@ import { IITC_CORE_UID, GM_API_UID } from './worker.js';
 import {
   parseMeta,
   fetchResource,
+  fetchData,
   ajaxGet,
   getUniqId,
   getUID,
@@ -25,6 +26,7 @@ export {
   GM_API_UID,
   parseMeta,
   fetchResource,
+  fetchData,
   ajaxGet,
   getUniqId,
   getUID,
