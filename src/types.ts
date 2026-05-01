@@ -136,7 +136,7 @@ export interface PluginStateDict extends StorageObject {
 export interface CategoryView {
   /** Category name. */
   name: string;
-  /** True if this category contains a plugin added within the new_plugin_threshold window. */
+  /** True if this category contains a plugin added within the newPluginThreshold window. */
   isNew: boolean;
 }
 
@@ -148,7 +148,7 @@ export interface CategoryViewDict {
 }
 
 /**
- * Combined view returned by getPluginsView() and the plugins_view_changed callback.
+ * Combined view returned by getPluginsView() and the onPluginsViewChanged callback.
  */
 export interface PluginsView {
   /** Merged view of all plugins (catalog + local state + user overrides). */
@@ -170,7 +170,7 @@ export type EmptyObject = Record<string, never>;
 export type PluginEventType = 'add' | 'update' | 'remove';
 
 /**
- * Plugin event object passed to the plugin_event callback.
+ * Plugin event object passed to the onPluginEvent callback.
  * Contains plugin data for 'add'/'update' events, or empty objects for 'remove' events.
  */
 export interface PluginEventData {
@@ -187,10 +187,10 @@ export interface GmApiConfig {
   /**
    * JavaScript code that sets up `window.__iitc_gm_bridge__` in the page context.
    * Must define an object with two methods:
-   * - `send(data: object): void` — send a request from page to host environment
-   * - `onResponse(callback: (base64Data: string) => void): void` — register response handler
+   * - `send(data: object): void` - send a request from page to host environment
+   * - `onResponse(callback: (base64Data: string) => void): void` - register response handler
    */
-  bridge_adapter_code: string;
+  bridgeAdapterCode: string;
 }
 
 /**
@@ -209,31 +209,31 @@ export interface ManagerConfig {
    * URLs of repositories with IITC and plugins for different release branches.
    * If the parameter is not specified, the default values are used.
    */
-  network_host?: NetworkHost;
+  networkHost?: NetworkHost;
 
   /** In daemon mode, the class does not terminate and runs a periodic check for updates. Default: true. */
-  is_daemon?: boolean;
+  isDaemon?: boolean;
 
   /**
    * Allow HEAD requests for version checking.
    * Some fetch implementations don't support HEAD method, set to false to always use GET.
    * Default: true.
    */
-  use_fetch_head_method?: boolean;
+  useFetchHeadMethod?: boolean;
 
   /**
    * GM API configuration. If provided, enables GM API wrapping for injected plugins.
    * The bridge adapter code is injected before the GM factory, and plugins are
    * automatically wrapped with GM API bindings in `inject()`.
    */
-  gm_api?: GmApiConfig;
+  gmApi?: GmApiConfig;
 
   /**
    * URL prefix for `//# sourceURL=` comments added to injected scripts.
    * Used to group scripts under the host application in browser DevTools.
    * Example: `browser.runtime.getURL('')` -> `chrome-extension://abc123/`
    */
-  source_url_prefix?: string;
+  sourceUrlPrefix?: string;
 
   /**
    * Sends an information message to user.
@@ -247,16 +247,17 @@ export interface ManagerConfig {
   /**
    * Controls progress bar display.
    *
-   * @param is_show - Whether to show the progress bar.
+   * @param isShow - Whether to show the progress bar.
    */
-  progressbar?: (is_show: boolean) => void;
+  onProgress?: (isShow: boolean) => void;
 
   /**
    * Calls a function that injects UserScript code into the Ingress Intel window.
    *
-   * @deprecated since version 1.5.0. Use {@link ManagerConfig.inject_plugin} instead.
+   * @deprecated since version 1.5.0. Use {@link ManagerConfig.injectPlugin} instead.
    * @param code - UserScript code to run in the Ingress Intel window.
    */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   inject_user_script?: (code: string) => void;
 
   /**
@@ -264,7 +265,7 @@ export interface ManagerConfig {
    *
    * @param plugin - UserScript plugin to run in the Ingress Intel window.
    */
-  inject_plugin?: (plugin: Plugin) => void;
+  injectPlugin?: (plugin: Plugin) => void;
 
   /**
    * Called to handle changes in plugin status for multiple plugins at once,
@@ -272,14 +273,14 @@ export interface ManagerConfig {
    *
    * @param event - An object containing the event type and a mapping of plugin data.
    */
-  plugin_event?: (event: PluginEventData) => void;
+  onPluginEvent?: (event: PluginEventData) => void;
 
   /**
    * Threshold in seconds for the isNew flag on categories.
    * A category is marked as new if it contains a plugin with addedAt within this window.
    * Default: 3600 (1 hour).
    */
-  new_plugin_threshold?: number;
+  newPluginThreshold?: number;
 
   /**
    * Called whenever the plugin set changes - after catalog updates, plugin enable/disable,
@@ -288,7 +289,7 @@ export interface ManagerConfig {
    *
    * @param view - Current plugins and categories view.
    */
-  plugins_view_changed?: (view: PluginsView) => void;
+  onPluginsViewChanged?: (view: PluginsView) => void;
 }
 
 /**
@@ -312,7 +313,7 @@ export interface FetchResourceOptions {
   /** Only fetch headers (HEAD request). */
   headOnly?: boolean;
   /** Allow HEAD requests (if false, always use GET). */
-  use_fetch_head_method?: boolean;
+  useFetchHeadMethod?: boolean;
 }
 
 /**
@@ -340,10 +341,13 @@ export interface UserScript {
  */
 export interface BackupData {
   /** External plugins keyed by channel and filename. */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   external_plugins: { [channel: string]: { [filename: string]: string } };
   /** Application data including settings and plugin data. */
   data: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     iitc_settings: StorageData;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     plugins_data: StorageData;
     app: string;
   };
@@ -373,7 +377,7 @@ export interface CategoryDict extends StorageObject {
  */
 export interface MetaJsonResponse {
   /** IITC core version string. */
-  iitc_version?: string;
+  iitcVersion?: string;
   /** Categories with their plugins. */
   categories: { [name: string]: CategoryInfo };
 }

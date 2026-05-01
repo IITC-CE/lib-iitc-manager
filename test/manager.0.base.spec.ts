@@ -14,27 +14,28 @@ describe('manage.js base integration tests', function () {
     const params: ManagerConfig = {
       storage: storage,
       channel: 'beta',
-      network_host: {
+      networkHost: {
         release: 'http://127.0.0.1:31606/release',
         beta: 'http://127.0.0.1:31606/beta',
         custom: 'http://127.0.0.1/',
       },
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       inject_user_script: function callBack(data: string) {
         expect(data).to.include('// ==UserScript==');
       },
-      inject_plugin: function callBack(data: Plugin) {
+      injectPlugin: (data: Plugin) => {
         expect(data['code']).to.include('// ==UserScript==');
       },
-      plugin_event: (data: PluginEventData) => {
+      onPluginEvent: (data: PluginEventData) => {
         expect(data).to.have.all.keys('event', 'plugins');
         expect(data['event']).to.equal('update');
         expect(data['plugins']).to.have.all.keys(IITC_CORE_UID);
         expect(data['plugins'][IITC_CORE_UID]).to.have.property('uid', IITC_CORE_UID);
       },
-      progressbar: function callBack(is_show: boolean) {
-        expect(is_show).to.be.oneOf([true, false]);
+      onProgress: (isShow: boolean) => {
+        expect(isShow).to.be.oneOf([true, false]);
       },
-      is_daemon: false,
+      isDaemon: false,
     };
     manager = new Manager(params);
   });

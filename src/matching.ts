@@ -15,10 +15,10 @@ const RE_URL = /(.*?):\/\/([^/]*)\/(.*)/;
  * @param meta - Object with data from ==UserScript== header.
  * @param url - Page URL.
  */
-export function check_matching(meta: PluginMeta, url: string): boolean {
+export function checkMatching(meta: PluginMeta, url: string): boolean {
   const match = meta.match || [];
   const include = meta.include || [];
-  const match_exclude = meta.excludeMatch || [];
+  const matchExclude = meta.excludeMatch || [];
   const exclude = meta.exclude || [];
 
   // match all if no @match or @include rule and set url === '<all_ingress>'
@@ -28,7 +28,7 @@ export function check_matching(meta: PluginMeta, url: string): boolean {
   // @include
   ok = ok || testInclude(url, include);
   // @exclude-match
-  ok = ok && !testMatch(url, match_exclude);
+  ok = ok && !testMatch(url, matchExclude);
   // @exclude
   ok = ok && !testInclude(url, exclude);
   return ok;
@@ -130,7 +130,7 @@ function matchPath(rule: string, data: string): boolean {
  *
  * @param meta - Object with data from ==UserScript== header.
  */
-export function humanize_match(meta: PluginMeta): null | string | string[] {
+export function humanizeMatch(meta: PluginMeta): null | string | string[] {
   const match = meta.match || [];
   const include = meta.include || [];
   const matches = match.concat(include);

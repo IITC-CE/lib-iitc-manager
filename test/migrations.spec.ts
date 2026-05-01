@@ -1,17 +1,17 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { before, describe, it } from 'mocha';
-import { migrate, number_of_migrations } from '../src/migrations.js';
+import { migrate, numberOfMigrations } from '../src/migrations.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
 import type { StorageData } from '../src/types.js';
 
-const iitc_code = '// ==UserScript==\n// @author jonatkins\n// ==/UserScript==';
+const iitcCode = '// ==UserScript==\n// @author jonatkins\n// ==/UserScript==';
 
 describe('test migrations', function () {
   before(async function () {
     await storage.set({
-      release_iitc_code: iitc_code,
+      release_iitc_code: iitcCode,
       release_plugins_flat: {
         'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion':
           {
@@ -45,38 +45,39 @@ describe('test migrations', function () {
 
   describe('check migrations', function () {
     it('Should replace undefined with "Misc" (fix https://github.com/IITC-CE/IITC-Button/issues/68)', async function () {
-      const db_data = await storage.get(['release_plugins_catalog']);
-      const ext_plugin = (db_data['release_plugins_catalog'] as StorageData)[
+      const dbData = await storage.get(['release_plugins_catalog']);
+      const extPlugin = (dbData['release_plugins_catalog'] as StorageData)[
         'External+https://github.com/IITC-CE/ingress-intel-total-conversion'
       ] as StorageData;
-      expect(ext_plugin['category']).to.equal('Misc');
+      expect(extPlugin['category']).to.equal('Misc');
     });
     it('Custom plugins should have uid and status in plugins_state', async function () {
-      const db_data = await storage.get(['plugins_user', 'plugins_state']);
-      const ext_uid = 'ext+https://github.com/IITC-CE/ingress-intel-total-conversion';
-      const ext_plugin = (db_data['plugins_user'] as StorageData)[ext_uid] as StorageData;
-      expect(ext_plugin['uid']).to.equal(ext_uid);
-      const ext_state = (db_data['plugins_state'] as StorageData)[ext_uid] as StorageData;
-      expect(ext_state['status']).to.equal('off');
+      const dbData = await storage.get(['plugins_user', 'plugins_state']);
+      const extUid = 'ext+https://github.com/IITC-CE/ingress-intel-total-conversion';
+      const extPlugin = (dbData['plugins_user'] as StorageData)[extUid] as StorageData;
+      expect(extPlugin['uid']).to.equal(extUid);
+      const pluginsState = dbData['plugins_state'] as StorageData;
+      const extState = pluginsState[extUid] as StorageData;
+      expect(extState['status']).to.equal('off');
     });
     it('The value of storage_version field has changed', async function () {
-      const db_data = await storage.get(['storage_version']);
-      expect(db_data['storage_version']).to.equal(number_of_migrations());
+      const dbData = await storage.get(['storage_version']);
+      expect(dbData['storage_version']).to.equal(numberOfMigrations());
     });
     it('Should create `iitc_core` object', async function () {
-      const db_data = await storage.get(['release_iitc_core']);
-      const iitc_core = db_data['release_iitc_core'] as StorageData;
-      expect(iitc_core).to.be.an('object');
-      expect(iitc_core['author']).to.equal('jonatkins');
-      expect(iitc_core['code']).to.to.include('jonatkins');
+      const dbData = await storage.get(['release_iitc_core']);
+      const iitcCore = dbData['release_iitc_core'] as StorageData;
+      expect(iitcCore).to.be.an('object');
+      expect(iitcCore['author']).to.equal('jonatkins');
+      expect(iitcCore['code']).to.to.include('jonatkins');
     });
     it('Should change _update_check_interval from hours to seconds', async function () {
-      const db_data = await storage.get(['release_update_check_interval']);
-      expect(db_data['release_update_check_interval']).to.be.equal(6 * 60 * 60);
+      const dbData = await storage.get(['release_update_check_interval']);
+      expect(dbData['release_update_check_interval']).to.be.equal(6 * 60 * 60);
     });
-    it('Should populate plugins_catalog from plugins_flat without runtime fields', async function () {
-      const db_data = await storage.get(['release_plugins_catalog']);
-      const catalog = db_data['release_plugins_catalog'] as StorageData;
+    it('Should populate pluginsCatalog from plugins_flat without runtime fields', async function () {
+      const dbData = await storage.get(['release_plugins_catalog']);
+      const catalog = dbData['release_plugins_catalog'] as StorageData;
       expect(catalog).to.be.an('object');
 
       const bookmarkUid =

@@ -7,15 +7,15 @@ import {
   fetchResource,
   fetchData,
   ajaxGet,
-  getUniqId,
+  getUniqueId,
   getUID,
   getPluginHash,
   sanitizeFileName,
-  check_meta_match_pattern,
+  checkMetaMatchPattern,
   wait,
   clearWait,
 } from './helpers.js';
-import { check_matching, humanize_match } from './matching.js';
+import { checkMatching, humanizeMatch } from './matching.js';
 import { base64ToStr, strToBase64 } from './base64.js';
 import { getGmApiCode } from './gm-api.js';
 import { wrapPluginCode, appendSourceUrl } from './wrapper.js';
@@ -28,15 +28,15 @@ export {
   fetchResource,
   fetchData,
   ajaxGet,
-  getUniqId,
+  getUniqueId,
   getUID,
   getPluginHash,
   sanitizeFileName,
-  check_meta_match_pattern,
+  checkMetaMatchPattern,
   wait,
   clearWait,
-  check_matching,
-  humanize_match,
+  checkMatching,
+  humanizeMatch,
   base64ToStr,
   strToBase64,
   getGmApiCode,

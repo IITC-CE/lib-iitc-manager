@@ -16,21 +16,21 @@ describe('Manager GM API integration', function () {
     const params: ManagerConfig = {
       storage: storage,
       channel: 'release',
-      network_host: {
+      networkHost: {
         release: 'http://127.0.0.1:31606/release',
         beta: 'http://127.0.0.1:31606/beta',
         custom: 'http://127.0.0.1/',
       },
-      inject_plugin: function (plugin: Plugin) {
+      injectPlugin: (plugin: Plugin) => {
         injectedPlugins.push({ ...plugin });
       },
-      plugin_event: function () {},
-      progressbar: function () {},
-      is_daemon: false,
+      onPluginEvent: function () {},
+      onProgress: function () {},
+      isDaemon: false,
       ...(withGmApi
         ? {
-            gm_api: {
-              bridge_adapter_code: 'window.__iitc_gm_bridge__ = { send() {}, onResponse() {} };',
+            gmApi: {
+              bridgeAdapterCode: 'window.__iitc_gm_bridge__ = { send() {}, onResponse() {} };',
             },
           }
         : {}),
