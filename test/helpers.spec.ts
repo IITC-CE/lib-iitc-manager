@@ -90,22 +90,26 @@ describe('fetchResource', function () {
   });
 });
 
-describe('ajaxGet', function () {
+describe('fetchData', function () {
   it('test plaint', async function () {
     expect(
-      await helpers.ajaxGet('http://127.0.0.1:31606/release/total-conversion-build.meta.js')
+      await helpers.fetchData('http://127.0.0.1:31606/release/total-conversion-build.meta.js')
     ).to.include('==UserScript==');
   });
 
   it('test json', async function () {
-    const response = await helpers.ajaxGet('http://127.0.0.1:31606/release/meta.json', 'parseJSON');
+    const response = await helpers.fetchData('http://127.0.0.1:31606/release/meta.json', {
+      parseJSON: true,
+    });
     expect(response, 'is object').to.be.an.instanceof(Object);
     expect(response, 'have keys').to.have.all.keys('categories', 'iitc_version');
   });
 
   it('test head', async function () {
-    const response = await helpers.ajaxGet('http://127.0.0.1:31606/release/meta.json', 'head');
-    expect(response, 'version exists').to.exist;
+    const response = await helpers.fetchData('http://127.0.0.1:31606/release/meta.json', {
+      headOnly: true,
+    });
+    expect(response, 'version not exists').to.be.null;
   });
 });
 

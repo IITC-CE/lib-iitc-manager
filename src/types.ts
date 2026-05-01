@@ -252,15 +252,6 @@ export interface ManagerConfig {
   onProgress?: (isShow: boolean) => void;
 
   /**
-   * Calls a function that injects UserScript code into the Ingress Intel window.
-   *
-   * @deprecated since version 1.5.0. Use {@link ManagerConfig.injectPlugin} instead.
-   * @param code - UserScript code to run in the Ingress Intel window.
-   */
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  inject_user_script?: (code: string) => void;
-
-  /**
    * Calls a function that injects UserScript plugin into the Ingress Intel window.
    *
    * @param plugin - UserScript plugin to run in the Ingress Intel window.

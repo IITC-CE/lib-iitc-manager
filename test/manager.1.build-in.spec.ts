@@ -25,10 +25,6 @@ describe('manage.js build-in plugins integration tests', function () {
         beta: 'http://127.0.0.1:31606/beta',
         custom: 'http://127.0.0.1/',
       },
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      inject_user_script: function callBack(data: string) {
-        expect(data).to.include('// ==UserScript==');
-      },
       injectPlugin: (data: Plugin) => {
         expect(data['code']).to.include('// ==UserScript==');
       },
@@ -201,10 +197,6 @@ describe('Delete external plugins - comprehensive tests', function () {
         beta: 'http://127.0.0.1:31606/beta',
         custom: 'http://127.0.0.1/',
       },
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      inject_user_script: function callBack(data: string) {
-        expect(data).to.include('// ==UserScript==');
-      },
       injectPlugin: (data: Plugin) => {
         expect(data['code']).to.include('// ==UserScript==');
       },
@@ -340,10 +332,6 @@ describe('Delete external plugins - comprehensive tests', function () {
           release: 'http://127.0.0.1:31606/release',
           beta: 'http://127.0.0.1:31606/beta',
           custom: 'http://127.0.0.1/',
-        },
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        inject_user_script: function (data: string) {
-          expect(data).to.include('// ==UserScript==');
         },
         injectPlugin: (data: Plugin) => {
           expect(data['code']).to.include('// ==UserScript==');

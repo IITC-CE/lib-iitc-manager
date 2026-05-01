@@ -13,8 +13,6 @@ const baseConfig: Omit<ManagerConfig, 'channel' | 'onPluginEvent'> = {
     beta: 'http://127.0.0.1:31606/beta',
     custom: 'http://127.0.0.1/',
   },
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  inject_user_script: () => {},
   injectPlugin: () => {},
   onProgress: () => {},
   isDaemon: false,

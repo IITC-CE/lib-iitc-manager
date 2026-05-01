@@ -46,9 +46,6 @@ export class Worker {
 
   message?: (message: string, args?: string | string[]) => void;
   onProgress?: (isShow: boolean) => void;
-  /** @deprecated */
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  inject_user_script: (code: string) => void;
   injectPlugin: (plugin: Plugin) => void;
   onPluginEvent: (event: PluginEventData) => void;
   onPluginsViewChanged?: (view: PluginsView) => void;
@@ -70,8 +67,6 @@ export class Worker {
         : (console.error("config key 'storage' is not set") as unknown as StorageAPI);
     this.message = this.config.message;
     this.onProgress = this.config.onProgress;
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    this.inject_user_script = this.config.inject_user_script || function () {};
     this.injectPlugin = this.config.injectPlugin || function () {};
     this.onPluginEvent = this.config.onPluginEvent || function () {};
     this.gmApi = this.config.gmApi;
@@ -733,8 +728,6 @@ export class Worker {
     if (this.gmApi && plugin.code) {
       plugin = { ...plugin, code: wrapPluginCode(plugin, this.sourceUrlPrefix) };
     }
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    this.inject_user_script(plugin.code!);
     this.injectPlugin(plugin);
   }
 }

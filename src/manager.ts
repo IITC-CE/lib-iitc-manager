@@ -231,8 +231,6 @@ export class Manager extends Worker {
       const isCore = uid === IITC_CORE_UID;
 
       if (isCore) {
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        this.inject_user_script(plugin.code);
         this.injectPlugin(plugin);
       } else if (isGmComponent) {
         this.injectPlugin(plugin);

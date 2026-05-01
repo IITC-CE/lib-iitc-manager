@@ -141,34 +141,6 @@ export async function fetchData(
 }
 
 /**
- * This is a wrapper over the fetch() API method with pre-built parameters.
- *
- * @deprecated Use {@link fetchResource} instead for better version tracking.
- * @param url - URL of the resource you want to fetch.
- * @param variant - Type of request.
- */
-export async function ajaxGet(
-  url: string,
-  variant?: 'parseJSON' | 'head' | null
-): Promise<string | object | null> {
-  const options: FetchResourceOptions = {};
-
-  if (variant === 'parseJSON') {
-    options.parseJSON = true;
-  } else if (variant === 'head') {
-    options.headOnly = true;
-  }
-
-  const { data, version } = await fetchResource(url, options);
-
-  // Old behavior: return version for 'head', otherwise return data
-  if (variant === 'head') {
-    return version;
-  }
-  return data;
-}
-
-/**
  * Generates a unique random string with prefix.
  *
  * @param prefix - Prefix string.
