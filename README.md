@@ -21,14 +21,14 @@ const manager = new Manager({
     message: (message, args) => {
         console.log("Message for user:", message, args);
     },
-    progressbar: is_show => {
-        console.log(is_show ? "Show progress bar" : "Hide progress bar");
+    onProgress: isShow => {
+        console.log(isShow ? "Show progress bar" : "Hide progress bar");
     },
-    inject_plugin: plugin => {
+    injectPlugin: plugin => {
         console.log("Injecting plugin:", plugin.name);
         console.log(plugin.code);
     },
-    plugins_view_changed: ({ plugins, categories, core }) => {
+    onPluginsViewChanged: ({ plugins, categories, core }) => {
         // Called whenever the plugin set or IITC core changes.
         // plugins - merged view of all plugins (catalog + state + user overrides).
         // categories - non-empty categories derived from plugins, sorted alphabetically.
@@ -55,7 +55,7 @@ for (const [uid, plugin] of Object.entries(plugins)) {
 
 // categories is a CategoryViewDict - keyed by category name, sorted alphabetically.
 // Each entry: { name: string, isNew: boolean }
-// isNew is true if any plugin in that category was added within new_plugin_threshold seconds.
+// isNew is true if any plugin in that category was added within newPluginThreshold seconds.
 for (const [name, cat] of Object.entries(categories)) {
     console.log(name, cat.isNew ? '(new)' : '');
 }
@@ -69,14 +69,14 @@ if (core) {
 
 ### Reacting to plugin list changes
 
-Pass `plugins_view_changed` in the config (see above), or poll with `getPluginsView()` as needed.
+Pass `onPluginsViewChanged` in the config (see above), or poll with `getPluginsView()` as needed.
 
 ### Example of use helpers
 
 ```js
-import { getUniqId } from "lib-iitc-manager";
+import { getUniqueId } from "lib-iitc-manager";
 
-const uniqId = getUniqId("tmp");
+const uniqId = getUniqueId("tmp");
 ```
 
 [See more in documentation](https://iitc-ce.github.io/lib-iitc-manager/)
@@ -109,7 +109,23 @@ The library uses two kinds of storage keys.
 | `{channel}_plugins_local` | `{ [uid]: Plugin }` - downloaded plugin code cache |
 | `{channel}_update_check_interval` | Update check interval in seconds for IITC and built-in plugins |
 
-## Migrating from v1
+## Migrating from v1 to v2
+
+### camelCase naming convention
+
+All public methods and configuration properties have been renamed to follow TypeScript `camelCase` naming conventions. For example:
+- `progressbar` -> `onProgress`
+- `inject_plugin` -> `injectPlugin`
+- `plugins_view_changed` -> `onPluginsViewChanged`
+- `new_plugin_threshold` -> `newPluginThreshold`
+
+Internal storage keys (e.g., `plugins_user`, `plugins_state`) remain in `snake_case` to maintain compatibility with existing data.
+
+### Removed deprecated methods
+
+The following deprecated methods have been removed:
+- `inject_user_script`: Use `injectPlugin` instead.
+- `ajaxGet` helper: Use `fetchData` or `fetchResource` instead.
 
 ### `plugins_flat` and `${channel}_categories` removed
 
