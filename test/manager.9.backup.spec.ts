@@ -8,10 +8,9 @@ import type { BackupData, ManagerConfig, Plugin, PluginDict, StorageData } from 
 
 describe('getBackupData and setBackupData', function () {
   let manager: Manager | null = null;
-  const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const external_code =
-    '// ==UserScript==\n// @name IITC plugin\n// ==/UserScript==\nreturn false;';
-  const external_iitc_code =
+  const firstPluginUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const externalCode = '// ==UserScript==\n// @name IITC plugin\n// ==/UserScript==\nreturn false;';
+  const externalIitcCode =
     '// ==UserScript==\n' +
     '// @name IITC: Ingress intel map total conversion\n' +
     '// @namespace https://github.com/IITC-CE/ingress-intel-total-conversion\n' +
@@ -20,8 +19,8 @@ describe('getBackupData and setBackupData', function () {
   const initialBackupData: BackupData = {
     external_plugins: {
       shared: {
-        'total-conversion-build.user.js': external_iitc_code,
-        'Bookmarks for maps and portals.user.js': external_code,
+        'total-conversion-build.user.js': externalIitcCode,
+        'Bookmarks for maps and portals.user.js': externalCode,
       },
     },
     data: {
@@ -33,7 +32,7 @@ describe('getBackupData and setBackupData', function () {
           custom: 'http://127.0.0.1/',
         },
         plugins_state: {
-          [first_plugin_uid]: { status: 'on' },
+          [firstPluginUid]: { status: 'on' },
           'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion':
             { status: 'on' },
         },
@@ -45,13 +44,13 @@ describe('getBackupData and setBackupData', function () {
     },
   };
 
-  const backup_code_2 =
+  const backupCode2 =
     '// ==UserScript==\n' +
     '// @name Bookmarks2 for maps\n' +
     '// @namespace https://github.com/IITC-CE/ingress-intel-total-conversion\n' +
     '// ==/UserScript==\n' +
     'return false;';
-  const backup_code_3 =
+  const backupCode3 =
     '// ==UserScript==\n' +
     '// @name Bookmarks3 for maps\n' +
     '// @namespace https://github.com/IITC-CE/ingress-intel-total-conversion\n' +
@@ -60,11 +59,11 @@ describe('getBackupData and setBackupData', function () {
   const backupData: BackupData = {
     external_plugins: {
       release: {
-        'Bookmarks2 for maps.user.js': backup_code_2,
+        'Bookmarks2 for maps.user.js': backupCode2,
       },
       beta: {
-        'total-conversion-build.user.js': external_iitc_code,
-        'Bookmarks3 for maps.user.js': backup_code_3,
+        'total-conversion-build.user.js': externalIitcCode,
+        'Bookmarks3 for maps.user.js': backupCode3,
       },
     },
     data: {
@@ -84,21 +83,18 @@ describe('getBackupData and setBackupData', function () {
     const params: ManagerConfig = {
       storage: storage,
       channel: 'release',
-      network_host: {
+      networkHost: {
         release: 'http://127.0.0.1:31606/release',
         beta: 'http://127.0.0.1:31606/beta',
         custom: 'http://127.0.0.1/',
       },
-      inject_user_script: function callBack(data: string) {
-        expect(data).to.include('// ==UserScript==');
-      },
-      inject_plugin: function callBack(data: Plugin) {
+      injectPlugin: (data: Plugin) => {
         expect(data['code']).to.include('// ==UserScript==');
       },
-      progressbar: function callBack(is_show: boolean) {
-        expect(is_show).to.be.oneOf([true, false]);
+      onProgress: (isShow: boolean) => {
+        expect(isShow).to.be.oneOf([true, false]);
       },
-      is_daemon: false,
+      isDaemon: false,
     };
     manager = new Manager(params);
   });
@@ -112,7 +108,7 @@ describe('getBackupData and setBackupData', function () {
 
   describe('Enable plugins and add plugin settings data', function () {
     it('Enable first plugin', async function () {
-      const run = await manager!.managePlugin(first_plugin_uid, 'on');
+      const run = await manager!.managePlugin(firstPluginUid, 'on');
       expect(run).to.be.undefined;
     });
     it('Add custom IITC core', async function () {
@@ -124,7 +120,7 @@ describe('getBackupData and setBackupData', function () {
             name: 'IITC: Ingress intel map total conversion',
             filename: 'total-conversion-build.user.js',
           },
-          code: external_iitc_code,
+          code: externalIitcCode,
         },
       ];
       const installed: PluginDict = {
@@ -134,7 +130,7 @@ describe('getBackupData and setBackupData', function () {
             id: 'total-conversion-build',
             namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
             name: 'IITC: Ingress intel map total conversion',
-            code: external_iitc_code,
+            code: externalIitcCode,
             filename: 'total-conversion-build.user.js',
           },
       };
@@ -150,26 +146,26 @@ describe('getBackupData and setBackupData', function () {
             name: 'Bookmarks for maps and portals',
             category: 'Controls',
           },
-          code: external_code,
+          code: externalCode,
         },
       ];
-      const plugin_uid =
+      const pluginUid =
         'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion';
       const installed: PluginDict = {};
-      installed[plugin_uid] = {
-        uid: plugin_uid,
+      installed[pluginUid] = {
+        uid: pluginUid,
         id: 'bookmarks1',
         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
         name: 'Bookmarks for maps and portals',
         category: 'Controls',
         status: 'on',
         user: true,
-        code: external_code,
+        code: externalCode,
       };
       const run = await manager!.addUserScripts(scripts);
-      delete (run as PluginDict)[plugin_uid]['filename'];
-      delete (run as PluginDict)[plugin_uid]['addedAt'];
-      delete (run as PluginDict)[plugin_uid]['statusChangedAt'];
+      delete (run as PluginDict)[pluginUid]['filename'];
+      delete (run as PluginDict)[pluginUid]['addedAt'];
+      delete (run as PluginDict)[pluginUid]['statusChangedAt'];
       expect(run).to.deep.equal(installed);
     });
     it('Add plugin settings data', async function () {
@@ -213,13 +209,13 @@ describe('getBackupData and setBackupData', function () {
         uid: 'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion',
         name: 'IITC: Ingress intel map total conversion',
         namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
-        code: external_iitc_code,
+        code: externalIitcCode,
         filename: 'total-conversion-build.user.js',
       });
 
       const externalPlugins = await storage.get(['plugins_user']);
-      const plugins_user = externalPlugins['plugins_user'] as StorageData;
-      expect(plugins_user).to.include.all.keys(
+      const pluginsUser = externalPlugins['plugins_user'] as StorageData;
+      expect(pluginsUser).to.include.all.keys(
         'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion',
         'Bookmarks2 for maps+https://github.com/IITC-CE/ingress-intel-total-conversion',
         'Bookmarks3 for maps+https://github.com/IITC-CE/ingress-intel-total-conversion'

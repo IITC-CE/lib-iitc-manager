@@ -79,7 +79,7 @@ describe('fetchResource', function () {
   it('test headOnly with use_fetch_head_method=false', async function () {
     const result = await helpers.fetchResource('http://127.0.0.1:31606/release/meta.json', {
       headOnly: true,
-      use_fetch_head_method: false,
+      useFetchHeadMethod: false,
       parseJSON: true,
     });
     expect(result, 'is object').to.be.an.instanceof(Object);
@@ -90,36 +90,40 @@ describe('fetchResource', function () {
   });
 });
 
-describe('ajaxGet', function () {
+describe('fetchData', function () {
   it('test plaint', async function () {
     expect(
-      await helpers.ajaxGet('http://127.0.0.1:31606/release/total-conversion-build.meta.js')
+      await helpers.fetchData('http://127.0.0.1:31606/release/total-conversion-build.meta.js')
     ).to.include('==UserScript==');
   });
 
   it('test json', async function () {
-    const response = await helpers.ajaxGet('http://127.0.0.1:31606/release/meta.json', 'parseJSON');
+    const response = await helpers.fetchData('http://127.0.0.1:31606/release/meta.json', {
+      parseJSON: true,
+    });
     expect(response, 'is object').to.be.an.instanceof(Object);
     expect(response, 'have keys').to.have.all.keys('categories', 'iitc_version');
   });
 
   it('test head', async function () {
-    const response = await helpers.ajaxGet('http://127.0.0.1:31606/release/meta.json', 'head');
-    expect(response, 'version exists').to.exist;
+    const response = await helpers.fetchData('http://127.0.0.1:31606/release/meta.json', {
+      headOnly: true,
+    });
+    expect(response, 'version not exists').to.be.null;
   });
 });
 
 describe('getUniqId', function () {
   it('without arguments', function () {
-    expect(helpers.getUniqId()).to.include('VM');
+    expect(helpers.getUniqueId()).to.include('VM');
   });
 
   describe('with argument tmp', function () {
     it('has expected text "tmp"', function () {
-      expect(helpers.getUniqId('tmp')).to.include('tmp');
+      expect(helpers.getUniqueId('tmp')).to.include('tmp');
     });
     it('is random value', function () {
-      expect(helpers.getUniqId('tmp')).to.not.equal(helpers.getUniqId('tmp'));
+      expect(helpers.getUniqueId('tmp')).to.not.equal(helpers.getUniqueId('tmp'));
     });
   });
 });
@@ -157,7 +161,7 @@ describe('getUID', function () {
 });
 
 describe('check_url_match_pattern', function () {
-  const missions_links = [
+  const missionsLinks = [
     '*://*.ingress.com/mission/*',
 
     'http://*.ingress.com/mission/*',
@@ -168,7 +172,7 @@ describe('check_url_match_pattern', function () {
     'https://www.ingress.com/mission/*',
   ];
 
-  const intel_links = [
+  const intelLinks = [
     '*://*.ingress.com/*',
     '*://*.ingress.com/intel*',
     '*://intel.ingress.com/*',
@@ -197,33 +201,33 @@ describe('check_url_match_pattern', function () {
   ];
 
   describe('match missions.ingress.com - valid', function () {
-    for (const url of missions_links) {
+    for (const url of missionsLinks) {
       it(url, function () {
-        expect(helpers.check_url_match_pattern(url, 'missions.ingress.com')).to.be.true;
+        expect(helpers.checkUrlMatchPattern(url, 'missions.ingress.com')).to.be.true;
       });
     }
   });
 
   describe('match missions.ingress.com - not valid', function () {
-    for (const url of intel_links) {
+    for (const url of intelLinks) {
       it(url, function () {
-        expect(helpers.check_url_match_pattern(url, 'missions.ingress.com')).to.be.false;
+        expect(helpers.checkUrlMatchPattern(url, 'missions.ingress.com')).to.be.false;
       });
     }
   });
 
   describe('match intel.ingress.com - valid', function () {
-    for (const url of intel_links) {
+    for (const url of intelLinks) {
       it(url, function () {
-        expect(helpers.check_url_match_pattern(url, 'intel.ingress.com')).to.be.true;
+        expect(helpers.checkUrlMatchPattern(url, 'intel.ingress.com')).to.be.true;
       });
     }
   });
 
   describe('match intel.ingress.com - not valid', function () {
-    for (const url of missions_links) {
+    for (const url of missionsLinks) {
       it(url, function () {
-        expect(helpers.check_url_match_pattern(url, 'intel.ingress.com')).to.be.false;
+        expect(helpers.checkUrlMatchPattern(url, 'intel.ingress.com')).to.be.false;
       });
     }
   });
@@ -232,13 +236,12 @@ describe('check_url_match_pattern', function () {
 describe('check_meta_match_pattern', function () {
   describe('domain = <all>', function () {
     it('variant 1', function () {
-      expect(helpers.check_meta_match_pattern({ match: ['http://ingress.com'] }, '<all>')).to.be
-        .true;
+      expect(helpers.checkMetaMatchPattern({ match: ['http://ingress.com'] }, '<all>')).to.be.true;
     });
 
     it('variant 2', function () {
       expect(
-        helpers.check_meta_match_pattern(
+        helpers.checkMetaMatchPattern(
           { match: ['http://ingress.com', 'https://ingress.com/intel'] },
           '<all>'
         )
@@ -249,7 +252,7 @@ describe('check_meta_match_pattern', function () {
   describe('domain = intel.ingress.com', function () {
     it('variant 1', function () {
       expect(
-        helpers.check_meta_match_pattern(
+        helpers.checkMetaMatchPattern(
           { match: ['https://missions.ingress.com'] },
           'intel.ingress.com'
         )
@@ -258,7 +261,7 @@ describe('check_meta_match_pattern', function () {
 
     it('variant 2', function () {
       expect(
-        helpers.check_meta_match_pattern(
+        helpers.checkMetaMatchPattern(
           { match: ['http://ingress.com', 'https://ingress.com/intel'] },
           'intel.ingress.com'
         )

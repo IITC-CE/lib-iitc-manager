@@ -13,21 +13,18 @@ describe('manage.js custom repo integration tests', function () {
     const params: ManagerConfig = {
       storage: storage,
       channel: 'release',
-      network_host: {
+      networkHost: {
         release: 'http://127.0.0.1:31606/release',
         beta: 'http://127.0.0.1:31606/beta',
         custom: 'http://127.0.0.1/',
       },
-      inject_user_script: function callBack(data: string) {
-        expect(data).to.include('// ==UserScript==');
-      },
-      inject_plugin: function callBack(data: Plugin) {
+      injectPlugin: (data: Plugin) => {
         expect(data['code']).to.include('// ==UserScript==');
       },
-      progressbar: function callBack(is_show: boolean) {
-        expect(is_show).to.be.oneOf([true, false]);
+      onProgress: (isShow: boolean) => {
+        expect(isShow).to.be.oneOf([true, false]);
       },
-      is_daemon: false,
+      isDaemon: false,
     };
     manager = new Manager(params);
   });
@@ -40,18 +37,18 @@ describe('manage.js custom repo integration tests', function () {
   });
 
   describe('Custom repository', function () {
-    const custom_repo = 'http://127.0.0.1:31606/custom';
+    const customRepo = 'http://127.0.0.1:31606/custom';
 
     it('Setting the URL of the custom repository', async function () {
-      const run = await manager!.setCustomChannelUrl(custom_repo);
+      const run = await manager!.setCustomChannelUrl(customRepo);
       expect(run).to.be.undefined;
     });
 
     it('Check the URL of the custom repository', async function () {
-      const network_host = await storage
+      const networkHost = await storage
         .get(['network_host'])
         .then(data => data.network_host as StorageData);
-      expect(network_host.custom).to.equal(custom_repo);
+      expect(networkHost.custom).to.equal(customRepo);
     });
 
     it('Switching to a custom channel', async function () {

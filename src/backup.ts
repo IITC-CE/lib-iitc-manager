@@ -19,14 +19,14 @@ export function paramsProcessing(params: Partial<BackupParams> | unknown): Backu
   if (typeof params !== 'object' || params === null) params = {};
 
   // Default parameters
-  const default_params: BackupParams = {
+  const defaultParams: BackupParams = {
     settings: false,
     data: false,
     external: false,
   };
 
   // Combine the default parameters with the input parameters using spread syntax
-  return { ...default_params, ...(params as Partial<BackupParams>) };
+  return { ...defaultParams, ...(params as Partial<BackupParams>) };
 }
 
 /**
@@ -36,13 +36,13 @@ export function paramsProcessing(params: Partial<BackupParams> | unknown): Backu
  * predefined keys. It creates a new object containing only the specified IITC settings
  * and returns it.
  *
- * @param all_storage - The storage object containing all data.
+ * @param allStorage - The storage object containing all data.
  */
-export const exportIitcSettings = (all_storage: StorageData): StorageData => {
-  const iitc_settings: StorageData = {};
+export const exportIitcSettings = (allStorage: StorageData): StorageData => {
+  const iitcSettings: StorageData = {};
 
   // An array of predefined keys for IITC settings
-  const storage_keys = [
+  const storageKeys = [
     'channel',
     'network_host',
     'release_update_check_interval',
@@ -52,24 +52,24 @@ export const exportIitcSettings = (all_storage: StorageData): StorageData => {
 
   // Loop through all_storage and check if the keys are present in storage_keys
   // If present, add them to the iitc_settings object
-  for (const key in all_storage) {
-    if (storage_keys.includes(key) && isSet(all_storage[key])) {
-      iitc_settings[key] = all_storage[key];
+  for (const key in allStorage) {
+    if (storageKeys.includes(key) && isSet(allStorage[key])) {
+      iitcSettings[key] = allStorage[key];
     }
   }
 
   // Export plugin on/off state without runtime timestamps
-  const plugins_state = all_storage['plugins_state'] as StorageData | undefined;
-  if (isSet(plugins_state) && plugins_state) {
-    const state_export: StorageData = {};
-    for (const uid of Object.keys(plugins_state)) {
-      const entry = plugins_state[uid] as StorageData;
-      if (entry?.status) state_export[uid] = { status: entry.status };
+  const pluginsState = allStorage['plugins_state'] as StorageData | undefined;
+  if (isSet(pluginsState) && pluginsState) {
+    const stateExport: StorageData = {};
+    for (const uid of Object.keys(pluginsState)) {
+      const entry = pluginsState[uid] as StorageData;
+      if (entry?.status) stateExport[uid] = { status: entry.status };
     }
-    if (Object.keys(state_export).length) iitc_settings['plugins_state'] = state_export;
+    if (Object.keys(stateExport).length) iitcSettings['plugins_state'] = stateExport;
   }
 
-  return iitc_settings;
+  return iitcSettings;
 };
 
 /**
@@ -79,19 +79,19 @@ export const exportIitcSettings = (all_storage: StorageData): StorageData => {
  * with the prefix 'VMin'. It creates a new object containing only the plugin settings
  * and returns it.
  *
- * @param all_storage - The storage object containing all data.
+ * @param allStorage - The storage object containing all data.
  */
-export const exportPluginsSettings = (all_storage: StorageData): StorageData => {
-  const plugins_storage: StorageData = {};
+export const exportPluginsSettings = (allStorage: StorageData): StorageData => {
+  const pluginsStorage: StorageData = {};
 
   // Loop through all_storage and check if the keys start with the prefix 'VMin'
   // If so, add them to the plugins_storage object
-  for (const key in all_storage) {
+  for (const key in allStorage) {
     if (key.startsWith('VMin')) {
-      plugins_storage[key] = all_storage[key];
+      pluginsStorage[key] = allStorage[key];
     }
   }
-  return plugins_storage;
+  return pluginsStorage;
 };
 
 /**
@@ -101,36 +101,36 @@ export const exportPluginsSettings = (all_storage: StorageData): StorageData => 
  * It creates a new object containing the external plugins organized by their channels and filenames,
  * and returns it.
  *
- * @param all_storage - The storage object containing all data.
+ * @param allStorage - The storage object containing all data.
  */
 export const exportExternalPlugins = (
-  all_storage: StorageData
+  allStorage: StorageData
 ): { [channel: string]: { [filename: string]: string } } => {
-  const external_plugins: { [channel: string]: { [filename: string]: string } } = {};
+  const externalPlugins: { [channel: string]: { [filename: string]: string } } = {};
   const shared: { [filename: string]: string } = {};
 
   // Export global IITC core user script
-  const iitc_core_user = all_storage['iitc_core_user'] as StorageData;
-  if (isSet(iitc_core_user) && isSet(iitc_core_user['code'])) {
-    shared['total-conversion-build.user.js'] = iitc_core_user['code'] as string;
+  const iitcCoreUser = allStorage['iitc_core_user'] as StorageData;
+  if (isSet(iitcCoreUser) && isSet(iitcCoreUser['code'])) {
+    shared['total-conversion-build.user.js'] = iitcCoreUser['code'] as string;
   }
 
   // Export global user plugins
-  const plugins_user = all_storage['plugins_user'] as StorageData | null | undefined;
-  if (isSet(plugins_user) && plugins_user) {
-    for (const plugin_uid in plugins_user) {
-      const plugin = plugins_user[plugin_uid] as StorageData;
-      let plugin_filename = plugin['filename'] as string;
-      if (!plugin_filename) {
-        plugin_filename = sanitizeFileName(`${plugin['name']}.user.js`);
+  const pluginsUser = allStorage['plugins_user'] as StorageData | null | undefined;
+  if (isSet(pluginsUser) && pluginsUser) {
+    for (const pluginUid in pluginsUser) {
+      const plugin = pluginsUser[pluginUid] as StorageData;
+      let pluginFilename = plugin['filename'] as string;
+      if (!pluginFilename) {
+        pluginFilename = sanitizeFileName(`${plugin['name']}.user.js`);
       }
-      shared[plugin_filename] = plugin['code'] as string;
+      shared[pluginFilename] = plugin['code'] as string;
     }
   }
 
-  if (Object.keys(shared).length) external_plugins['shared'] = shared;
+  if (Object.keys(shared).length) externalPlugins['shared'] = shared;
 
-  return external_plugins;
+  return externalPlugins;
 };
 
 /**
@@ -140,16 +140,16 @@ export const exportExternalPlugins = (
  * @param backup - The backup object containing IITC settings to import.
  */
 export const importIitcSettings = async (self: Manager, backup: StorageData): Promise<void> => {
-  const backup_obj = Object.assign({}, backup);
-  const default_channel = self.channel;
+  const backupObj = Object.assign({}, backup);
+  const defaultChannel = self.channel;
 
   // Set the IITC settings from the backup object into the storage
-  await self.storage.set(backup_obj);
+  await self.storage.set(backupObj);
 
   // Check if the channel in the backup object is different from the original channel
-  const set_channel = backup_obj.channel as import('./types.js').Channel;
-  if (set_channel !== default_channel) {
-    await self.setChannel(set_channel);
+  const setChannel = backupObj.channel as import('./types.js').Channel;
+  if (setChannel !== defaultChannel) {
+    await self.setChannel(setChannel);
   }
 };
 
@@ -160,26 +160,26 @@ export const importIitcSettings = async (self: Manager, backup: StorageData): Pr
  * using `self.storage.get(null)` and filters out the records with keys starting with 'VMin'
  * to create a new object `vMinRecords` containing only plugin-related data. The function then
  * merges the `vMinRecords` object with the provided backup object using the `deepmerge` library,
- * resulting in a new storage object `new_storage` that contains updated plugin settings. Finally,
+ * resulting in a new storage object `newStorage` that contains updated plugin settings. Finally,
  * the updated storage object is set into the 'self' object using `self.storage.set()`.
  *
  * @param self - IITC manager object.
  * @param backup - The backup object containing plugin settings to import.
  */
 export const importPluginsSettings = async (self: Manager, backup: StorageData): Promise<void> => {
-  const all_storage = await self.storage.get(null);
+  const allStorage = await self.storage.get(null);
 
   // Create a new object containing only plugin-related data (keys starting with 'VMin')
   const vMinRecords: StorageData = {};
-  Object.keys(all_storage).forEach(key => {
+  Object.keys(allStorage).forEach(key => {
     if (key.startsWith('VMin')) {
-      vMinRecords[key] = all_storage[key];
+      vMinRecords[key] = allStorage[key];
     }
   });
 
   // Merge the 'vMinRecords' object with the provided backup object and set into storage
-  const new_storage = deepmerge(vMinRecords, backup) as StorageData;
-  await self.storage.set(new_storage);
+  const newStorage = deepmerge(vMinRecords, backup) as StorageData;
+  await self.storage.set(newStorage);
 };
 
 /**
@@ -211,13 +211,13 @@ export const importExternalPlugins = async (
   }
 
   // Legacy / per-channel format: temporarily switch channel to associate plugins correctly
-  const legacy_channels = Object.keys(backup).filter(
+  const legacyChannels = Object.keys(backup).filter(
     ch => ch !== 'shared' && Object.keys(backup[ch]).length > 0
   );
-  if (legacy_channels.length > 0) {
-    const default_channel = self.channel;
+  if (legacyChannels.length > 0) {
+    const defaultChannel = self.channel;
 
-    for (const channel of legacy_channels) {
+    for (const channel of legacyChannels) {
       const scripts: { meta: import('./types.js').PluginMeta; code: string }[] = [];
       await self.setChannel(channel as import('./types.js').Channel);
 
@@ -232,8 +232,8 @@ export const importExternalPlugins = async (
 
     // If the current channel is different from the default channel,
     // set the default channel using the 'self.setChannel()' method
-    if (self.channel !== default_channel) {
-      await self.setChannel(default_channel);
+    if (self.channel !== defaultChannel) {
+      await self.setChannel(defaultChannel);
     }
   }
 };

@@ -36,9 +36,9 @@ export function appendSourceUrl({
  * @param plugin - Plugin object from lib-iitc-manager.
  * @returns Wrapped plugin code ready for injection.
  */
-export function wrapPluginCode(plugin: Plugin, source_url_prefix: string = ''): string {
+export function wrapPluginCode(plugin: Plugin, sourceUrlPrefix: string = ''): string {
   const uid = plugin.uid || getUID(plugin);
-  const data_key = getPluginHash(uid!);
+  const dataKey = getPluginHash(uid!);
 
   const meta = { ...plugin };
   delete meta.code;
@@ -49,8 +49,8 @@ export function wrapPluginCode(plugin: Plugin, source_url_prefix: string = ''): 
     '\n',
     plugin.code,
     plugin.code!.endsWith('\n') ? '' : '\n',
-    `})(GM(${JSON.stringify({ data_key, meta })}))`,
+    `})(GM(${JSON.stringify({ data_key: dataKey, meta })}))`,
   ].join('');
 
-  return appendSourceUrl({ code, name: meta.name || uid || 'plugin', prefix: source_url_prefix });
+  return appendSourceUrl({ code, name: meta.name || uid || 'plugin', prefix: sourceUrlPrefix });
 }

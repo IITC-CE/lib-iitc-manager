@@ -8,36 +8,35 @@ import { expect } from 'chai';
 import type { ManagerConfig, PluginsView } from '../src/types.js';
 
 /**
- * Returns a Promise that resolves with the next plugins_view_changed invocation payload.
+ * Returns a Promise that resolves with the next onPluginsViewChanged invocation payload.
  * Replaces the callback with a one-shot wrapper, then restores the original.
  */
 function nextPluginsViewChanged(manager: Manager): Promise<PluginsView> {
   return new Promise<PluginsView>(resolve => {
-    const prev = manager.plugins_view_changed;
-    manager.plugins_view_changed = (view: PluginsView) => {
-      manager.plugins_view_changed = prev;
+    const prev = manager.onPluginsViewChanged;
+    manager.onPluginsViewChanged = (view: PluginsView) => {
+      manager.onPluginsViewChanged = prev;
       if (prev) prev(view);
       resolve(view);
     };
   });
 }
 
-describe('plugins_view_changed callback', function () {
-  const first_plugin_uid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const second_plugin_uid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const third_plugin_uid = 'Plugin C+https://github.com/IITC-CE/ingress-intel-total-conversion';
-  const base_config: Omit<ManagerConfig, 'plugins_view_changed'> = {
+describe('onPluginsViewChanged callback', function () {
+  const firstPluginUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const secondPluginUid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const thirdPluginUid = 'Plugin C+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const baseConfig: Omit<ManagerConfig, 'onPluginsViewChanged'> = {
     storage,
     channel: 'release',
-    network_host: {
+    networkHost: {
       release: 'http://127.0.0.1:31606/release',
       beta: 'http://127.0.0.1:31606/beta',
       custom: 'http://127.0.0.1/',
     },
-    inject_user_script: () => {},
-    inject_plugin: () => {},
-    progressbar: () => {},
-    is_daemon: false,
+    injectPlugin: () => {},
+    onProgress: () => {},
+    isDaemon: false,
   };
 
   describe('fires on each mutating operation', function () {
@@ -45,32 +44,32 @@ describe('plugins_view_changed callback', function () {
 
     before(async function () {
       storage.resetStorage();
-      manager = new Manager({ ...base_config, plugins_view_changed: () => {} });
+      manager = new Manager({ ...baseConfig, onPluginsViewChanged: () => {} });
     });
 
     it('fires on run() and delivers all catalog plugins', async function () {
       const next = nextPluginsViewChanged(manager);
       await manager.run();
       const { plugins } = await next;
-      expect(plugins).to.include.all.keys(first_plugin_uid, second_plugin_uid, third_plugin_uid);
+      expect(plugins).to.include.all.keys(firstPluginUid, secondPluginUid, thirdPluginUid);
     });
 
     it('fires on managePlugin on with updated status', async function () {
       const next = nextPluginsViewChanged(manager);
-      await manager.managePlugin(first_plugin_uid, 'on');
+      await manager.managePlugin(firstPluginUid, 'on');
       const { plugins } = await next;
-      expect(plugins[first_plugin_uid].status).to.equal('on');
+      expect(plugins[firstPluginUid].status).to.equal('on');
     });
 
     it('fires on managePlugin off with updated status', async function () {
       const next = nextPluginsViewChanged(manager);
-      await manager.managePlugin(first_plugin_uid, 'off');
+      await manager.managePlugin(firstPluginUid, 'off');
       const { plugins } = await next;
-      expect(plugins[first_plugin_uid].status).to.equal('off');
+      expect(plugins[firstPluginUid].status).to.equal('off');
     });
 
     it('fires on addUserScripts and new plugin is present', async function () {
-      const ext_uid = 'Test External+https://github.com/IITC-CE/ingress-intel-total-conversion';
+      const extUid = 'Test External+https://github.com/IITC-CE/ingress-intel-total-conversion';
       const next = nextPluginsViewChanged(manager);
       await manager.addUserScripts([
         {
@@ -84,17 +83,17 @@ describe('plugins_view_changed callback', function () {
         },
       ]);
       const { plugins } = await next;
-      expect(plugins).to.have.property(ext_uid);
-      expect(plugins[ext_uid].user).to.be.true;
-      expect(plugins[ext_uid].status).to.equal('on');
+      expect(plugins).to.have.property(extUid);
+      expect(plugins[extUid].user).to.be.true;
+      expect(plugins[extUid].status).to.equal('on');
     });
 
     it('fires on managePlugin delete and plugin is absent', async function () {
-      const ext_uid = 'Test External+https://github.com/IITC-CE/ingress-intel-total-conversion';
+      const extUid = 'Test External+https://github.com/IITC-CE/ingress-intel-total-conversion';
       const next = nextPluginsViewChanged(manager);
-      await manager.managePlugin(ext_uid, 'delete');
+      await manager.managePlugin(extUid, 'delete');
       const { plugins } = await next;
-      expect(plugins).to.not.have.property(ext_uid);
+      expect(plugins).to.not.have.property(extUid);
     });
 
     it('fires on setChannel and reflects channel switch', async function () {
@@ -115,22 +114,22 @@ describe('plugins_view_changed callback', function () {
 
     before(async function () {
       storage.resetStorage();
-      manager = new Manager(base_config);
+      manager = new Manager(baseConfig);
       await manager.run();
     });
 
     it('catalog-only plugin has status off (not yet installed)', async function () {
       const { plugins } = await manager.getPluginsView();
-      expect(plugins).to.have.property(second_plugin_uid);
-      expect(plugins[second_plugin_uid].status).to.equal('off');
+      expect(plugins).to.have.property(secondPluginUid);
+      expect(plugins[secondPluginUid].status).to.equal('off');
     });
 
     it('enabled built-in shows status on without user or override flags', async function () {
-      await manager.managePlugin(first_plugin_uid, 'on');
+      await manager.managePlugin(firstPluginUid, 'on');
       const { plugins } = await manager.getPluginsView();
-      expect(plugins[first_plugin_uid].status).to.equal('on');
-      expect(plugins[first_plugin_uid].user).to.not.be.true;
-      expect(plugins[first_plugin_uid].override).to.not.be.true;
+      expect(plugins[firstPluginUid].status).to.equal('on');
+      expect(plugins[firstPluginUid].user).to.not.be.true;
+      expect(plugins[firstPluginUid].override).to.not.be.true;
     });
 
     it('user plugin replacing a built-in gets override and user flags in merged view', async function () {
@@ -144,27 +143,27 @@ describe('plugins_view_changed callback', function () {
         },
       ]);
       const { plugins } = await manager.getPluginsView();
-      expect(plugins[third_plugin_uid].override).to.be.true;
-      expect(plugins[third_plugin_uid].user).to.be.true;
-      expect(plugins[third_plugin_uid].status).to.equal('on');
+      expect(plugins[thirdPluginUid].override).to.be.true;
+      expect(plugins[thirdPluginUid].user).to.be.true;
+      expect(plugins[thirdPluginUid].status).to.equal('on');
     });
 
     it('after override removal plugin has no override or user flags', async function () {
-      await manager.managePlugin(third_plugin_uid, 'delete');
+      await manager.managePlugin(thirdPluginUid, 'delete');
       const { plugins } = await manager.getPluginsView();
-      expect(plugins[third_plugin_uid].override).to.not.be.true;
-      expect(plugins[third_plugin_uid].user).to.not.be.true;
+      expect(plugins[thirdPluginUid].override).to.not.be.true;
+      expect(plugins[thirdPluginUid].user).to.not.be.true;
     });
 
     it('plugins stored under another channel are excluded from the current view', async function () {
-      const beta_uid = 'Beta Only Plugin+https://example.com';
+      const betaUid = 'Beta Only Plugin+https://example.com';
       await storage.set({
         beta_plugins_local: {
-          [beta_uid]: { uid: beta_uid, status: 'on', code: '// beta-only' },
+          [betaUid]: { uid: betaUid, status: 'on', code: '// beta-only' },
         },
       });
       const { plugins } = await manager.getPluginsView();
-      expect(plugins).to.not.have.property(beta_uid);
+      expect(plugins).to.not.have.property(betaUid);
     });
 
     it('categories contains all plugin categories sorted alphabetically', async function () {
@@ -179,7 +178,7 @@ describe('plugins_view_changed callback', function () {
     });
 
     it('isNew is true for a category with a recently added user plugin', async function () {
-      const recentManager = new Manager({ ...base_config, new_plugin_threshold: 3600 });
+      const recentManager = new Manager({ ...baseConfig, newPluginThreshold: 3600 });
       await recentManager.run();
       await recentManager.addUserScripts([
         {
@@ -197,7 +196,7 @@ describe('plugins_view_changed callback', function () {
 
     it('isNew is false for catalog-only categories (no addedAt)', async function () {
       storage.resetStorage();
-      const freshManager = new Manager(base_config);
+      const freshManager = new Manager(baseConfig);
       await freshManager.run();
       const { categories } = await freshManager.getPluginsView();
       for (const cat of Object.values(categories)) {

@@ -5,9 +5,9 @@ import type { StorageAPI, StorageData, StorageValue } from '../src/types.js';
 const store: Record<string, string> = {};
 
 interface TestStorage extends StorageAPI {
-  _one_to_array(key: string | string[]): string[];
-  _get_one(key: string): StorageValue;
-  _set_one(key: string, value: StorageValue): void;
+  _oneToArray(key: string | string[]): string[];
+  _getOne(key: string): StorageValue;
+  _setOne(key: string, value: StorageValue): void;
   resetStorage(): void;
 }
 
@@ -17,7 +17,7 @@ const storage: TestStorage = {
    * @param key - The key or keys to be converted to an array.
    * @returns An array containing the keys.
    */
-  _one_to_array(key: string | string[]): string[] {
+  _oneToArray(key: string | string[]): string[] {
     if (typeof key === 'string') {
       return [key];
     }
@@ -29,7 +29,7 @@ const storage: TestStorage = {
    * @param key - The key for the value to be retrieved.
    * @returns The value associated with the key, or null if the key is not found.
    */
-  _get_one(key: string): StorageValue {
+  _getOne(key: string): StorageValue {
     const value = key in store ? store[key] : null;
 
     if (value === null) return null;
@@ -46,7 +46,7 @@ const storage: TestStorage = {
    * @param key - The key for the value to be set.
    * @param value - The value to be stored.
    */
-  _set_one(key: string, value: StorageValue): void {
+  _setOne(key: string, value: StorageValue): void {
     if (typeof value !== 'string') {
       store[key] = JSON.stringify(value);
     } else {
@@ -64,14 +64,14 @@ const storage: TestStorage = {
     if (keys === null) {
       const data: StorageData = {};
       for (const key in store) {
-        data[key] = this._get_one(key);
+        data[key] = this._getOne(key);
       }
       return data;
     }
-    const keyArray = this._one_to_array(keys);
+    const keyArray = this._oneToArray(keys);
     const data: StorageData = {};
     keyArray.forEach(key => {
-      data[key] = this._get_one(key);
+      data[key] = this._getOne(key);
     });
     return data;
   },
@@ -84,7 +84,7 @@ const storage: TestStorage = {
     if (typeof obj === 'object') {
       Object.entries(obj).forEach(entry => {
         const [key, value] = entry;
-        this._set_one(key, value);
+        this._setOne(key, value);
       });
     } else {
       console.error('Unexpected type of key when trying to set storage value: ' + typeof obj);

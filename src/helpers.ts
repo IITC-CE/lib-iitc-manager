@@ -8,7 +8,7 @@ import type {
   IngressDomain,
 } from './types.js';
 
-export let wait_timeout_id: ReturnType<typeof setTimeout> | null = null;
+export let waitTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 const METABLOCK_RE_HEADER = /==UserScript==\s*([\s\S]*)\/\/\s*==\/UserScript==/m; // Note: \s\S to match linebreaks
 const METABLOCK_RE_ENTRY = /\/\/\s*@(\S+)\s+(.*)$/gm; // example match: "\\ @name some text"
@@ -79,10 +79,10 @@ export async function fetchResource(
   url: string,
   options: FetchResourceOptions = {}
 ): Promise<FetchResourceResult> {
-  const { parseJSON = false, headOnly = false, use_fetch_head_method = true } = options;
+  const { parseJSON = false, headOnly = false, useFetchHeadMethod = true } = options;
 
   // Using built-in fetch in browser, otherwise import polyfill
-  const c_fetch = (...args: Parameters<typeof fetch>): Promise<Response> =>
+  const cFetch = (...args: Parameters<typeof fetch>): Promise<Response> =>
     process.env.NODE_ENV !== 'test'
       ? fetch(...args)
       : import('node-fetch').then(({ default: nodeFetch }) =>
@@ -94,9 +94,9 @@ export async function fetchResource(
 
   try {
     // If headOnly requested but HEAD not allowed, use GET anyway
-    const method = headOnly && use_fetch_head_method ? 'HEAD' : 'GET';
+    const method = headOnly && useFetchHeadMethod ? 'HEAD' : 'GET';
 
-    const response = await c_fetch(url + '?' + Date.now(), {
+    const response = await cFetch(url + '?' + Date.now(), {
       method: method,
       cache: 'no-cache',
       signal: controller.signal,
@@ -141,39 +141,11 @@ export async function fetchData(
 }
 
 /**
- * This is a wrapper over the fetch() API method with pre-built parameters.
- *
- * @deprecated Use {@link fetchResource} instead for better version tracking.
- * @param url - URL of the resource you want to fetch.
- * @param variant - Type of request.
- */
-export async function ajaxGet(
-  url: string,
-  variant?: 'parseJSON' | 'head' | null
-): Promise<string | object | null> {
-  const options: FetchResourceOptions = {};
-
-  if (variant === 'parseJSON') {
-    options.parseJSON = true;
-  } else if (variant === 'head') {
-    options.headOnly = true;
-  }
-
-  const { data, version } = await fetchResource(url, options);
-
-  // Old behavior: return version for 'head', otherwise return data
-  if (variant === 'head') {
-    return version;
-  }
-  return data;
-}
-
-/**
  * Generates a unique random string with prefix.
  *
  * @param prefix - Prefix string.
  */
-export function getUniqId(prefix: string = 'VM'): string {
+export function getUniqueId(prefix: string = 'VM'): string {
   const now = performance.now();
   return (
     prefix +
@@ -188,26 +160,26 @@ export function getUniqId(prefix: string = 'VM'): string {
  * @param plugin - Plugin object or metadata.
  */
 export function getUID(plugin: PluginMeta): string | null {
-  const available_fields: string[] = [];
+  const availableFields: string[] = [];
 
   if (plugin['id']) {
-    available_fields.push(plugin['id']);
+    availableFields.push(plugin['id']);
   }
   if (plugin['filename']) {
-    available_fields.push(plugin['filename']);
+    availableFields.push(plugin['filename']);
   }
   if (plugin['name']) {
-    available_fields.push(plugin['name']);
+    availableFields.push(plugin['name']);
   }
   if (plugin['namespace']) {
-    available_fields.push(plugin['namespace']);
+    availableFields.push(plugin['namespace']);
   }
 
-  if (available_fields.length < 2) {
+  if (availableFields.length < 2) {
     return null;
   }
 
-  return available_fields.slice(-2).join('+');
+  return availableFields.slice(-2).join('+');
 }
 
 /**
@@ -216,7 +188,7 @@ export function getUID(plugin: PluginMeta): string | null {
  * @param url - URL address.
  * @param domain - One or all domains related to Ingress.
  */
-export function check_url_match_pattern(url: string, domain: IngressDomain): boolean {
+export function checkUrlMatchPattern(url: string, domain: IngressDomain): boolean {
   if (url.startsWith('/^')) {
     url = url
       .replace(/\/\^|\?/g, '')
@@ -252,18 +224,15 @@ export function check_url_match_pattern(url: string, domain: IngressDomain): boo
  * @param meta - Object with data from ==UserScript== header.
  * @param domain - One or all domains related to Ingress.
  */
-export function check_meta_match_pattern(
-  meta: PluginMeta,
-  domain: IngressDomain = '<all>'
-): boolean {
+export function checkMetaMatchPattern(meta: PluginMeta, domain: IngressDomain = '<all>'): boolean {
   if (meta.match && meta.match.length) {
     for (const url of meta.match) {
-      if (check_url_match_pattern(url, domain)) return true;
+      if (checkUrlMatchPattern(url, domain)) return true;
     }
   }
   if (meta.include && meta.include.length) {
     for (const url of meta.include) {
-      if (check_url_match_pattern(url, domain)) return true;
+      if (checkUrlMatchPattern(url, domain)) return true;
     }
   }
   return false;
@@ -276,9 +245,9 @@ export function check_meta_match_pattern(
  */
 export async function wait(seconds: number): Promise<void> {
   return new Promise(resolve => {
-    clearTimeout(wait_timeout_id!);
-    wait_timeout_id = null;
-    wait_timeout_id = setTimeout(resolve, seconds * 1000);
+    clearTimeout(waitTimeoutId!);
+    waitTimeoutId = null;
+    waitTimeoutId = setTimeout(resolve, seconds * 1000);
   });
 }
 
@@ -286,8 +255,8 @@ export async function wait(seconds: number): Promise<void> {
  * Stops the timer created in {@link wait}
  */
 export function clearWait(): void {
-  clearTimeout(wait_timeout_id!);
-  wait_timeout_id = null;
+  clearTimeout(waitTimeoutId!);
+  waitTimeoutId = null;
 }
 
 /**
