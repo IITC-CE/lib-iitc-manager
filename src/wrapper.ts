@@ -43,12 +43,15 @@ export function wrapPluginCode(plugin: Plugin, sourceUrlPrefix: string = ''): st
   const meta = { ...plugin };
   delete meta.code;
 
+  // Strip NUL bytes and ensure trailing newline
+  const stripped = plugin.code!.replaceAll('\x00', '');
+  const pluginCode = stripped.endsWith('\n') ? stripped : `${stripped}\n`;
+
   const code = [
     '((GM)=>{',
     GM_V3_BINDINGS,
     '\n',
-    plugin.code,
-    plugin.code!.endsWith('\n') ? '' : '\n',
+    pluginCode,
     `})(GM(${JSON.stringify({ data_key: dataKey, meta })}))`,
   ].join('');
 
