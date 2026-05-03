@@ -1,9 +1,9 @@
 // Copyright (C) 2023-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { describe, it } from 'mocha';
-import { checkMatching, humanizeMatch } from '../src/matching.js';
+import { aggregateMatchPatterns, checkMatching, humanizeMatch } from '../src/matching.js';
 import { expect } from 'chai';
-import type { PluginMeta } from '../src/types.js';
+import type { PluginDict, PluginMeta } from '../src/types.js';
 
 describe('scheme', function () {
   it('should match all', function () {
@@ -129,6 +129,53 @@ describe('<all_ingress>', function () {
     expect(checkMatching(script, 'https://intel.ingress.com/'), 'not match real url').to.be.false;
     expect(checkMatching(script, '<all_ingress>'), 'should match keyword `<all_ingress>`').to.be
       .true;
+  });
+});
+
+describe('aggregateMatchPatterns()', function () {
+  it('returns empty array for empty plugin dict', function () {
+    expect(aggregateMatchPatterns({})).to.deep.equal([]);
+  });
+
+  it('returns empty array when no plugin has @match', function () {
+    const plugins: PluginDict = {
+      a: { uid: 'a', name: 'A' },
+    };
+    expect(aggregateMatchPatterns(plugins)).to.deep.equal([]);
+  });
+
+  it('collects patterns from a single plugin', function () {
+    const plugins: PluginDict = {
+      a: { uid: 'a', name: 'A', match: ['https://intel.ingress.com/*'] },
+    };
+    expect(aggregateMatchPatterns(plugins)).to.deep.equal(['https://intel.ingress.com/*']);
+  });
+
+  it('deduplicates identical patterns across plugins', function () {
+    const plugins: PluginDict = {
+      a: { uid: 'a', name: 'A', match: ['https://intel.ingress.com/*'] },
+      b: { uid: 'b', name: 'B', match: ['https://intel.ingress.com/*'] },
+    };
+    expect(aggregateMatchPatterns(plugins)).to.deep.equal(['https://intel.ingress.com/*']);
+  });
+
+  it('merges patterns from multiple plugins and sorts the result', function () {
+    const plugins: PluginDict = {
+      a: { uid: 'a', name: 'A', match: ['https://example.com/*'] },
+      b: { uid: 'b', name: 'B', match: ['https://intel.ingress.com/*', 'https://example.com/*'] },
+    };
+    expect(aggregateMatchPatterns(plugins)).to.deep.equal([
+      'https://example.com/*',
+      'https://intel.ingress.com/*',
+    ]);
+  });
+
+  it('skips plugins without @match field', function () {
+    const plugins: PluginDict = {
+      a: { uid: 'a', name: 'A', match: ['https://intel.ingress.com/*'] },
+      b: { uid: 'b', name: 'B' },
+    };
+    expect(aggregateMatchPatterns(plugins)).to.deep.equal(['https://intel.ingress.com/*']);
   });
 });
 

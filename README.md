@@ -71,6 +71,75 @@ if (core) {
 
 Pass `onPluginsViewChanged` in the config (see above), or poll with `getPluginsView()` as needed.
 
+### GM API
+
+When `gmApi` is provided in the config, the library injects a GM API service script once, before
+all other plugins. This script implements the Greasemonkey-compatible API
+(`GM_getValue`, `GM_setValue`, `GM_xmlhttpRequest`, etc.) and communicates with the host app
+via a message bridge.
+
+```js
+const manager = new Manager({
+    storage: browser.storage.local,
+    gmApi: {
+        // JavaScript that sets up window.__iitc_gm_bridge__ in the page context.
+        // Must expose: send(data) and onResponse(callback).
+        bridgeAdapterCode: `
+            window.__iitc_gm_bridge__ = {
+                send(data) { window.postMessage({ type: 'FROM_PAGE', data }, '*'); },
+                onResponse(cb) {
+                    window.addEventListener('message', e => {
+                        if (e.data?.type === 'FROM_EXT') cb(e.data.payload);
+                    });
+                },
+            };
+        `,
+    },
+    injectPlugin: plugin => { /* inject plugin.code into the page */ },
+    onPluginEvent: event => { /* see below */ },
+});
+```
+
+#### GM API match patterns are scoped to enabled plugins
+
+The GM API service script is only injected on pages that match the aggregated `@match` patterns
+of all currently enabled plugins. This avoids injecting it on every page in the browser.
+
+`https://intel.ingress.com/*` is always included as a baseline. Additional patterns are added
+only when an enabled plugin declares a different `@match`. The `onPluginEvent` notification for
+`gm_api` therefore fires only when the match list actually changes - not on every plugin event.
+
+**Mode 1 - `inject()` per page load:**
+
+```js
+const plugins = await manager.getEnabledPlugins();
+// plugins['gm_api'] is always first and contains:
+//   .match - current aggregated @match patterns
+//   .code  - bridge adapter + GM factory combined
+```
+
+**Mode 2 - `onPluginEvent` for content-script registration:**
+
+When a plugin is added, removed, or updated and the aggregated match list changes, `onPluginEvent`
+fires a special event with `uid === 'gm_api'`. Use it to re-register the GM API content script:
+
+```js
+onPluginEvent: event => {
+    if (event.plugins['gm_api']) {
+        const gmApi = event.plugins['gm_api'];
+        // event.event is always 'update'
+        // gmApi.match - new aggregated @match patterns
+        // gmApi.code  - bridge adapter + GM factory to inject at document_start
+        reregisterContentScript(gmApi.match, gmApi.code);
+        return;
+    }
+    // handle regular plugin add/update/remove events...
+},
+```
+
+Plugins without a `@match` header do not contribute to the GM API scope.
+`https://intel.ingress.com/*` is always present regardless of which plugins are enabled.
+
 ### Example of use helpers
 
 ```js

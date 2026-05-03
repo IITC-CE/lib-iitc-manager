@@ -1,10 +1,10 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { Worker, IITC_CORE_UID, GM_API_UID } from './worker.js';
+import { Worker, IITC_CORE_UID, GM_API_UID, GM_API_DEFAULT_MATCH } from './worker.js';
 import * as migrations from './migrations.js';
 import { getUID, isSet, sanitizeFileName } from './helpers.js';
-import { getGmApiCode } from './gm-api.js';
 import { appendSourceUrl } from './wrapper.js';
+import { aggregateMatchPatterns } from './matching.js';
 import * as backup from './backup.js';
 import type {
   Channel,
@@ -172,21 +172,6 @@ export class Manager extends Worker {
     );
 
     const enabledPlugins: PluginDict = {};
-
-    // GM API (bridge adapter + factory) must be first
-    if (this.gmApi) {
-      enabledPlugins['gm_api'] = {
-        uid: 'gm_api',
-        code: appendSourceUrl({
-          code: this.gmApi.bridgeAdapterCode + '\n' + getGmApiCode(),
-          name: 'GM_api',
-          prefix: this.sourceUrlPrefix,
-          suffix: '.js',
-        }),
-        name: 'GM API',
-        match: ['https://*/*'],
-      };
-    }
     if (iitcScript !== null) {
       if (iitcScript.code) {
         iitcScript.code = appendSourceUrl({
@@ -206,6 +191,17 @@ export class Manager extends Worker {
               : pluginsLocal[uid] || ({} as Plugin);
         }
       }
+    }
+
+    // GM API (bridge adapter + factory) must be first
+    if (this.gmApi) {
+      const matches = Array.from(
+        new Set([GM_API_DEFAULT_MATCH, ...aggregateMatchPatterns(enabledPlugins)])
+      ).sort();
+      return {
+        [GM_API_UID]: this._buildGmApiPlugin(matches),
+        ...enabledPlugins,
+      };
     }
     return enabledPlugins;
   }
