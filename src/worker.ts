@@ -484,7 +484,7 @@ export class Worker {
             // if new version
             if (meta && meta['version'] && meta['version'] !== plugin['version']) {
               // download userscript
-              const resultCode = await this._getUrl(plugin['updateURL'] + hash);
+              const resultCode = await this._getUrl(plugin['downloadURL'] + hash);
               if (resultCode.data) {
                 existUpdates = true;
                 pluginsUser[uid] = {
