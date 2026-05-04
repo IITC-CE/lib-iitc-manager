@@ -1,7 +1,9 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { fetchResource, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js';
-import { wrapPluginCode } from './wrapper.js';
+import { wrapPluginCode, appendSourceUrl } from './wrapper.js';
+import { getGmApiCode } from './gm-api.js';
+import { aggregateMatchPatterns } from './matching.js';
 import type {
   Channel,
   ManagerConfig,
@@ -26,6 +28,7 @@ import type {
 export const IITC_CORE_UID =
   'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
 export const GM_API_UID = 'gm_api';
+export const GM_API_DEFAULT_MATCH = 'https://intel.ingress.com/*';
 
 /**
  * This class contains methods for managing IITC and plugins.
@@ -50,6 +53,7 @@ export class Worker {
   onPluginEvent: (event: PluginEventData) => void;
   onPluginsViewChanged?: (view: PluginsView) => void;
   newPluginThreshold: number;
+  _gmApiMatches: string[];
 
   /**
    * Creates an instance of Manager class with the specified parameters
@@ -74,6 +78,7 @@ export class Worker {
     this.onPluginsViewChanged = this.config.onPluginsViewChanged;
     this.newPluginThreshold = this.config.newPluginThreshold ?? 3600;
 
+    this._gmApiMatches = [GM_API_DEFAULT_MATCH];
     this.isInitialized = false;
     this._init().then();
   }
@@ -157,6 +162,61 @@ export class Worker {
     if (affectsView) {
       this._emitPluginsChanged();
     }
+  }
+
+  /**
+   * Builds the gm_api pseudo-plugin with the given aggregated match patterns.
+   * @internal
+   */
+  _buildGmApiPlugin(matches: string[]): Plugin {
+    return {
+      uid: GM_API_UID,
+      name: 'GM API',
+      match: matches,
+      code: appendSourceUrl({
+        code: this.gmApi!.bridgeAdapterCode + '\n' + getGmApiCode(),
+        name: 'GM_api',
+        prefix: this.sourceUrlPrefix,
+        suffix: '.js',
+      }),
+    };
+  }
+
+  /**
+   * Reads storage and computes the aggregated set of @match patterns
+   * from IITC core and all currently enabled plugins.
+   * @internal
+   */
+  async _computeGmApiMatches(): Promise<string[]> {
+    const channel = this.channel;
+    const data = await this.storage.get([
+      `${channel}_iitc_core`,
+      'iitc_core_user',
+      `${channel}_plugins_local`,
+      'plugins_user',
+      'plugins_state',
+    ]);
+
+    const pluginsLocal = (data[`${channel}_plugins_local`] || {}) as PluginDict;
+    const pluginsUser = (data['plugins_user'] || {}) as PluginDict;
+    const pluginsState = (data['plugins_state'] || {}) as PluginStateDict;
+    const iitcCore = data[`${channel}_iitc_core`] as Plugin | undefined;
+    const iitcCoreUser = data['iitc_core_user'] as Plugin | undefined;
+
+    const candidates: PluginDict = {};
+
+    const core = this._computeCore(iitcCore, iitcCoreUser);
+    if (core) candidates[IITC_CORE_UID] = core;
+
+    for (const uid in pluginsState) {
+      if (pluginsState[uid]?.status !== 'on') continue;
+      const plugin = uid in pluginsUser ? pluginsUser[uid] : pluginsLocal[uid];
+      if (plugin) candidates[uid] = plugin;
+    }
+
+    return Array.from(
+      new Set([GM_API_DEFAULT_MATCH, ...aggregateMatchPatterns(candidates)])
+    ).sort();
   }
 
   /**
@@ -714,6 +774,17 @@ export class Worker {
         event,
         plugins,
       });
+    }
+
+    if (this.gmApi) {
+      const newMatches = await this._computeGmApiMatches();
+      if (newMatches.join('\0') !== this._gmApiMatches.join('\0')) {
+        this._gmApiMatches = newMatches;
+        this.onPluginEvent({
+          event: 'update',
+          plugins: { [GM_API_UID]: this._buildGmApiPlugin(newMatches) },
+        });
+      }
     }
   }
 

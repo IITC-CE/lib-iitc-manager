@@ -172,6 +172,10 @@ export type PluginEventType = 'add' | 'update' | 'remove';
 /**
  * Plugin event object passed to the onPluginEvent callback.
  * Contains plugin data for 'add'/'update' events, or empty objects for 'remove' events.
+ *
+ * When `uid === 'gm_api'`, this is a special notification that the GM API scope has changed.
+ * The event type is always `'update'` and `plugins['gm_api'].match` contains the current
+ * aggregated list of @match patterns from all enabled plugins.
  */
 export interface PluginEventData {
   /** The type of plugin event. */

@@ -1,6 +1,6 @@
 // Copyright (C) 2023-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import type { PluginMeta } from './types.js';
+import type { PluginDict, PluginMeta } from './types.js';
 
 interface Matcher {
   test(url: string): boolean;
@@ -120,6 +120,22 @@ function matchHost(rule: string, data: string): boolean {
 
 function matchPath(rule: string, data: string): boolean {
   return str2RE(rule).test(data);
+}
+
+/**
+ * Collects all unique @match patterns from a dictionary of plugins.
+ * Plugins without @match are skipped. Returns a sorted, deduplicated array.
+ *
+ * @param plugins - Dictionary of plugins to aggregate match patterns from.
+ */
+export function aggregateMatchPatterns(plugins: PluginDict): string[] {
+  const set = new Set<string>();
+  for (const plugin of Object.values(plugins)) {
+    for (const pattern of plugin.match || []) {
+      set.add(pattern);
+    }
+  }
+  return Array.from(set).sort();
 }
 
 /**
