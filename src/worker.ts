@@ -319,7 +319,6 @@ export class Worker {
         categories: categories,
         plugins_flat: plugins_flat,
         plugins_local: plugins_local,
-        plugins_user: plugins_user,
       });
     };
 
