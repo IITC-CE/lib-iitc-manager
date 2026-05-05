@@ -21,10 +21,8 @@ export function checkMatching(meta: PluginMeta, url: string): boolean {
   const matchExclude = meta.excludeMatch || [];
   const exclude = meta.exclude || [];
 
-  // match all if no @match or @include rule and set url === '<all_ingress>'
-  let ok = !match.length && !include.length && url === '<all_ingress>';
   // @match
-  ok = ok || testMatch(url, match);
+  let ok = testMatch(url, match);
   // @include
   ok = ok || testInclude(url, include);
   // @exclude-match
