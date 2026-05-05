@@ -410,6 +410,7 @@ export class Worker {
           const plugin = { ...(categories[cat].plugins![id] as unknown as Plugin) };
           plugin['uid'] = getUID(plugin)!;
           plugin['category'] = cat;
+          plugin['match'] = [GM_API_DEFAULT_MATCH];
           plugins[plugin['uid']] = plugin;
         });
       }
@@ -625,6 +626,8 @@ export class Worker {
         data[pluginUid].override = true;
         data[pluginUid].addedAt = userPlugin.addedAt;
         data[pluginUid].updatedAt = userPlugin.updatedAt;
+        delete data[pluginUid].match;
+        if (userPlugin.match !== undefined) data[pluginUid].match = userPlugin.match;
       } else {
         data[pluginUid] = {
           ...userPlugin,

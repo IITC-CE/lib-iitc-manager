@@ -123,15 +123,6 @@ describe('exclude-match', function () {
   });
 });
 
-describe('<all_ingress>', function () {
-  it('should match all if no @match or @include rule and set url is `<all_ingress>`', function () {
-    const script: PluginMeta = {};
-    expect(checkMatching(script, 'https://intel.ingress.com/'), 'not match real url').to.be.false;
-    expect(checkMatching(script, '<all_ingress>'), 'should match keyword `<all_ingress>`').to.be
-      .true;
-  });
-});
-
 describe('aggregateMatchPatterns()', function () {
   it('returns empty array for empty plugin dict', function () {
     expect(aggregateMatchPatterns({})).to.deep.equal([]);

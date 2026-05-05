@@ -390,7 +390,7 @@ export class Manager extends Worker {
           const catalogEntry = pluginsCatalog[pluginUid];
           const userEntry = pluginsUser[pluginUid];
           const state = pluginsState[pluginUid];
-          installedScripts[pluginUid] = {
+          const overridePlugin: Plugin = {
             ...catalogEntry,
             status: state.status,
             code: userEntry.code,
@@ -399,6 +399,9 @@ export class Manager extends Worker {
             addedAt: userEntry.addedAt,
             statusChangedAt: state.statusChangedAt,
           } as Plugin;
+          delete overridePlugin.match;
+          if (userEntry.match !== undefined) overridePlugin.match = userEntry.match;
+          installedScripts[pluginUid] = overridePlugin;
         } else {
           if (pluginsUser[pluginUid]['category'] === undefined) {
             pluginsUser[pluginUid]['category'] = 'Misc';
