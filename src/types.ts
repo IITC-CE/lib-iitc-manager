@@ -210,14 +210,14 @@ export interface ManagerConfig {
    * @deprecated since version 1.5.0. Use {@link ManagerConfig.inject_plugin} instead.
    * @param code - UserScript code to run in the Ingress Intel window.
    */
-  inject_user_script?: (code: string) => void;
+  inject_user_script?: (code: string) => void | Promise<void>;
 
   /**
    * Calls a function that injects UserScript plugin into the Ingress Intel window.
    *
    * @param plugin - UserScript plugin to run in the Ingress Intel window.
    */
-  inject_plugin?: (plugin: Plugin) => void;
+  inject_plugin?: (plugin: Plugin) => void | Promise<void>;
 
   /**
    * Called to handle changes in plugin status for multiple plugins at once,

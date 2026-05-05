@@ -182,12 +182,12 @@ export class Manager extends Worker {
       const isCore = uid === this.iitc_main_script_uid;
 
       if (isCore) {
-        this.inject_user_script(plugin.code);
-        this.inject_plugin(plugin);
+        await this.inject_user_script(plugin.code);
+        await this.inject_plugin(plugin);
       } else if (isGmComponent) {
-        this.inject_plugin(plugin);
+        await this.inject_plugin(plugin);
       } else {
-        this._injectWithGmApi(plugin);
+        await this._injectWithGmApi(plugin);
       }
     }
   }
@@ -239,7 +239,7 @@ export class Manager extends Worker {
         }
 
         const pluginToInject = isUserPlugin === true ? plugins_user[uid] : plugins_local[uid];
-        this._injectWithGmApi(pluginToInject);
+        await this._injectWithGmApi(pluginToInject);
 
         await this._save(channel, {
           plugins_flat: plugins_flat,
@@ -256,7 +256,7 @@ export class Manager extends Worker {
           plugins_flat[uid]['code'] = result.data as string;
           plugins_local[uid] = { ...plugins_flat[uid] };
 
-          this._injectWithGmApi(plugins_local[uid]);
+          await this._injectWithGmApi(plugins_local[uid]);
 
           await this._save(channel, {
             plugins_flat: plugins_flat,

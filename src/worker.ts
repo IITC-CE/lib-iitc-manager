@@ -43,8 +43,8 @@ export class Worker {
 
   message?: (message: string, args?: string | string[]) => void;
   progressbar?: (is_show: boolean) => void;
-  inject_user_script: (code: string) => void;
-  inject_plugin: (plugin: Plugin) => void;
+  inject_user_script: (code: string) => void | Promise<void>;
+  inject_plugin: (plugin: Plugin) => void | Promise<void>;
   plugin_event: (event: PluginEventData) => void;
 
   /**
@@ -682,11 +682,11 @@ export class Worker {
    * @param plugin - Plugin to inject.
    * @internal
    */
-  _injectWithGmApi(plugin: Plugin): void {
+  async _injectWithGmApi(plugin: Plugin): Promise<void> {
     if (this.gm_api && plugin.code) {
       plugin = { ...plugin, code: wrapPluginCode(plugin, this.source_url_prefix) };
     }
-    this.inject_user_script(plugin.code!);
-    this.inject_plugin(plugin);
+    await this.inject_user_script(plugin.code!);
+    await this.inject_plugin(plugin);
   }
 }
