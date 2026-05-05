@@ -49,7 +49,7 @@ export class Worker {
 
   message?: (message: string, args?: string | string[]) => void;
   onProgress?: (isShow: boolean) => void;
-  injectPlugin: (plugin: Plugin) => void;
+  injectPlugin: (plugin: Plugin) => Promise<void>;
   onPluginEvent: (event: PluginEventData) => void;
   onPluginsViewChanged?: (view: PluginsView) => void;
   newPluginThreshold: number;
@@ -71,7 +71,11 @@ export class Worker {
         : (console.error("config key 'storage' is not set") as unknown as StorageAPI);
     this.message = this.config.message;
     this.onProgress = this.config.onProgress;
-    this.injectPlugin = this.config.injectPlugin || function () {};
+    this.injectPlugin =
+      this.config.injectPlugin ||
+      function () {
+        return Promise.resolve();
+      };
     this.onPluginEvent = this.config.onPluginEvent || function () {};
     this.gmApi = this.config.gmApi;
     this.sourceUrlPrefix = this.config.sourceUrlPrefix || '';
@@ -795,10 +799,10 @@ export class Worker {
    * @param plugin - Plugin to inject.
    * @internal
    */
-  _injectWithGmApi(plugin: Plugin): void {
+  async _injectWithGmApi(plugin: Plugin): Promise<void> {
     if (this.gmApi && plugin.code) {
       plugin = { ...plugin, code: wrapPluginCode(plugin, this.sourceUrlPrefix) };
     }
-    this.injectPlugin(plugin);
+    await this.injectPlugin(plugin);
   }
 }
