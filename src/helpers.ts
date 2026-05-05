@@ -89,18 +89,26 @@ export async function fetchResource(
           (nodeFetch as unknown as typeof fetch)(...args)
         );
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = setTimeout(() => controller?.abort(), 30_000);
 
   try {
     // If headOnly requested but HEAD not allowed, use GET anyway
     const method = headOnly && useFetchHeadMethod ? 'HEAD' : 'GET';
 
-    const response = await cFetch(url + '?' + Date.now(), {
-      method: method,
+    const fetchPromise = cFetch(url + '?' + Date.now(), {
+      method,
       cache: 'no-cache',
-      signal: controller.signal,
+      ...(controller ? { signal: controller.signal } : {}),
     });
+    const response = await (controller
+      ? fetchPromise
+      : Promise.race([
+          fetchPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('fetch timeout')), 30_000)
+          ),
+        ]));
 
     if (!response.ok) {
       return { data: null, version: null };
