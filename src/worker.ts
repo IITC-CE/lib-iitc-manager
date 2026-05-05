@@ -370,7 +370,7 @@ export class Worker {
       const res = await this._updateLocalPlugins(channel, pluginsCatalog, pluginsLocal);
       pluginsLocal = res.pluginsLocal;
       await this._save(channel, {
-        iitc_version: response['iitcVersion'],
+        iitc_version: response['iitc_version'],
         last_modified: lastModified,
         plugins_catalog: pluginsCatalog,
         plugins_local: pluginsLocal,

@@ -372,7 +372,8 @@ export interface CategoryDict extends StorageObject {
  */
 export interface MetaJsonResponse {
   /** IITC core version string. */
-  iitcVersion?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  iitc_version?: string;
   /** Categories with their plugins. */
   categories: { [name: string]: CategoryInfo };
 }
