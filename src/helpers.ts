@@ -79,7 +79,12 @@ export async function fetchResource(
   url: string,
   options: FetchResourceOptions = {}
 ): Promise<FetchResourceResult> {
-  const { parseJSON = false, headOnly = false, useFetchHeadMethod = true } = options;
+  const {
+    parseJSON = false,
+    headOnly = false,
+    useFetchHeadMethod = true,
+    timeout = 30_000,
+  } = options;
 
   // Using built-in fetch in browser, otherwise import polyfill
   const cFetch = (...args: Parameters<typeof fetch>): Promise<Response> =>
@@ -90,7 +95,7 @@ export async function fetchResource(
         );
 
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timeoutId = setTimeout(() => controller?.abort(), 30_000);
+  const timeoutId = setTimeout(() => controller?.abort(), timeout);
 
   try {
     // If headOnly requested but HEAD not allowed, use GET anyway
@@ -106,7 +111,7 @@ export async function fetchResource(
       : Promise.race([
           fetchPromise,
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('fetch timeout')), 30_000)
+            setTimeout(() => reject(new Error('fetch timeout')), timeout)
           ),
         ]));
 
@@ -146,6 +151,18 @@ export async function fetchData(
 ): Promise<string | object | null> {
   const { data } = await fetchResource(url, options);
   return data;
+}
+
+/**
+ * Checks whether a URL points to a valid IITC channel by fetching its meta.json.
+ *
+ * @param url - URL of the custom channel repository to validate.
+ */
+export async function validateCustomChannelUrl(url: string): Promise<boolean> {
+  if (!url) return false;
+  const metaUrl = url.endsWith('/') ? `${url}meta.json` : `${url}/meta.json`;
+  const { data } = await fetchResource(metaUrl, { timeout: 1000 });
+  return data !== null;
 }
 
 /**
