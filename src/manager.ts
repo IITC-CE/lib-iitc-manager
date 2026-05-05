@@ -239,11 +239,11 @@ export class Manager extends Worker {
       const isCore = uid === IITC_CORE_UID;
 
       if (isCore) {
-        this.injectPlugin(plugin);
+        await this.injectPlugin(plugin);
       } else if (isGmComponent) {
-        this.injectPlugin(plugin);
+        await this.injectPlugin(plugin);
       } else {
-        this._injectWithGmApi(plugin);
+        await this._injectWithGmApi(plugin);
       }
     }
   }
@@ -286,7 +286,7 @@ export class Manager extends Worker {
       if (isUserPlugin || pluginsLocal[uid] !== undefined) {
         pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
         const pluginToInject = isUserPlugin ? pluginsUser[uid] : pluginsLocal[uid];
-        this._injectWithGmApi(pluginToInject);
+        await this._injectWithGmApi(pluginToInject);
         await this._save(channel, { plugins_state: pluginsState });
         await this._sendPluginsEvent(channel, [uid], 'add');
       } else {
@@ -299,7 +299,7 @@ export class Manager extends Worker {
           };
           pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
 
-          this._injectWithGmApi(pluginsLocal[uid]);
+          await this._injectWithGmApi(pluginsLocal[uid]);
 
           await this._save(channel, { plugins_local: pluginsLocal, plugins_state: pluginsState });
           await this._sendPluginsEvent(channel, [uid], 'add');
