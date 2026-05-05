@@ -69,6 +69,18 @@ export class Manager extends Worker {
   }
 
   /**
+   * Returns the update check interval in seconds for the given channel (defaults to the current channel).
+   *
+   * @param channel - Update channel for IITC and plugins.
+   */
+  async getUpdateCheckInterval(channel?: string): Promise<number> {
+    if (typeof channel === 'undefined') channel = this.channel;
+    const key = `${channel}_update_check_interval`;
+    const data = await this.storage.get([key]);
+    return (data[key] as number) || 24 * 60 * 60;
+  }
+
+  /**
    * Changes the URL of the repository with IITC and plugins for the custom channel.
    *
    * @param url - URL of the repository.

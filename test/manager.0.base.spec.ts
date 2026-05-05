@@ -70,6 +70,21 @@ describe('manage.js base integration tests', function () {
     });
   });
 
+  describe('getUpdateCheckInterval', function () {
+    it('Should return interval set by setUpdateCheckInterval for explicit channel', async function () {
+      const interval = await manager!.getUpdateCheckInterval('release');
+      expect(interval).to.equal(24 * 60 * 60);
+    });
+    it('Should return interval for current channel when no argument given', async function () {
+      const interval = await manager!.getUpdateCheckInterval();
+      expect(interval).to.equal(24 * 60 * 60);
+    });
+    it('Should return default interval when not set', async function () {
+      const interval = await manager!.getUpdateCheckInterval('external');
+      expect(interval).to.equal(24 * 60 * 60);
+    });
+  });
+
   describe('inject', function () {
     it('Should not return an error', async function () {
       const inject = await manager!.inject();
