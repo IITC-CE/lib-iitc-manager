@@ -280,3 +280,18 @@ describe('wait', function () {
     expect(time).to.be.closeTo(100, 15);
   });
 });
+
+describe('validateCustomChannelUrl', function () {
+  it('returns false for empty string', async function () {
+    expect(await helpers.validateCustomChannelUrl('')).to.be.false;
+  });
+
+  it('returns true for a reachable URL', async function () {
+    expect(await helpers.validateCustomChannelUrl('http://127.0.0.1:31606/custom')).to.be.true;
+  });
+
+  it('returns false for a URL with no meta.json', async function () {
+    expect(await helpers.validateCustomChannelUrl('http://127.0.0.1:31606/nonexistent')).to.be
+      .false;
+  });
+});

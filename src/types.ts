@@ -309,6 +309,8 @@ export interface FetchResourceOptions {
   headOnly?: boolean;
   /** Allow HEAD requests (if false, always use GET). */
   useFetchHeadMethod?: boolean;
+  /** Request timeout in milliseconds. Default: 30000. */
+  timeout?: number;
 }
 
 /**

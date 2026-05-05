@@ -189,7 +189,7 @@ async function migration0004(storageIitcCode: StorageData): Promise<void> {
     if (isSet(code)) {
       const meta = parseMeta(code) as StorageData;
       meta['code'] = code;
-      storageIitcCode[channel + 'iitc_core'] = meta;
+      storageIitcCode[channel + '_iitc_core'] = meta;
     }
   }
 }
