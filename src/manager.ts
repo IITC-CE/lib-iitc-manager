@@ -288,7 +288,7 @@ export class Manager extends Worker {
     if (action === 'delete') {
       if (uid === this.iitc_main_script_uid) {
         await this._save(channel, {
-          iitc_core_user: {},
+          iitc_core_user: null,
         });
         await this._sendPluginsEvent(channel, [uid], 'update');
       } else {
