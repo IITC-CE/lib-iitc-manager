@@ -770,14 +770,15 @@ describe('manage.js external plugins integration tests', function () {
         expect(data).to.have.all.keys('event', 'plugins');
         expect(data['event']).to.equal('update');
         expect(data['plugins']).to.have.all.keys(iitcCustomUid);
-        expect(data['plugins'][iitcCustomUid]).to.be.empty;
+        expect(data['plugins'][iitcCustomUid]).to.have.property('uid', iitcCustomUid);
+        expect(data['plugins'][iitcCustomUid]).to.have.property('code');
       };
 
       const run = await manager!.managePlugin(iitcCustomUid, 'delete');
       expect(run).to.be.undefined;
 
       const dbData = await storage.get(['iitc_core_user']);
-      expect(dbData['iitc_core_user'], 'iitc_core_user must be empty object').to.deep.equal({});
+      expect(dbData['iitc_core_user']).to.be.null;
     });
     it('Check core in view for standard IITC', async function () {
       const { core: script } = await manager!.getPluginsView();

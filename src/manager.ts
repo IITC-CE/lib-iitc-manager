@@ -313,7 +313,7 @@ export class Manager extends Worker {
     }
     if (action === 'delete') {
       if (uid === IITC_CORE_UID) {
-        await this._save(channel, { iitc_core_user: {} });
+        await this._save(channel, { iitc_core_user: null });
         await this._sendPluginsEvent(channel, [uid], 'update');
       } else {
         const isEnabled = pluginsState[uid]?.status === 'on';
