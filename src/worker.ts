@@ -49,7 +49,7 @@ export class Worker {
 
   message?: (message: string, args?: string | string[]) => void;
   onProgress?: (isShow: boolean) => void;
-  injectPlugin: (plugin: Plugin) => Promise<void>;
+  injectPlugin: (plugin: Plugin) => void | Promise<void>;
   onPluginEvent: (event: PluginEventData) => void;
   onPluginsViewChanged?: (view: PluginsView) => void;
   newPluginThreshold: number;
@@ -802,10 +802,10 @@ export class Worker {
    * @param plugin - Plugin to inject.
    * @internal
    */
-  async _injectWithGmApi(plugin: Plugin): Promise<void> {
+  _injectWithGmApi(plugin: Plugin): void | Promise<void> {
     if (this.gmApi && plugin.code) {
       plugin = { ...plugin, code: wrapPluginCode(plugin, this.sourceUrlPrefix) };
     }
-    await this.injectPlugin(plugin);
+    return this.injectPlugin(plugin);
   }
 }
