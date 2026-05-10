@@ -238,12 +238,12 @@ export class Manager extends Worker {
       const isGmComponent = uid === GM_API_UID;
       const isCore = uid === IITC_CORE_UID;
 
-      if (isCore) {
+      if (isGmComponent) {
         await this.injectPlugin(plugin);
-      } else if (isGmComponent) {
-        await this.injectPlugin(plugin);
+      } else if (isCore) {
+        this.injectPlugin(plugin);
       } else {
-        await this._injectWithGmApi(plugin);
+        this._injectWithGmApi(plugin);
       }
     }
   }

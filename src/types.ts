@@ -260,7 +260,7 @@ export interface ManagerConfig {
    *
    * @param plugin - UserScript plugin to run in the Ingress Intel window.
    */
-  injectPlugin?: (plugin: Plugin) => Promise<void>;
+  injectPlugin?: (plugin: Plugin) => void | Promise<void>;
 
   /**
    * Called to handle changes in plugin status for multiple plugins at once,
