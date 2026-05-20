@@ -81,14 +81,14 @@ describe('Manager GM API integration', function () {
       expect(injectedPlugins[0].code).to.include('window.GM');
     });
 
-    it('should not wrap IITC core code with GM IIFE', async function () {
+    it('should wrap IITC core code with GM IIFE', async function () {
       injectedPlugins.length = 0;
       await manager.inject();
       // Second plugin should be IITC core (after GM API)
       const iitcPlugin = injectedPlugins[1];
       expect(iitcPlugin).to.exist;
       expect(iitcPlugin.code).to.include('==UserScript==');
-      expect(iitcPlugin.code).to.not.match(/^\(\(GM\)=>\{/);
+      expect(iitcPlugin.code).to.match(/^\(\(GM\)=>\{/);
     });
   });
 
