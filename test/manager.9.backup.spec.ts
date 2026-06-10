@@ -223,3 +223,55 @@ describe('getBackupData and setBackupData', function () {
     });
   });
 });
+
+describe('setBackupData preserves the disabled state of restored external plugins', function () {
+  // The backup marks an external plugin as "off", but addUserScripts() force-enables
+  // every re-installed script. The import order must keep the backup's status.
+  const pluginExtCode =
+    '// ==UserScript==\n' +
+    '// @name PluginExt\n' +
+    '// @namespace https://github.com/IITC-CE/ingress-intel-total-conversion\n' +
+    '// ==/UserScript==\n' +
+    'return false;';
+  const pluginExtUid = 'PluginExt+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const restoreBackup: BackupData = {
+    external_plugins: {
+      shared: {
+        'PluginExt.user.js': pluginExtCode,
+      },
+    },
+    data: {
+      iitc_settings: {
+        channel: 'release',
+        plugins_state: {
+          [pluginExtUid]: { status: 'off' },
+        },
+      },
+      plugins_data: {},
+      app: 'IITC Button',
+    },
+  };
+
+  it('Keeps the off status from the backup after re-installing the code', async function () {
+    storage.resetStorage();
+    const manager = new Manager({
+      storage: storage,
+      channel: 'release',
+      networkHost: {
+        release: 'http://127.0.0.1:31606/release',
+        beta: 'http://127.0.0.1:31606/beta',
+        custom: 'http://127.0.0.1/',
+      },
+      injectPlugin: () => {},
+      onProgress: () => {},
+      isDaemon: false,
+    });
+    await manager.run();
+
+    await manager.setBackupData({ settings: true, data: true, external: true }, restoreBackup);
+
+    const pluginsState = (await storage.get(['plugins_state']))['plugins_state'] as StorageData;
+    const entry = pluginsState[pluginExtUid] as StorageData;
+    expect(entry['status']).to.equal('off');
+  });
+});

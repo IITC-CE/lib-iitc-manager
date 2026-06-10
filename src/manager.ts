@@ -487,11 +487,11 @@ export class Manager extends Worker {
     // Process the input parameters using the 'paramsProcessing' function from the 'backup' module.
     const processedParams = backup.paramsProcessing(params);
 
-    if (processedParams.settings)
-      await backup.importIitcSettings(this, backupData.data.iitc_settings);
-    if (processedParams.data)
-      await backup.importPluginsSettings(this, backupData.data.plugins_data);
     if (processedParams.external)
       await backup.importExternalPlugins(this, backupData.external_plugins);
+    if (processedParams.data)
+      await backup.importPluginsSettings(this, backupData.data.plugins_data);
+    if (processedParams.settings)
+      await backup.importIitcSettings(this, backupData.data.iitc_settings);
   }
 }
