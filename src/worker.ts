@@ -43,6 +43,7 @@ export class Worker {
   isInitialized: boolean;
   gmApi?: GmApiConfig;
   sourceUrlPrefix: string;
+  appName: string;
   progressIntervalId: ReturnType<typeof setInterval> | null;
   updateTimeoutId: ReturnType<typeof setTimeout> | null;
   externalUpdateTimeoutId: ReturnType<typeof setTimeout> | null;
@@ -79,6 +80,7 @@ export class Worker {
     this.onPluginEvent = this.config.onPluginEvent || function () {};
     this.gmApi = this.config.gmApi;
     this.sourceUrlPrefix = this.config.sourceUrlPrefix || '';
+    this.appName = this.config.appName || 'IITC Button';
     this.onPluginsViewChanged = this.config.onPluginsViewChanged;
     this.newPluginThreshold = this.config.newPluginThreshold ?? 3600;
 

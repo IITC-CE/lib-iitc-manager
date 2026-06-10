@@ -233,6 +233,13 @@ export interface ManagerConfig {
   gmApi?: GmApiConfig;
 
   /**
+   * Name of the host application, written to the `app` field of exported backups
+   * to identify which application produced the backup.
+   * Default: `'IITC Button'`.
+   */
+  appName?: string;
+
+  /**
    * URL prefix for `//# sourceURL=` comments added to injected scripts.
    * Used to group scripts under the host application in browser DevTools.
    * Example: `browser.runtime.getURL('')` -> `chrome-extension://abc123/`
