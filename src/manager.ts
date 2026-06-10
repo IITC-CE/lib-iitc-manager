@@ -453,7 +453,7 @@ export class Manager extends Worker {
       data: {
         iitc_settings: {},
         plugins_data: {},
-        app: 'IITC Button',
+        app: this.appName,
       },
     };
 
