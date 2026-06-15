@@ -483,6 +483,8 @@ export class Worker {
       for (const uid of Object.keys(pluginsUser)) {
         const plugin = pluginsUser[uid];
 
+        if (!plugin) continue;
+
         if (plugin['updateURL'] && plugin['downloadURL']) {
           // download meta info
           const resultMeta = await this._getUrl(plugin['updateURL'] + hash);
@@ -492,7 +494,7 @@ export class Worker {
             if (meta && meta['version'] && meta['version'] !== plugin['version']) {
               // download userscript
               const resultCode = await this._getUrl(plugin['downloadURL'] + hash);
-              if (resultCode.data) {
+              if (resultCode.data && parseMeta(resultCode.data as string)) {
                 existUpdates = true;
                 pluginsUser[uid] = {
                   ...meta,
