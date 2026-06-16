@@ -996,4 +996,61 @@ describe('manage.js external plugins integration tests', function () {
       expect(pluginView!).to.not.have.property('addedAt');
     });
   });
+
+  describe('Resilience of _updateExternalPlugins', function () {
+    let manager: Manager | null = null;
+
+    before(function () {
+      storage.resetStorage();
+      manager = new Manager({
+        storage: storage,
+        channel: 'release',
+        networkHost: {
+          release: 'http://127.0.0.1:31606/release',
+          beta: 'http://127.0.0.1:31606/beta',
+          custom: 'http://127.0.0.1/',
+        },
+        injectPlugin: () => {},
+        onPluginEvent: () => {},
+        onProgress: () => {},
+        isDaemon: false,
+      });
+    });
+
+    it('should not throw when plugins_user contains a null entry', async function () {
+      await storage.set({ plugins_user: { 'corrupted-uid': null } });
+      const result = await manager!.checkUpdates(true);
+      expect(result).to.be.undefined;
+    });
+
+    it('should not save a plugin whose downloaded code is not a valid UserScript', async function () {
+      const externalUid =
+        'Bookmarks for maps and portals+https://github.com/IITC-CE/ingress-intel-total-conversion';
+
+      await storage.set({
+        plugins_user: {
+          [externalUid]: {
+            uid: externalUid,
+            name: 'Bookmarks for maps and portals',
+            namespace: 'https://github.com/IITC-CE/ingress-intel-total-conversion',
+            version: '0.0.1',
+            filename: 'bookmarks.user.js',
+            updateURL: 'http://127.0.0.1:31606/nonexistent.meta.js',
+            downloadURL: 'http://127.0.0.1:31606/nonexistent.user.js',
+            code: '// ==UserScript==\nreturn false;',
+          },
+        },
+        plugins_state: { [externalUid]: { status: 'on' } },
+      });
+
+      await manager!.checkUpdates(true);
+
+      const dbData = await storage.get(['plugins_user']);
+      const pluginsUser = dbData['plugins_user'] as StorageData;
+      const plugin = pluginsUser[externalUid] as StorageData;
+      expect(plugin).to.not.be.null;
+      expect(plugin['code']).to.equal('// ==UserScript==\nreturn false;');
+      expect(plugin['version']).to.equal('0.0.1');
+    });
+  });
 });
