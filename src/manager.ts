@@ -99,10 +99,7 @@ export class Manager extends Worker {
    * Migrates data storage as needed, then loads or updates UserScripts from the repositories.
    */
   async run(): Promise<void> {
-    if (!this.isInitialized) {
-      await new Promise(resolve => setTimeout(resolve, 1));
-      return await this.run();
-    }
+    await this.ready;
     const isMigrated = await migrations.migrate(this.storage);
     await this.checkUpdates(isMigrated);
     if (isMigrated) {

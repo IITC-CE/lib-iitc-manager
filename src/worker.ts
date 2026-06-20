@@ -41,6 +41,8 @@ export class Worker {
   isDaemon!: boolean;
   useFetchHeadMethod!: boolean;
   isInitialized: boolean;
+  /** Resolves once _init has loaded channel, networkHost and other settings from storage */
+  ready: Promise<void>;
   gmApi?: GmApiConfig;
   sourceUrlPrefix: string;
   appName: string;
@@ -86,7 +88,7 @@ export class Worker {
 
     this._gmApiMatches = [GM_API_DEFAULT_MATCH];
     this.isInitialized = false;
-    this._init().then();
+    this.ready = this._init();
   }
 
   /**
