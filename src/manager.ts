@@ -2,7 +2,7 @@
 
 import { Worker, IITC_CORE_UID, GM_API_UID, GM_API_DEFAULT_MATCH } from './worker.js';
 import * as migrations from './migrations.js';
-import { getUID, isSet, sanitizeFileName } from './helpers.js';
+import { getUID, isSet, parseMeta, sanitizeFileName } from './helpers.js';
 import { appendSourceUrl } from './wrapper.js';
 import { aggregateMatchPatterns } from './matching.js';
 import * as backup from './backup.js';
@@ -384,8 +384,10 @@ export class Manager extends Worker {
           const catalogEntry = pluginsCatalog[pluginUid];
           const userEntry = pluginsUser[pluginUid];
           const state = pluginsState[pluginUid];
+          const userMeta = parseMeta(userEntry.code ?? '');
           const overridePlugin: Plugin = {
             ...catalogEntry,
+            ...(userMeta ?? {}),
             status: state.status,
             code: userEntry.code,
             user: true,

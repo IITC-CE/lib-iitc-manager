@@ -625,6 +625,8 @@ export class Worker {
       const state = pluginsState[pluginUid];
       const pluginStatus = state?.status ?? 'off';
       if (pluginUid in data) {
+        const userMeta = parseMeta(userPlugin.code ?? '');
+        if (userMeta) Object.assign(data[pluginUid], userMeta);
         data[pluginUid].status = pluginStatus;
         data[pluginUid].statusChangedAt = state?.statusChangedAt;
         data[pluginUid].code = userPlugin.code;
@@ -632,6 +634,7 @@ export class Worker {
         data[pluginUid].override = true;
         data[pluginUid].addedAt = userPlugin.addedAt;
         data[pluginUid].updatedAt = userPlugin.updatedAt;
+        // Use the override's own `match`, not the catalog's
         delete data[pluginUid].match;
         if (userPlugin.match !== undefined) data[pluginUid].match = userPlugin.match;
       } else {

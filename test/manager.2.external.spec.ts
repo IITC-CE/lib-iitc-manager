@@ -3,6 +3,7 @@
 import { describe, it, before } from 'mocha';
 import { Manager } from '../src/manager.js';
 import { IITC_CORE_UID } from '../src/worker.js';
+import { parseMeta } from '../src/helpers.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
 import type {
@@ -597,6 +598,69 @@ describe('manage.js external plugins integration tests', function () {
       const pluginAfter = await manager!.getPluginInfo(external1Uid);
       expect(pluginAfter!.status, "getPluginInfo()['status']: " + external1Uid).to.not.equal('on');
       expect(pluginAfter!.override, "getPluginInfo()['override']: " + external1Uid).to.not.be.true;
+    });
+  });
+
+  describe('Override plugin surfaces the installed user-script metadata', function () {
+    // Catalog "Plugin A" is version 0.1.0 / author "test-author". The override
+    // ships a different version and author, which must win in the merged view.
+    const overrideUid = firstPluginUid;
+    const overrideVersion = '0.1.0.20260617.142340';
+    const overrideCode = [
+      '// ==UserScript==',
+      '// @author         override-author',
+      '// @name           IITC plugin: Plugin A',
+      '// @category       Info',
+      `// @version        ${overrideVersion}`,
+      '// @description    Overridden Plugin A.',
+      '// @id             plugin-a',
+      '// @namespace      https://github.com/IITC-CE/ingress-intel-total-conversion',
+      '// @match          https://override.example.com/*',
+      '// @grant          none',
+      '// ==/UserScript==',
+      'return false;',
+    ].join('\n');
+    const overrideMeta = parseMeta(overrideCode)!;
+
+    it('returns the user script metadata, not the catalog metadata', async function () {
+      pluginEventCallback = () => {};
+
+      const run = await manager!.addUserScripts([{ meta: overrideMeta, code: overrideCode }]);
+      const installed = (run as PluginDict)[overrideUid];
+      expect(installed, 'addUserScripts returns the override').to.exist;
+      expect(installed['override'], 'override flag').to.be.true;
+      expect(installed['version'], 'addUserScripts version').to.equal(overrideVersion);
+      expect(installed['author'], 'addUserScripts author').to.equal('override-author');
+      expect(installed['description'], 'addUserScripts description').to.equal(
+        'Overridden Plugin A.'
+      );
+
+      const info = await manager!.getPluginInfo(overrideUid);
+      expect(info!['override'], 'getPluginInfo override flag').to.be.true;
+      expect(info!['version'], 'getPluginInfo version').to.equal(overrideVersion);
+      expect(info!['author'], 'getPluginInfo author').to.equal('override-author');
+      expect(info!['description'], 'getPluginInfo description').to.equal('Overridden Plugin A.');
+      expect(info!['match'], 'getPluginInfo match').to.deep.equal([
+        'https://override.example.com/*',
+      ]);
+    });
+
+    it('restores the original plugin metadata after the override is removed', async function () {
+      pluginEventCallback = () => {};
+
+      await manager!.managePlugin(overrideUid, 'delete');
+
+      const info = await manager!.getPluginInfo(overrideUid);
+      expect(info, 'plugin still present from catalog').to.exist;
+      expect(info!.override, 'override flag cleared').to.not.be.true;
+      expect(info!.user, 'user flag cleared').to.not.be.true;
+      expect(info!['version'], 'original version restored').to.equal('0.1.0');
+      expect(info!['author'], 'original author restored').to.equal('test-author');
+      expect(info!['name'], 'original name restored').to.equal('Plugin A');
+      expect(info!['description'], 'original description restored').to.equal('Plugin A.');
+      expect(info!['match'], 'catalog default match restored').to.deep.equal([
+        'https://intel.ingress.com/*',
+      ]);
     });
   });
 
