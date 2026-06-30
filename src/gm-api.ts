@@ -20,8 +20,12 @@ export const GM_V3_BINDINGS = [
 /**
  * Returns the GM API factory JavaScript code as a string for injection into the page context.
  *
- * The code defines `window.GM({ data_key, meta })` factory that provides
+ * The code defines `window.__iitc_gm__({ data_key, meta })` factory that provides
  * Greasemonkey-compatible API (GM_info, GM_getValue, GM_setValue, GM_xmlhttpRequest, etc.).
+ *
+ * `__iitc_gm__` is only the internal page-level name (chosen to avoid colliding with
+ * third-party globals). Plugins still use the familiar `GM` / `GM_*` names, since the
+ * wrapper passes the factory result into the IIFE as the `GM` argument.
  *
  * Bridge transport is abstracted via `window.__iitc_gm_bridge__` which is set up
  * by the host app's bridge adapter code concatenated before this factory.
@@ -87,7 +91,7 @@ export function getGmApiCode(): string {
     return func;
   };
 
-  window.GM = function({ data_key, meta }) {
+  window.__iitc_gm__ = function({ data_key, meta }) {
     initialSyncStorage();
 
     return {

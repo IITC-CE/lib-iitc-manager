@@ -20,7 +20,7 @@ describe('wrapPluginCode', function () {
   it('wraps code in IIFE with GM call', function () {
     const result = wrapPluginCode(samplePlugin);
     expect(result).to.match(/^\(\(GM\)=>\{/);
-    expect(result).to.include('})(GM(');
+    expect(result).to.include('})(__iitc_gm__(');
     expect(result).to.include('console.log("hello");');
   });
 
@@ -56,9 +56,9 @@ describe('wrapPluginCode', function () {
   it('adds newline before closing only if code does not end with one', function () {
     const withoutNewline: Plugin = { ...samplePlugin, code: 'var x = 1;' };
     const withNewline: Plugin = { ...samplePlugin, code: 'var x = 1;\n' };
-    // Both should have exactly one newline before })(GM(
-    expect(wrapPluginCode(withoutNewline)).to.include('var x = 1;\n})(GM(');
-    expect(wrapPluginCode(withNewline)).to.include('var x = 1;\n})(GM(');
+    // Both should have exactly one newline before })(__iitc_gm__(
+    expect(wrapPluginCode(withoutNewline)).to.include('var x = 1;\n})(__iitc_gm__(');
+    expect(wrapPluginCode(withNewline)).to.include('var x = 1;\n})(__iitc_gm__(');
   });
 
   it('produces different data_keys for different plugins', function () {
