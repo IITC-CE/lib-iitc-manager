@@ -29,9 +29,13 @@ export function appendSourceUrl({
 /**
  * Wraps plugin code in an IIFE with GM API bindings.
  *
- * The wrapped code calls `window.GM({ data_key, meta })` to obtain a GM API instance,
+ * The wrapped code calls `window.__iitc_gm__({ data_key, meta })` to obtain a GM API instance,
  * then exposes GM_info, GM_getValue, GM_setValue, GM_xmlhttpRequest, etc. as local variables
  * available to the plugin code.
+ *
+ * `__iitc_gm__` is only the internal page-level name (chosen to avoid colliding with
+ * third-party globals). Plugins still use the familiar `GM` / `GM_*` names, since the
+ * factory result is passed into the IIFE as the `GM` argument.
  *
  * @param plugin - Plugin object from lib-iitc-manager.
  * @returns Wrapped plugin code ready for injection.
@@ -52,7 +56,7 @@ export function wrapPluginCode(plugin: Plugin, sourceUrlPrefix: string = ''): st
     GM_V3_BINDINGS,
     '\n',
     pluginCode,
-    `})(GM(${JSON.stringify({ data_key: dataKey, meta })}))`,
+    `})(__iitc_gm__(${JSON.stringify({ data_key: dataKey, meta })}))`,
   ].join('');
 
   return appendSourceUrl({ code, name: meta.name || uid || 'plugin', prefix: sourceUrlPrefix });

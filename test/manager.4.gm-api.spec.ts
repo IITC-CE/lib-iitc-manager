@@ -78,7 +78,7 @@ describe('Manager GM API integration', function () {
       expect(injectedPlugins.length).to.be.greaterThan(0);
       expect(injectedPlugins[0].uid).to.equal('gm_api');
       expect(injectedPlugins[0].code).to.include('__iitc_gm_bridge__');
-      expect(injectedPlugins[0].code).to.include('window.GM');
+      expect(injectedPlugins[0].code).to.include('window.__iitc_gm__');
     });
 
     it('should wrap IITC core code with GM IIFE', async function () {
@@ -107,7 +107,7 @@ describe('Manager GM API integration', function () {
       expect(gmApi).to.exist;
       expect(gmApi.match).to.deep.equal(['https://intel.ingress.com/*']);
       expect(gmApi.code).to.include('__iitc_gm_bridge__');
-      expect(gmApi.code).to.include('window.GM');
+      expect(gmApi.code).to.include('window.__iitc_gm__');
     });
 
     it('should return GM API before IITC core', async function () {

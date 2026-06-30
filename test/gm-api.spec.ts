@@ -13,9 +13,9 @@ describe('getGmApiCode', function () {
     expect(code.trimEnd()).to.match(/\)\(\)$/);
   });
 
-  it('defines window.GM factory with bridge abstraction', function () {
+  it('defines window.__iitc_gm__ factory with bridge abstraction', function () {
     const code = getGmApiCode();
-    expect(code).to.include('window.GM');
+    expect(code).to.include('window.__iitc_gm__');
     expect(code).to.include('window.__iitc_gm_bridge__.send');
     expect(code).to.include('window.__iitc_gm_bridge__.onResponse');
   });
