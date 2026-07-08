@@ -29,6 +29,7 @@ const migrates: MigrationFn[] = [
   migration0006,
   migration0007,
   migration0008,
+  migration0009,
 ];
 
 export async function migrate(storage: StorageAPI): Promise<boolean> {
@@ -71,6 +72,9 @@ export async function migrate(storage: StorageAPI): Promise<boolean> {
     'network_host',
     'lastversion',
     'storage_version',
+    'release_last_modified',
+    'beta_last_modified',
+    'custom_last_modified',
   ]);
   const updateCheckInterval = await storage.get([
     'release_update_check_interval',
@@ -138,6 +142,7 @@ async function migration0001(
     const plugins = storagePluginsFlat[channel] as StorageData;
     for (const plugin of Object.keys(plugins)) {
       const pluginObj = plugins[plugin] as StorageData;
+      if (!isSet(pluginObj)) continue;
 
       if (pluginObj['user'] === true && pluginObj['category'] === undefined) {
         pluginObj['category'] = 'Misc';
@@ -169,6 +174,7 @@ async function migration0003(
     const plugins = storagePluginsUser[channel] as StorageData;
     for (const plugin of Object.keys(plugins)) {
       const pluginObj = plugins[plugin] as StorageData;
+      if (!isSet(pluginObj)) continue;
 
       if (pluginObj['uid'] === undefined) {
         pluginObj['uid'] = getUID(pluginObj as unknown as import('./types.js').PluginMeta);
@@ -241,6 +247,7 @@ async function migration0006(
 
     for (const uid of Object.keys(flat)) {
       const plugin = flat[uid] as StorageData;
+      if (!isSet(plugin)) continue;
       const entry: StorageData = {};
       for (const field of Object.keys(plugin)) {
         if (!RUNTIME_PLUGIN_FIELDS.includes(field)) {
@@ -293,6 +300,7 @@ async function migration0007(
     const channelPlugins = storagePluginsUser[key] as StorageData;
     for (const uid of Object.keys(channelPlugins)) {
       const plugin = channelPlugins[uid] as StorageData;
+      if (!isSet(plugin)) continue;
       mergeState(
         uid,
         (plugin['status'] as 'on' | 'off') || 'off',
@@ -322,6 +330,7 @@ async function migration0007(
     const stripped: StorageData = {};
     for (const uid of Object.keys(channelPlugins)) {
       const plugin = channelPlugins[uid] as StorageData;
+      if (!isSet(plugin)) continue;
       mergeState(
         uid,
         (plugin['status'] as 'on' | 'off') || 'off',
@@ -359,5 +368,19 @@ async function migration0008(
       storageGlobal['iitc_core_user'] = core;
     }
     storageIitcCoreUser[key] = null;
+  }
+}
+
+// Recovers plugins broken by earlier builds: clearing last_modified forces a full
+// internal update on the next run, which re-downloads any enabled-but-missing
+// built-in. Harmless when nothing needs healing.
+async function migration0009(
+  _storageIitcCode: StorageData,
+  _storagePluginsFlat: StorageData,
+  _storagePluginsUser: StorageData,
+  storageMisc: StorageData
+): Promise<void> {
+  for (const channel of ['release', 'beta', 'custom']) {
+    storageMisc[`${channel}_last_modified`] = null;
   }
 }
