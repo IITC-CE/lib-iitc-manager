@@ -551,23 +551,28 @@ export class Worker {
     const pluginsState = (globalData['plugins_state'] || {}) as PluginStateDict;
 
     // For each uid in local cache or catalog:
-    // already cached + in catalog -> re-download (update)
-    // already cached + gone from catalog -> remove
+    // cached + in catalog -> re-download (update)
+    // cached + gone from catalog -> remove, unless enabled (keep cached copy)
     // not cached + in catalog + enabled -> download (add)
     const allUids = new Set([...Object.keys(pluginsLocal), ...Object.keys(pluginsCatalog)]);
     for (const uid of allUids) {
       if (uid in pluginsLocal) {
-        const filename = pluginsLocal[uid]['filename'] as string;
+        // Fall back to the catalog filename to heal an entry that lost its own
+        const filename =
+          ((pluginsCatalog[uid] as Plugin)?.['filename'] as string) ||
+          (pluginsLocal[uid]['filename'] as string);
         if (filename && pluginsCatalog[uid]) {
           const result = await this._getUrl(
             `${this.networkHost[this.channel]}/plugins/${filename}`
           );
           if (result.data) {
             pluginsLocal[uid]['code'] = result.data as string;
+            pluginsLocal[uid]['filename'] = filename;
             pluginsLocal[uid]['updatedAt'] = currentTime;
             updatedUids.push(uid);
           }
-        } else {
+        } else if (pluginsState[uid]?.status !== 'on') {
+          // A transient catalog gap must not drop an enabled plugin
           delete pluginsLocal[uid];
           removedUids.push(uid);
         }

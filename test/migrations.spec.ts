@@ -1,6 +1,6 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { before, describe, it } from 'mocha';
+import { before, beforeEach, describe, it } from 'mocha';
 import { migrate, numberOfMigrations } from '../src/migrations.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
@@ -37,6 +37,7 @@ describe('test migrations', function () {
         },
       },
       release_update_check_interval: 6,
+      release_last_modified: 'Wed, 01 Jan 2025 00:00:00 GMT',
       lastversion: '1.7.0',
       storage_version: 0,
     });
@@ -96,5 +97,70 @@ describe('test migrations', function () {
       expect(plugin).to.not.have.property('statusChangedAt');
       expect(plugin).to.not.have.property('updatedAt');
     });
+    it('Should clear last_modified to force a recovery update on next run', async function () {
+      const dbData = await storage.get(['release_last_modified']);
+      expect(dbData['release_last_modified']).to.equal(null);
+    });
+  });
+});
+
+// Real 1.13.7 storage can contain null plugin entries (see the _updateExternalPlugins
+// null guard added in 2.0.4). A single null entry used to make migrate() throw, which
+// left storage_version unchanged and plugins_state/plugins_catalog uncreated - so every
+// enabled plugin disappeared until the user downgraded.
+describe('migrations resilience to null plugin entries', function () {
+  const ns = 'https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const good = (name: string, file: string): StorageData => ({
+    filename: file,
+    id: file.replace('.user.js', ''),
+    name,
+    namespace: ns,
+    uid: `${name}+${ns}`,
+    status: 'on',
+    statusChangedAt: 1700000000,
+    code: `// ${name}`,
+  });
+
+  const base = (): StorageData => ({
+    channel: 'release',
+    release_plugins_flat: { [`Draw tools+${ns}`]: good('Draw tools', 'draw-tools.user.js') },
+    release_plugins_local: { [`Draw tools+${ns}`]: good('Draw tools', 'draw-tools.user.js') },
+    lastversion: '3.2.5',
+    storage_version: 5,
+  });
+
+  async function expectMigratedWithDrawTools(): Promise<void> {
+    await migrate(storage);
+    const db = await storage.get(['storage_version', 'plugins_state', 'release_plugins_catalog']);
+    const state = (db['plugins_state'] || {}) as StorageData;
+    const catalog = (db['release_plugins_catalog'] || {}) as StorageData;
+    expect(db['storage_version']).to.equal(numberOfMigrations());
+    expect((state[`Draw tools+${ns}`] as StorageData)?.['status']).to.equal('on');
+    expect(catalog).to.have.property(`Draw tools+${ns}`);
+  }
+
+  beforeEach(function () {
+    storage.resetStorage();
+  });
+
+  it('survives a null entry in plugins_flat', async function () {
+    const data = base();
+    (data['release_plugins_flat'] as StorageData)[`Broken+${ns}`] = null;
+    await storage.set(data);
+    await expectMigratedWithDrawTools();
+  });
+
+  it('survives a null entry in plugins_local', async function () {
+    const data = base();
+    (data['release_plugins_local'] as StorageData)[`Broken+${ns}`] = null;
+    await storage.set(data);
+    await expectMigratedWithDrawTools();
+  });
+
+  it('survives a null entry in plugins_user', async function () {
+    const data = base();
+    data['release_plugins_user'] = { [`Ext+${ns}`]: null };
+    await storage.set(data);
+    await expectMigratedWithDrawTools();
   });
 });
