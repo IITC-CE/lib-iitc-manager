@@ -277,11 +277,16 @@ export class Manager extends Worker {
     if (action === 'on') {
       if (isUserPlugin || pluginsLocal[uid] !== undefined) {
         pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
-        // Built-ins inject catalog metadata (incl. `match`) merged with the cached code
-        const pluginToInject = isUserPlugin
-          ? pluginsUser[uid]
-          : ({ ...pluginsCatalog[uid], code: pluginsLocal[uid]['code'] } as Plugin);
-        await this._injectWithGmApi(pluginToInject);
+        // User plugins carry their own metadata; built-ins merge catalog metadata
+        // (incl. `match`) with the cached code, or stay silent if absent from the catalog.
+        if (isUserPlugin) {
+          await this._injectWithGmApi(pluginsUser[uid]);
+        } else if (pluginsCatalog[uid]) {
+          await this._injectWithGmApi({
+            ...pluginsCatalog[uid],
+            code: pluginsLocal[uid]['code'],
+          } as Plugin);
+        }
         await this._save(channel, { plugins_state: pluginsState });
         await this._sendPluginsEvent(channel, [uid], 'add');
       } else {

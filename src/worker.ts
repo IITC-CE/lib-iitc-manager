@@ -556,12 +556,22 @@ export class Worker {
     const addedUids: string[] = [];
     const currentTime = Math.floor(Date.now() / 1000);
 
-    const globalData = await this.storage.get(['plugins_state']);
+    // The stored catalog is still the previous one here (saved after this method
+    // returns), so it lets us detect the exact run a plugin drops out of the catalog.
+    const globalData = await this.storage.get([
+      'plugins_state',
+      'plugins_user',
+      `${channel}_plugins_catalog`,
+    ]);
     const pluginsState = (globalData['plugins_state'] || {}) as PluginStateDict;
+    const pluginsUser = (globalData['plugins_user'] || {}) as PluginDict;
+    const prevCatalog = (globalData[`${channel}_plugins_catalog`] || {}) as PluginDict;
 
     // For each uid in local cache or catalog:
     // cached + in catalog -> re-download (update)
-    // cached + gone from catalog -> remove, unless enabled (keep cached copy)
+    // cached + gone from catalog + disabled -> drop the cached copy (remove)
+    // cached + gone from catalog + enabled -> keep the cached copy; emit a one-time
+    //   remove on the run it disappears so event-driven hosts disable it too
     // not cached + in catalog + enabled -> download (add)
     const allUids = new Set([...Object.keys(pluginsLocal), ...Object.keys(pluginsCatalog)]);
     for (const uid of allUids) {
@@ -584,8 +594,11 @@ export class Worker {
             updatedUids.push(uid);
           }
         } else if (pluginsState[uid]?.status !== 'on') {
-          // A transient catalog gap must not drop an enabled plugin
           delete pluginsLocal[uid];
+          removedUids.push(uid);
+        } else if (!pluginsCatalog[uid] && uid in prevCatalog && !(uid in pluginsUser)) {
+          // Just gone from the catalog: keep the cached code, emit remove once.
+          // A user override keeps the plugin active, so it is left untouched.
           removedUids.push(uid);
         }
       } else if (pluginsState[uid]?.status === 'on') {
@@ -765,13 +778,14 @@ export class Worker {
       const storage = await this.storage.get(storageKeys);
 
       let pluginLocal: Plugin | undefined;
+      let catalogGap = false;
       if (isCore) {
         pluginLocal = storage[`${channel}_iitc_core`] as Plugin | undefined;
       } else {
         const catalogEntry = (storage[`${channel}_plugins_catalog`] as PluginDict)?.[uid];
         const localEntry = (storage[`${channel}_plugins_local`] as PluginDict)?.[uid];
         // Emit the merged catalog view (metadata + `match`) with the cached local code.
-        // A plugin missing from the catalog stays silent (see _updateLocalPlugins fallback).
+        // A plugin cached without a catalog entry has no metadata to emit.
         pluginLocal =
           catalogEntry && localEntry
             ? ({
@@ -780,10 +794,15 @@ export class Worker {
                 updatedAt: localEntry.updatedAt,
               } as Plugin)
             : undefined;
+        catalogGap = !catalogEntry && isSet(localEntry);
       }
       const pluginUser = isCore
         ? (storage['iitc_core_user'] as Plugin | undefined)
         : allPluginsUser[uid];
+
+      // Add/update for a catalog-absent cached plugin stays silent; its removal is
+      // driven once from _updateLocalPlugins (a `remove` event still passes through).
+      if (catalogGap && !isSet(pluginUser) && event !== 'remove') continue;
 
       if (event === 'remove' || (!isSet(pluginLocal) && !isSet(pluginUser))) {
         plugins[uid] = {};
