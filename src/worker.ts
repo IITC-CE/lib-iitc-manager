@@ -575,9 +575,12 @@ export class Worker {
             `${this.networkHost[this.channel]}/plugins/${filename}`
           );
           if (result.data) {
-            pluginsLocal[uid]['code'] = result.data as string;
-            pluginsLocal[uid]['filename'] = filename;
-            pluginsLocal[uid]['updatedAt'] = currentTime;
+            // `plugins_local` is a pure code cache; metadata lives in the catalog
+            pluginsLocal[uid] = {
+              code: result.data as string,
+              filename: filename,
+              updatedAt: currentTime,
+            } as Plugin;
             updatedUids.push(uid);
           }
         } else if (pluginsState[uid]?.status !== 'on') {
@@ -593,9 +596,10 @@ export class Worker {
           );
           if (result.data) {
             pluginsLocal[uid] = {
-              ...(pluginsCatalog[uid] as Plugin),
               code: result.data as string,
-            };
+              filename: filename,
+              updatedAt: currentTime,
+            } as Plugin;
             addedUids.push(uid);
           }
         }
@@ -757,12 +761,26 @@ export class Worker {
 
       const storageKeys = isCore
         ? [`${channel}_iitc_core`, 'iitc_core_user']
-        : [`${channel}_plugins_local`];
+        : [`${channel}_plugins_catalog`, `${channel}_plugins_local`];
       const storage = await this.storage.get(storageKeys);
 
-      const pluginLocal = isCore
-        ? (storage[`${channel}_iitc_core`] as Plugin | undefined)
-        : (storage[`${channel}_plugins_local`] as PluginDict)?.[uid];
+      let pluginLocal: Plugin | undefined;
+      if (isCore) {
+        pluginLocal = storage[`${channel}_iitc_core`] as Plugin | undefined;
+      } else {
+        const catalogEntry = (storage[`${channel}_plugins_catalog`] as PluginDict)?.[uid];
+        const localEntry = (storage[`${channel}_plugins_local`] as PluginDict)?.[uid];
+        // Emit the merged catalog view (metadata + `match`) with the cached local code.
+        // A plugin missing from the catalog stays silent (see _updateLocalPlugins fallback).
+        pluginLocal =
+          catalogEntry && localEntry
+            ? ({
+                ...catalogEntry,
+                code: localEntry.code,
+                updatedAt: localEntry.updatedAt,
+              } as Plugin)
+            : undefined;
+      }
       const pluginUser = isCore
         ? (storage['iitc_core_user'] as Plugin | undefined)
         : allPluginsUser[uid];
