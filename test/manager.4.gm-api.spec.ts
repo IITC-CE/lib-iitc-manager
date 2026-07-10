@@ -168,6 +168,35 @@ describe('Manager GM API integration', function () {
     });
   });
 
+  describe('_computeGmApiMatches gating by catalog', function () {
+    const absentUid = 'Absent Plugin+https://github.com/IITC-CE/ingress-intel-total-conversion';
+    let manager: Manager;
+
+    before(async function () {
+      manager = createManager(true);
+      await manager.run();
+
+      // Simulate a legacy local record (full metadata with its own @match) that is
+      // enabled but no longer present in the server catalog - e.g. a transient meta.json gap.
+      const db = await storage.get(['release_plugins_local', 'plugins_state']);
+      const local = (db['release_plugins_local'] || {}) as Record<string, Plugin>;
+      const state = (db['plugins_state'] || {}) as Record<string, unknown>;
+      local[absentUid] = {
+        uid: absentUid,
+        code: '// ==UserScript==\nreturn false;',
+        match: ['https://absent.example/*'],
+        filename: 'absent.user.js',
+      } as Plugin;
+      state[absentUid] = { status: 'on', statusChangedAt: 1 };
+      await storage.set({ release_plugins_local: local, plugins_state: state });
+    });
+
+    it('excludes @match of a plugin missing from the catalog', async function () {
+      const matches = await manager._computeGmApiMatches();
+      expect(matches).to.not.include('https://absent.example/*');
+    });
+  });
+
   describe('onPluginEvent gm_api update notification', function () {
     const pluginAUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
 

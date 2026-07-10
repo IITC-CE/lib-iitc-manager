@@ -200,26 +200,35 @@ export class Worker {
     const data = await this.storage.get([
       `${channel}_iitc_core`,
       'iitc_core_user',
+      `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
       'plugins_user',
       'plugins_state',
     ]);
 
+    const pluginsCatalog = (data[`${channel}_plugins_catalog`] || {}) as PluginDict;
     const pluginsLocal = (data[`${channel}_plugins_local`] || {}) as PluginDict;
     const pluginsUser = (data['plugins_user'] || {}) as PluginDict;
     const pluginsState = (data['plugins_state'] || {}) as PluginStateDict;
     const iitcCore = data[`${channel}_iitc_core`] as Plugin | undefined;
     const iitcCoreUser = data['iitc_core_user'] as Plugin | undefined;
 
+    // Catalog-gated merged view so `@match` comes from the catalog; a plugin absent
+    // from the catalog (kept in local as a transient fallback) contributes nothing.
+    const allPlugins = this._computePlugins(
+      pluginsCatalog,
+      pluginsLocal,
+      pluginsUser,
+      pluginsState
+    );
+
     const candidates: PluginDict = {};
 
     const core = this._computeCore(iitcCore, iitcCoreUser);
     if (core) candidates[IITC_CORE_UID] = core;
 
-    for (const uid in pluginsState) {
-      if (pluginsState[uid]?.status !== 'on') continue;
-      const plugin = uid in pluginsUser ? pluginsUser[uid] : pluginsLocal[uid];
-      if (plugin) candidates[uid] = plugin;
+    for (const uid in allPlugins) {
+      if (allPlugins[uid]?.status === 'on') candidates[uid] = allPlugins[uid];
     }
 
     return Array.from(
