@@ -112,7 +112,33 @@ export class Worker {
       true,
       this.config.useFetchHeadMethod
     );
+
+    if (this.config.fallbackCore && this.channel === 'release') {
+      await this._seedFallbackCore(this.config.fallbackCore);
+    }
+
     this.isInitialized = true;
+  }
+
+  /**
+   * Seeds `release_iitc_core` from a consumer-bundled snapshot.
+   * Only fills an empty slot - skipped if `iitc_core` or `iitc_core_user` is already set,
+   * or if `rawCode` doesn't parse into a valid plugin.
+   *
+   * @param rawCode - Raw source text of total-conversion-build.user.js.
+   * @internal
+   */
+  async _seedFallbackCore(rawCode: string): Promise<void> {
+    const existing = await this.storage.get(['release_iitc_core', 'iitc_core_user']);
+    if (isSet(existing['release_iitc_core']) || isSet(existing['iitc_core_user'])) return;
+
+    const meta = parseMeta(rawCode);
+    if (!meta) return;
+    const uid = getUID(meta);
+    if (!uid) return;
+
+    const iitcCore = { ...meta, uid, code: rawCode } as Plugin;
+    await this._save('release', { iitc_core: iitcCore });
   }
 
   /**

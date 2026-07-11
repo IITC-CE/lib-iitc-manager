@@ -71,6 +71,28 @@ if (core) {
 
 Pass `onPluginsViewChanged` in the config (see above), or poll with `getPluginsView()` as needed.
 
+### Offline fallback for IITC core on cold start
+
+On a fresh install, IITC core is downloaded from `networkHost[channel]`. If there's no network
+on first run, that download retries with backoff and the consumer has nothing to inject in the
+meantime. To cover that gap, pass `fallbackCore` with the raw text of a
+`total-conversion-build.user.js` snapshot downloaded and bundled as an asset at your own build
+time:
+
+```js
+const manager = new Manager({
+    storage: browser.storage.local,
+    fallbackCore: fallbackCoreAssetText, // content of a bundled total-conversion-build.user.js
+});
+```
+
+This only fills an empty slot in storage, once, at construction time, and is transparently
+replaced by a real download on the next successful update check. It applies only when:
+
+- the active channel is `release` - the only channel this is safe for, and the default on a
+  clean install; `beta`/`custom` are never seeded, even if `fallbackCore` is passed;
+- no `iitc_core` is already cached for `release`, and no `iitc_core_user` override is set.
+
 ### GM API
 
 When `gmApi` is provided in the config, the library injects a GM API service script once, before

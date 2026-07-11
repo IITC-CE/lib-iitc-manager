@@ -292,6 +292,14 @@ export interface ManagerConfig {
    * @param view - Current plugins and categories view.
    */
   onPluginsViewChanged?: (view: PluginsView) => void;
+
+  /**
+   * Raw source text of a pre-downloaded `total-conversion-build.user.js`,
+   * bundled by the consumer at build time. Seeds IITC core on a cold start,
+   * but only for the `release` channel and only if no core is cached yet -
+   * the next update check still runs for real and transparently replaces it.
+   */
+  fallbackCore?: string;
 }
 
 /**
