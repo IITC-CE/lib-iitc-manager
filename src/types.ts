@@ -329,13 +329,29 @@ export interface FetchResourceOptions {
 }
 
 /**
+ * Reason a fetch failed. A plain object so it survives JSON serialization.
+ */
+export interface FetchError {
+  /**
+   * `network` - request failed or timed out, or the body could not be read;
+   * `http` - server answered with a non-2xx status;
+   * `invalid` - `parseJSON` was set and the body is not valid JSON.
+   */
+  kind: 'network' | 'http' | 'invalid';
+  /** HTTP status code, set for `http`. */
+  status?: number;
+}
+
+/**
  * Result of fetchResource function.
  */
 export interface FetchResourceResult {
-  /** Response data: parsed JSON object, text string, or null for HEAD requests. */
+  /** Response data: parsed JSON object, text string, or null for HEAD requests and on error. */
   data: string | object | null;
-  /** Resource version from Last-Modified header, or null if unavailable. */
+  /** Resource version from ETag or Last-Modified header, or null if unavailable. */
   version: string | null;
+  /** Set only when the request failed. */
+  error?: FetchError;
 }
 
 /**

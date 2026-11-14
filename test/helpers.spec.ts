@@ -88,6 +88,28 @@ describe('fetchResource', function () {
     expect(result.data, 'data is object').to.be.an.instanceof(Object);
     expect(result.version, 'version exists').to.exist;
   });
+
+  it('reports network error when connection fails', async function () {
+    const result = await helpers.fetchResource('http://127.0.0.1:1/meta.json');
+    expect(result).to.deep.equal({ data: null, version: null, error: { kind: 'network' } });
+  });
+
+  it('reports http error with status', async function () {
+    const result = await helpers.fetchResource('http://127.0.0.1:31606/release/missing.json');
+    expect(result).to.deep.equal({
+      data: null,
+      version: null,
+      error: { kind: 'http', status: 404 },
+    });
+  });
+
+  it('reports invalid error when JSON cannot be parsed', async function () {
+    const result = await helpers.fetchResource(
+      'http://127.0.0.1:31606/release/total-conversion-build.meta.js',
+      { parseJSON: true }
+    );
+    expect(result).to.deep.equal({ data: null, version: null, error: { kind: 'invalid' } });
+  });
 });
 
 describe('fetchData', function () {

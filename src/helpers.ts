@@ -71,6 +71,7 @@ export function parseMeta(code: string): PluginMeta | null {
 
 /**
  * Fetches a resource and returns data along with version header (ETag or Last-Modified).
+ * Never throws: on failure returns null `data` and `version` with `error` set.
  *
  * @param url - URL of the resource you want to fetch.
  * @param options - Fetch options.
@@ -116,7 +117,7 @@ export async function fetchResource(
         ]));
 
     if (!response.ok) {
-      return { data: null, version: null };
+      return { data: null, version: null, error: { kind: 'http', status: response.status } };
     }
 
     const version = response.headers.get('ETag') || response.headers.get('Last-Modified');
@@ -133,7 +134,12 @@ export async function fetchResource(
     return { data, version };
   } catch (error) {
     console.error('Error in fetchResource:', error);
-    return { data: null, version: null };
+    return {
+      data: null,
+      version: null,
+      // Only JSON.parse throws SyntaxError here
+      error: { kind: error instanceof SyntaxError ? 'invalid' : 'network' },
+    };
   } finally {
     clearTimeout(timeoutId);
   }

@@ -67,6 +67,7 @@ export type {
   BackupParams,
   FetchResourceOptions,
   FetchResourceResult,
+  FetchError,
   UserScript,
   BackupData,
   MetaJsonResponse,
