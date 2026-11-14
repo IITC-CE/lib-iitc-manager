@@ -335,7 +335,8 @@ export interface FetchError {
   /**
    * `network` - request failed or timed out, or the body could not be read;
    * `http` - server answered with a non-2xx status;
-   * `invalid` - `parseJSON` was set and the body is not valid JSON.
+   * `invalid` - `parseJSON` was set and the body is not valid JSON,
+   * or a downloaded userscript has no ==UserScript== header.
    */
   kind: 'network' | 'http' | 'invalid';
   /** HTTP status code, set for `http`. */
