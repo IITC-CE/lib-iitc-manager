@@ -424,16 +424,18 @@ export type UpdateType = 'local' | 'user';
  */
 export type RequestVariant = 'parseJSON' | 'head' | null;
 
+// A type alias, not an interface, so it is assignable to StorageValue
 /**
- * Pause after failed internal update checks, stored under `update_check_retry`.
+ * Pause after failed update checks, stored under `update_check_retry` and
+ * `external_update_check_retry`.
  * @internal
  */
-export interface UpdateCheckRetry {
+export type UpdateCheckRetry = {
   /** Consecutive failed checks. */
   failures: number;
   /** Unix time in seconds before which no scheduled check runs. */
   at: number;
-}
+};
 
 /**
  * Ingress domain types.

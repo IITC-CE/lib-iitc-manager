@@ -44,6 +44,22 @@ const isTransient = (error: FetchError): boolean =>
 /** A file that could not be updated during a check. */
 type FailedFile = { uid: string; error: FetchError };
 
+/** Longest pause after failed update checks, in seconds. */
+const MAX_RETRY_PAUSE = 30 * 60;
+
+/** End of the pause in `retry`, at most 30 min from `now` in case the clock moved back. */
+const retryEnd = (retry: UpdateCheckRetry | null | undefined, now: number): number =>
+  Math.min(retry?.at ?? 0, now + MAX_RETRY_PAUSE);
+
+/** Pause after another failed check: doubles from 1 min up to `maxPause` seconds. */
+const nextRetry = (
+  retry: UpdateCheckRetry | null | undefined,
+  maxPause: number = MAX_RETRY_PAUSE
+): UpdateCheckRetry => {
+  const failures = (retry?.failures ?? 0) + 1;
+  return { failures, at: unixNow() + Math.min(60 * 2 ** (failures - 1), maxPause) };
+};
+
 /**
  * This class contains methods for managing IITC and plugins.
  */
@@ -375,7 +391,7 @@ export class Worker {
       isSet(lastModified) && isSet(lastCheck) && lastCheck <= start
         ? lastCheck + updateCheckInterval
         : 0;
-    let nextCheck = Math.max(scheduled, Math.min(retry?.at ?? 0, start + 30 * 60));
+    let nextCheck = Math.max(scheduled, retryEnd(retry, start));
 
     if (force || start >= nextCheck) {
       clearTimeout(this.updateTimeoutId!);
@@ -402,12 +418,10 @@ export class Worker {
         nextCheck = start + updateCheckInterval;
         await this._save(channel, { last_check_update: start, update_check_retry: null });
       } else {
-        const failures = (retry?.failures ?? 0) + 1;
         // A channel that was never fetched has no catalog yet, so retry it sooner
-        const maxPause = isSet(lastModified) ? 30 * 60 : 60;
-        const at = unixNow() + Math.min(60 * 2 ** (failures - 1), maxPause);
-        nextCheck = Math.max(scheduled, at);
-        await this._save(channel, { update_check_retry: { failures, at } });
+        const next = nextRetry(retry, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
+        nextCheck = Math.max(scheduled, next.at);
+        await this._save(channel, { update_check_retry: next });
       }
     }
 
@@ -548,24 +562,42 @@ export class Worker {
 
   /**
    * Runs periodic checks and installs updates for external plugins.
+   * If every request fails with a network error, a growing pause is set, which `force` ignores.
    *
    * @param force - Forced to run the update right now.
    * @internal
    */
   async _checkExternalUpdates(force?: boolean): Promise<void> {
     const channel = this.channel;
-    const local = await this.storage.get(['channel', 'last_check_external_update', 'plugins_user']);
+    const local = await this.storage.get([
+      'last_check_external_update',
+      'external_update_check_retry',
+      'plugins_user',
+    ]);
     const updateCheckInterval = await this._readUpdateCheckInterval('external');
     const lastCheck = local.last_check_external_update as number;
+    const retry = local.external_update_check_retry as UpdateCheckRetry | null | undefined;
 
     const start = unixNow();
-    let nextCheck = isSet(lastCheck) && lastCheck <= start ? lastCheck + updateCheckInterval : 0;
+    const scheduled = isSet(lastCheck) && lastCheck <= start ? lastCheck + updateCheckInterval : 0;
+    let nextCheck = Math.max(scheduled, retryEnd(retry, start));
     if (force || start >= nextCheck) {
       clearTimeout(this.externalUpdateTimeoutId!);
       this.externalUpdateTimeoutId = null;
-      await this._updateExternalPlugins(channel, local);
-      nextCheck = start + updateCheckInterval;
-      await this._save(channel, { last_check_external_update: start });
+      const { reached, failed } = await this._updateExternalPlugins(channel, local);
+      const offline =
+        !reached && failed.length > 0 && failed.every(f => f.error.kind === 'network');
+      if (offline) {
+        const next = nextRetry(retry);
+        nextCheck = Math.max(scheduled, next.at);
+        await this._save(channel, { external_update_check_retry: next });
+      } else {
+        nextCheck = start + updateCheckInterval;
+        await this._save(channel, {
+          last_check_external_update: start,
+          external_update_check_retry: null,
+        });
+      }
     }
 
     this._scheduleCheck('externalUpdateTimeoutId', nextCheck, updateCheckInterval, () =>
@@ -578,53 +610,66 @@ export class Worker {
    *
    * @param channel - Current channel.
    * @param local - Data from storage.
+   * @returns Whether any update description was received, and the plugins that failed.
    * @internal
    */
-  async _updateExternalPlugins(channel: Channel, local: StorageData): Promise<void> {
-    const pluginsUser = local['plugins_user'] as PluginDict | undefined;
-    if (pluginsUser) {
-      let existUpdates = false;
-      const hash = `?${Date.now()}`;
-      const updatedUids: string[] = [];
-      const currentTime = unixNow();
+  async _updateExternalPlugins(
+    channel: Channel,
+    local: StorageData
+  ): Promise<{ reached: boolean; failed: FailedFile[] }> {
+    const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
+    const uids = Object.keys(pluginsUser).filter(
+      uid => pluginsUser[uid]?.['updateURL'] && pluginsUser[uid]?.['downloadURL']
+    );
+    const updates: PluginDict = {};
+    const failed: FailedFile[] = [];
+    let reached = false;
+    const currentTime = unixNow();
 
-      for (const uid of Object.keys(pluginsUser)) {
-        const plugin = pluginsUser[uid];
-
-        if (!plugin) continue;
-
-        if (plugin['updateURL'] && plugin['downloadURL']) {
-          // download meta info
-          const resultMeta = await this._getUrl(plugin['updateURL'] + hash);
-          if (resultMeta.data) {
-            const meta = parseMeta(resultMeta.data as string);
-            // if new version
-            if (meta && meta['version'] && meta['version'] !== plugin['version']) {
-              // download userscript
-              const resultCode = await this._getUrl(plugin['downloadURL'] + hash);
-              if (resultCode.data && parseMeta(resultCode.data as string)) {
-                existUpdates = true;
-                pluginsUser[uid] = {
-                  ...meta,
-                  uid,
-                  code: resultCode.data as string,
-                  updatedAt: currentTime,
-                  addedAt: plugin.addedAt,
-                } as Plugin;
-                updatedUids.push(uid);
-              }
-            }
-          }
-        }
+    const checkPlugin = async (uid: string) => {
+      const plugin = pluginsUser[uid];
+      const head = await this._fetchUserscript(plugin['updateURL'] as string);
+      if ('error' in head) {
+        failed.push({ uid, error: head.error });
+        return;
       }
+      reached = true;
+      if (!head.meta['version'] || head.meta['version'] === plugin['version']) return;
+      const code = await this._fetchUserscript(plugin['downloadURL'] as string);
+      if ('error' in code) {
+        failed.push({ uid, error: code.error });
+        return;
+      }
+      updates[uid] = {
+        ...head.meta,
+        uid,
+        code: code.code,
+        updatedAt: currentTime,
+        addedAt: plugin.addedAt,
+      } as Plugin;
+    };
 
-      if (existUpdates) {
-        await this._save(channel, {
-          plugins_user: pluginsUser,
-        });
+    // A few at a time: requests queued by the browser would run into the fetch timeout
+    const queue = [...uids];
+    const worker = async () => {
+      while (queue.length) await checkPlugin(queue.shift()!);
+    };
+    await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+
+    if (Object.keys(updates).length) {
+      // Re-read: plugins may have been added, replaced or deleted while downloading
+      const current = await this.storage.get(['plugins_user']);
+      const currentUser = (current['plugins_user'] || {}) as PluginDict;
+      const updatedUids = uids.filter(
+        uid => updates[uid] && currentUser[uid] && currentUser[uid].code === pluginsUser[uid].code
+      );
+      for (const uid of updatedUids) currentUser[uid] = updates[uid];
+      if (updatedUids.length) {
+        await this._save(channel, { plugins_user: currentUser });
         await this._sendPluginsEvent(channel, updatedUids, 'update', 'user');
       }
     }
+    return { reached, failed };
   }
 
   /**
