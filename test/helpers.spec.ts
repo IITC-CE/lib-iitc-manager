@@ -3,6 +3,8 @@
 import { describe, it } from 'mocha';
 import * as helpers from '../src/helpers.js';
 import { expect } from 'chai';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 describe('parseMeta', function () {
   it('without arguments', function () {
@@ -109,6 +111,18 @@ describe('fetchResource', function () {
       { parseJSON: true }
     );
     expect(result).to.deep.equal({ data: null, version: null, error: { kind: 'invalid' } });
+  });
+
+  it('keeps an existing query string intact', async function () {
+    const server = createServer((req, res) => res.end(req.url));
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      const result = await helpers.fetchResource(`http://127.0.0.1:${port}/plugin.js?a=1`);
+      expect(result.data).to.match(/^\/plugin\.js\?a=1&\d+$/);
+    } finally {
+      server.close();
+    }
   });
 });
 

@@ -102,7 +102,7 @@ export async function fetchResource(
     // If headOnly requested but HEAD not allowed, use GET anyway
     const method = headOnly && useFetchHeadMethod ? 'HEAD' : 'GET';
 
-    const fetchPromise = cFetch(url + '?' + Date.now(), {
+    const fetchPromise = cFetch(url + (url.includes('?') ? '&' : '?') + Date.now(), {
       method,
       cache: 'no-cache',
       ...(controller ? { signal: controller.signal } : {}),
