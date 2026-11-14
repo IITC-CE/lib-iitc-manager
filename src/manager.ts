@@ -265,6 +265,7 @@ export class Manager extends Worker {
   async managePlugin(uid: string, action: 'on' | 'off' | 'delete'): Promise<void> {
     await this.ready;
     const channel = this.channel;
+    const host = this.networkHost[channel];
     const local = await this.storage.get([
       `${channel}_plugins_catalog`,
       `${channel}_plugins_local`,
@@ -299,7 +300,7 @@ export class Manager extends Worker {
         await this._sendPluginsEvent(channel, [uid], 'add');
       } else {
         const filename = pluginsCatalog[uid]?.['filename'];
-        const result = await this._getUrl(`${this.networkHost[channel]}/plugins/${filename}`);
+        const result = await this._getUrl(`${host}/plugins/${filename}`);
         if (result.data) {
           // `plugins_local` is a pure code cache; catalog carries the metadata
           pluginsLocal[uid] = {

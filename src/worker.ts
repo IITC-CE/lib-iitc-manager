@@ -336,6 +336,7 @@ export class Worker {
    */
   async _checkInternalUpdates(force?: boolean): Promise<void> {
     const channel = this.channel;
+    const host = this.networkHost[channel];
     const storage = await this.storage.get([
       'last_check_update',
       `${channel}_last_modified`,
@@ -346,16 +347,16 @@ export class Worker {
     if (!isSet(storage[`${channel}_last_modified`]) || !isSet(storage.last_check_update)) {
       clearTimeout(this.updateTimeoutId!);
       this.updateTimeoutId = null;
-      await this._updateInternalIITC(channel, storage);
+      await this._updateInternalIITC(channel, storage, host);
     } else {
       const timeDelta =
         Math.floor(Date.now() / 1000) - updateCheckInterval - (storage.last_check_update as number);
       if (timeDelta >= 0 || force) {
         clearTimeout(this.updateTimeoutId!);
         this.updateTimeoutId = null;
-        const result = await this._getUrl(this.networkHost[channel] + '/meta.json', 'head');
+        const result = await this._getUrl(host + '/meta.json', 'head');
         if (result.version !== storage[`${channel}_last_modified`] || force) {
-          await this._updateInternalIITC(channel, storage);
+          await this._updateInternalIITC(channel, storage, host);
         }
       }
     }
@@ -379,10 +380,11 @@ export class Worker {
    *
    * @param channel - Current channel.
    * @param local - Data from storage.
+   * @param host - Repository URL captured when the check started.
    * @internal
    */
-  async _updateInternalIITC(channel: Channel, local: StorageData): Promise<void> {
-    const result = await this._getUrl(this.networkHost[channel] + '/meta.json', 'parseJSON');
+  async _updateInternalIITC(channel: Channel, local: StorageData, host: string): Promise<void> {
+    const result = await this._getUrl(host + '/meta.json', 'parseJSON');
     if (!result.data) return;
 
     const response = result.data as MetaJsonResponse;
@@ -392,9 +394,7 @@ export class Worker {
     let pluginsLocal = local[`${channel}_plugins_local`] as PluginDict;
 
     const pIitc = async () => {
-      const res = await this._getUrl(
-        this.networkHost[this.channel] + '/total-conversion-build.user.js'
-      );
+      const res = await this._getUrl(host + '/total-conversion-build.user.js');
       if (res.data) {
         const iitcCore = parseMeta(res.data as string) as Plugin;
         iitcCore['uid'] = getUID(iitcCore)!;
@@ -407,7 +407,7 @@ export class Worker {
     };
 
     const pPlugins = async () => {
-      const res = await this._updateLocalPlugins(channel, pluginsCatalog, pluginsLocal);
+      const res = await this._updateLocalPlugins(channel, pluginsCatalog, pluginsLocal, host);
       pluginsLocal = res.pluginsLocal;
       await this._save(channel, {
         iitc_version: response['iitc_version'],
@@ -550,12 +550,14 @@ export class Worker {
    * @param channel - Current channel.
    * @param pluginsCatalog - Data from storage, key "[channel]_plugins_catalog".
    * @param pluginsLocal - Data from storage, key "[channel]_plugins_local".
+   * @param host - Repository URL captured when the check started.
    * @internal
    */
   async _updateLocalPlugins(
     channel: Channel,
     pluginsCatalog: PluginDict,
-    pluginsLocal: PluginDict
+    pluginsLocal: PluginDict,
+    host: string
   ): Promise<{
     pluginsLocal: PluginDict;
     addedUids: string[];
@@ -595,9 +597,7 @@ export class Worker {
           ((pluginsCatalog[uid] as Plugin)?.['filename'] as string) ||
           (pluginsLocal[uid]['filename'] as string);
         if (filename && pluginsCatalog[uid]) {
-          const result = await this._getUrl(
-            `${this.networkHost[this.channel]}/plugins/${filename}`
-          );
+          const result = await this._getUrl(`${host}/plugins/${filename}`);
           if (result.data) {
             // `plugins_local` is a pure code cache; metadata lives in the catalog
             pluginsLocal[uid] = {
@@ -618,9 +618,7 @@ export class Worker {
       } else if (pluginsState[uid]?.status === 'on') {
         const filename = (pluginsCatalog[uid] as Plugin)['filename'] as string;
         if (filename) {
-          const result = await this._getUrl(
-            `${this.networkHost[this.channel]}/plugins/${filename}`
-          );
+          const result = await this._getUrl(`${host}/plugins/${filename}`);
           if (result.data) {
             pluginsLocal[uid] = {
               code: result.data as string,
