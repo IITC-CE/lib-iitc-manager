@@ -1,6 +1,6 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { fetchResource, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js';
+import { fetchResource, getUID, isSet, parseMeta } from './helpers.js';
 import { wrapPluginCode, appendSourceUrl } from './wrapper.js';
 import { getGmApiCode } from './gm-api.js';
 import { aggregateMatchPatterns } from './matching.js';
@@ -47,6 +47,8 @@ export class Worker {
   sourceUrlPrefix: string;
   appName: string;
   progressIntervalId: ReturnType<typeof setInterval> | null;
+  /** Number of requests in flight; progress is shown while it is above zero */
+  activeRequests: number;
   updateTimeoutId: ReturnType<typeof setTimeout> | null;
   externalUpdateTimeoutId: ReturnType<typeof setTimeout> | null;
 
@@ -66,6 +68,7 @@ export class Worker {
   constructor(config: ManagerConfig) {
     this.config = config;
     this.progressIntervalId = null;
+    this.activeRequests = 0;
     this.updateTimeoutId = null;
     this.externalUpdateTimeoutId = null;
     this.storage =
@@ -270,35 +273,17 @@ export class Worker {
   _emitPluginsChanged(): void {}
 
   /**
-   * The method requests data from the specified URL.
-   * It is a wrapper over {@link fetchResource} function, with the addition of retries to load in case of problems
-   * and a message to user about errors.
+   * Wraps {@link fetchResource}, calling `onProgress(true)` while any request is in flight and `onProgress(false)` when the last one ends.
    *
    * @param url - URL of the resource you want to fetch.
    * @param variant - Type of request.
-   * @param retry - Is retry in case of an error | number of request attempt.
    * @internal
    */
-  async _getUrl(
-    url: string,
-    variant?: RequestVariant,
-    retry?: boolean | number
-  ): Promise<FetchResourceResult> {
-    if ((retry as number) > 1) {
-      let seconds = (retry as number) * (retry as number);
-      if (seconds > 30 * 60) seconds = 30 * 60; // maximum is 30 minutes
-      try {
-        this.message!('serverNotAvailableRetry', String(seconds));
-      } catch {
-        // Ignore if there is no message receiver
-      }
-      await wait(seconds);
+  async _getUrl(url: string, variant?: RequestVariant): Promise<FetchResourceResult> {
+    if (this.activeRequests++ === 0) {
+      // Repeated so that a UI opened mid-request also learns about it
+      this.progressIntervalId = setInterval(() => this.onProgress?.(true), 300);
     }
-
-    clearInterval(this.progressIntervalId!);
-    this.progressIntervalId = setInterval(async () => {
-      this.onProgress!(true);
-    }, 300);
     try {
       const options: FetchResourceOptions = {
         useFetchHeadMethod: this.useFetchHeadMethod,
@@ -310,19 +295,13 @@ export class Worker {
         options.headOnly = true;
       }
 
-      const result = await fetchResource(url, options);
-
-      clearInterval(this.progressIntervalId!);
-      if (result.data !== null || result.version !== null) {
-        this.onProgress!(false);
-      }
-      return result;
-    } catch {
-      if (retry === undefined) {
+      return await fetchResource(url, options);
+    } finally {
+      if (--this.activeRequests === 0) {
         clearInterval(this.progressIntervalId!);
-        return { data: null, version: null };
+        this.progressIntervalId = null;
+        this.onProgress?.(false);
       }
-      return await this._getUrl(url, variant, (retry as number) + 1);
     }
   }
 
@@ -345,7 +324,6 @@ export class Worker {
     if (!updateCheckInterval) updateCheckInterval = 24 * 60 * 60;
 
     if (!isSet(storage[`${channel}_last_modified`]) || !isSet(storage.last_check_update)) {
-      clearWait();
       clearTimeout(this.updateTimeoutId!);
       this.updateTimeoutId = null;
       await this._updateInternalIITC(channel, storage);
@@ -353,10 +331,9 @@ export class Worker {
       const timeDelta =
         Math.floor(Date.now() / 1000) - updateCheckInterval - (storage.last_check_update as number);
       if (timeDelta >= 0 || force) {
-        clearWait();
         clearTimeout(this.updateTimeoutId!);
         this.updateTimeoutId = null;
-        const result = await this._getUrl(this.networkHost[channel] + '/meta.json', 'head', true);
+        const result = await this._getUrl(this.networkHost[channel] + '/meta.json', 'head');
         if (result.version !== storage[`${channel}_last_modified`] || force) {
           await this._updateInternalIITC(channel, storage);
         }
@@ -385,7 +362,7 @@ export class Worker {
    * @internal
    */
   async _updateInternalIITC(channel: Channel, local: StorageData): Promise<void> {
-    const result = await this._getUrl(this.networkHost[channel] + '/meta.json', 'parseJSON', true);
+    const result = await this._getUrl(this.networkHost[channel] + '/meta.json', 'parseJSON');
     if (!result.data) return;
 
     const response = result.data as MetaJsonResponse;

@@ -92,3 +92,24 @@ describe('manage.js base integration tests', function () {
     });
   });
 });
+
+describe('progress indicator', function () {
+  it('is hidden after a failed request', async function () {
+    storage.resetStorage();
+    const calls: boolean[] = [];
+    const manager = new Manager({
+      storage: storage,
+      channel: 'release',
+      networkHost: {
+        release: 'http://127.0.0.1:1/release',
+        beta: 'http://127.0.0.1:1/beta',
+        custom: 'http://127.0.0.1:1/',
+      },
+      onProgress: (isShow: boolean) => calls.push(isShow),
+      isDaemon: false,
+    });
+    await manager.ready;
+    await manager.checkUpdates();
+    expect(calls.at(-1)).to.equal(false);
+  });
+});

@@ -272,6 +272,8 @@ export function checkMetaMatchPattern(meta: PluginMeta, domain: IngressDomain = 
 /**
  * Sets a timer with a specified number of seconds to wait.
  *
+ * @deprecated
+ *
  * @param seconds - Number of seconds to wait.
  */
 export async function wait(seconds: number): Promise<void> {
@@ -284,6 +286,8 @@ export async function wait(seconds: number): Promise<void> {
 
 /**
  * Stops the timer created in {@link wait}
+ *
+ * @deprecated
  */
 export function clearWait(): void {
   clearTimeout(waitTimeoutId!);
