@@ -45,7 +45,7 @@ describe('manage.js base integration tests', function () {
   describe('run', function () {
     it('Should not return an error', async function () {
       const run = await manager!.run();
-      expect(run).to.be.undefined;
+      expect(run.ok).to.be.true;
     });
   });
 
@@ -59,14 +59,14 @@ describe('manage.js base integration tests', function () {
   describe('setChannel', function () {
     it('Should not return an error', async function () {
       const channel = await manager!.setChannel('release');
-      expect(channel).to.be.undefined;
+      expect(channel.ok).to.be.true;
     });
   });
 
   describe('setUpdateCheckInterval', function () {
     it('Should not return an error', async function () {
       const fn = await manager!.setUpdateCheckInterval(24 * 60 * 60, 'release');
-      expect(fn).to.be.undefined;
+      expect(fn.ok).to.be.true;
     });
     it('Should set correct interval in seconds', async function () {
       const interval = await storage

@@ -15,6 +15,9 @@ import type {
   BackupParams,
   BackupData,
   UserScript,
+  UpdateCheckResult,
+  UpdateCheckRetry,
+  UpdateStatus,
 } from './types.js';
 
 /**
@@ -25,8 +28,9 @@ export class Manager extends Worker {
    * Changes the update channel and calls for an update.
    *
    * @param channel - Update channel for IITC and plugins.
+   * @returns Result of the forced update check.
    */
-  async setChannel(channel: Channel): Promise<void> {
+  async setChannel(channel: Channel): Promise<UpdateCheckResult> {
     await this.ready;
     const globalData = await this.storage.get(['plugins_user']);
     const pluginsUser = (globalData['plugins_user'] || {}) as PluginDict;
@@ -53,16 +57,17 @@ export class Manager extends Worker {
     }
 
     // checkUpdates fires 'update' for IITC core and re-injects enabled built-ins
-    await this.checkUpdates(true);
+    return this.checkUpdates(true);
   }
 
   /**
-   * Changes the update check interval. If the interval for the current channel changes, a forced update check is started to apply the new interval.
+   * Changes the update check interval and reschedules checks; a check runs if it is now due.
    *
    * @param interval - Update check interval in seconds.
-   * @param channel - Update channel for IITC and plugins.
+   * @param channel - Update channel for IITC and plugins, or `external` for external plugins.
+   * @returns Result of the update check.
    */
-  async setUpdateCheckInterval(interval: number, channel?: string): Promise<void> {
+  async setUpdateCheckInterval(interval: number, channel?: string): Promise<UpdateCheckResult> {
     await this.ready;
     if (typeof channel === 'undefined') channel = this.channel;
 
@@ -71,7 +76,7 @@ export class Manager extends Worker {
     data[channel + '_update_check_interval'] = Number(interval);
     await this.storage.set(data);
 
-    if (channel === this.channel) await this.checkUpdates(true);
+    return this.checkUpdates();
   }
 
   /**
@@ -104,12 +109,14 @@ export class Manager extends Worker {
    * Running the IITC and plugins manager.
    * Loads or updates UserScripts from the repositories; after a storage migration
    * forces the update and re-sends user plugins.
+   *
+   * @returns Result of the update check.
    */
-  async run(): Promise<void> {
+  async run(): Promise<UpdateCheckResult> {
     await this.ready;
     const isMigrated = this._isMigrated;
     this._isMigrated = false;
-    await this.checkUpdates(isMigrated);
+    const result = await this.checkUpdates(isMigrated);
     if (isMigrated) {
       const local = await this.storage.get(['plugins_user']);
       const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
@@ -119,6 +126,7 @@ export class Manager extends Worker {
         await this._sendPluginsEvent(this.channel, allUids, 'add', 'user');
       }
     }
+    return result;
   }
 
   /**
@@ -252,12 +260,43 @@ export class Manager extends Worker {
 
   /**
    * Runs periodic checks and installs updates for IITC, internal and external plugins.
+   * Joins the running check of the same channel; `force` during a non-forced check runs after it.
    *
    * @param force - Forced to run the update right now.
+   * @returns Result of the update check.
    */
-  async checkUpdates(force?: boolean): Promise<void> {
+  async checkUpdates(force?: boolean): Promise<UpdateCheckResult> {
     await this.ready;
-    await Promise.all([this._checkInternalUpdates(force), this._checkExternalUpdates(force)]);
+    const [internal, external] = await Promise.all([
+      this._checkInternalUpdates(force),
+      this._checkExternalUpdates(force),
+    ]);
+    return { ok: internal.status !== 'failed', internal, external };
+  }
+
+  /**
+   * Returns the state of update checks from storage, without network requests.
+   *
+   * @returns Last successful check and pause after failures, for internal and external checks.
+   */
+  async getUpdateStatus(): Promise<UpdateStatus> {
+    await this.ready;
+    const data = await this.storage.get([
+      'last_check_update',
+      'update_check_retry',
+      'last_check_external_update',
+      'external_update_check_retry',
+    ]);
+    return {
+      internal: {
+        lastCheck: (data.last_check_update as number) ?? null,
+        retry: (data.update_check_retry as UpdateCheckRetry) ?? null,
+      },
+      external: {
+        lastCheck: (data.last_check_external_update as number) ?? null,
+        retry: (data.external_update_check_retry as UpdateCheckRetry) ?? null,
+      },
+    };
   }
 
   /**
