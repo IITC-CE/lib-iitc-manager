@@ -37,7 +37,6 @@ describe('Update check keeps the host it started with', function () {
 
     expect(urls).to.deep.equal([
       `${releaseHost}/meta.json`,
-      `${releaseHost}/meta.json`,
       `${releaseHost}/total-conversion-build.user.js`,
       `${releaseHost}/plugins/plugin-a.user.js`,
     ]);

@@ -424,6 +424,17 @@ export type UpdateType = 'local' | 'user';
 export type RequestVariant = 'parseJSON' | 'head' | null;
 
 /**
+ * Pause after failed internal update checks, stored under `update_check_retry`.
+ * @internal
+ */
+export interface UpdateCheckRetry {
+  /** Consecutive failed checks. */
+  failures: number;
+  /** Unix time in seconds before which no scheduled check runs. */
+  at: number;
+}
+
+/**
  * Ingress domain types.
  */
 export type IngressDomain = '<all>' | 'intel.ingress.com' | 'missions.ingress.com';

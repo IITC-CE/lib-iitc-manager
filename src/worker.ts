@@ -21,6 +21,7 @@ import type {
   PluginEventData,
   UpdateType,
   RequestVariant,
+  UpdateCheckRetry,
   FetchResourceOptions,
   FetchResourceResult,
   MetaJsonResponse,
@@ -30,6 +31,9 @@ export const IITC_CORE_UID =
   'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
 export const GM_API_UID = 'gm_api';
 export const GM_API_DEFAULT_MATCH = 'https://intel.ingress.com/*';
+
+/** Current Unix time in seconds. */
+const unixNow = (): number => Math.floor(Date.now() / 1000);
 
 /**
  * This class contains methods for managing IITC and plugins.
@@ -330,6 +334,7 @@ export class Worker {
 
   /**
    * Runs periodic checks and installs updates for IITC and plugins.
+   * A failed check sets a growing pause, which `force` ignores.
    *
    * @param force - Forced to run the update right now.
    * @internal
@@ -339,40 +344,77 @@ export class Worker {
     const host = this.networkHost[channel];
     const storage = await this.storage.get([
       'last_check_update',
+      'update_check_retry',
       `${channel}_last_modified`,
       `${channel}_plugins_local`,
     ]);
     const updateCheckInterval = await this._readUpdateCheckInterval(channel);
+    const lastModified = storage[`${channel}_last_modified`];
+    const lastCheck = storage.last_check_update as number;
+    const retry = storage.update_check_retry as UpdateCheckRetry | null | undefined;
 
-    if (!isSet(storage[`${channel}_last_modified`]) || !isSet(storage.last_check_update)) {
+    const start = unixNow();
+    // A timestamp from the future (clock moved back) makes the check due
+    const scheduled =
+      isSet(lastModified) && isSet(lastCheck) && lastCheck <= start
+        ? lastCheck + updateCheckInterval
+        : 0;
+    let nextCheck = Math.max(scheduled, Math.min(retry?.at ?? 0, start + 30 * 60));
+
+    if (force || start >= nextCheck) {
       clearTimeout(this.updateTimeoutId!);
       this.updateTimeoutId = null;
-      await this._updateInternalIITC(channel, storage, host);
-    } else {
-      const timeDelta =
-        Math.floor(Date.now() / 1000) - updateCheckInterval - (storage.last_check_update as number);
-      if (timeDelta >= 0 || force) {
-        clearTimeout(this.updateTimeoutId!);
-        this.updateTimeoutId = null;
-        const result = await this._getUrl(host + '/meta.json', 'head');
-        if (result.version !== storage[`${channel}_last_modified`] || force) {
-          await this._updateInternalIITC(channel, storage, host);
-        }
-      }
-    }
-    if (!this.updateTimeoutId) {
-      await this._save(channel, {
-        last_check_update: Math.floor(Date.now() / 1000),
-      });
-
-      if (this.isDaemon) {
-        this.updateTimeoutId = setTimeout(async () => {
-          await this._checkInternalUpdates();
-        }, updateCheckInterval * 1000);
+      let ok: boolean;
+      if (force || !isSet(lastModified) || !isSet(lastCheck)) {
+        ok = await this._updateInternalIITC(channel, storage, host);
       } else {
-        this.updateTimeoutId = null;
+        const result = await this._getUrl(host + '/meta.json', 'head');
+        ok =
+          result.version === lastModified ||
+          (await this._updateInternalIITC(channel, storage, host));
+      }
+
+      // Channel changed mid-check: setChannel reset the state and reschedules
+      if (this.channel !== channel) return;
+
+      if (ok) {
+        nextCheck = start + updateCheckInterval;
+        await this._save(channel, { last_check_update: start, update_check_retry: null });
+      } else {
+        const failures = (retry?.failures ?? 0) + 1;
+        // A channel that was never fetched has no catalog yet, so retry it sooner
+        const maxPause = isSet(lastModified) ? 30 * 60 : 60;
+        const at = unixNow() + Math.min(60 * 2 ** (failures - 1), maxPause);
+        nextCheck = Math.max(scheduled, at);
+        await this._save(channel, { update_check_retry: { failures, at } });
       }
     }
+
+    this._scheduleCheck('updateTimeoutId', nextCheck, updateCheckInterval, () =>
+      this._checkInternalUpdates()
+    );
+  }
+
+  /**
+   * Re-arms a daemon timer to fire at `nextCheck`, but no later than `interval` from now.
+   *
+   * @param timer - Timer field to re-arm.
+   * @param nextCheck - Unix time in seconds when the check is due.
+   * @param interval - Update check interval in seconds.
+   * @param check - Check to run.
+   * @internal
+   */
+  _scheduleCheck(
+    timer: 'updateTimeoutId' | 'externalUpdateTimeoutId',
+    nextCheck: number,
+    interval: number,
+    check: () => Promise<void>
+  ): void {
+    clearTimeout(this[timer]!);
+    this[timer] = null;
+    if (!this.isDaemon) return;
+    const delay = Math.min(Math.max(0, nextCheck - unixNow()), interval);
+    this[timer] = setTimeout(check, delay * 1000);
   }
 
   /**
@@ -381,11 +423,12 @@ export class Worker {
    * @param channel - Current channel.
    * @param local - Data from storage.
    * @param host - Repository URL captured when the check started.
+   * @returns Whether meta.json was received.
    * @internal
    */
-  async _updateInternalIITC(channel: Channel, local: StorageData, host: string): Promise<void> {
+  async _updateInternalIITC(channel: Channel, local: StorageData, host: string): Promise<boolean> {
     const result = await this._getUrl(host + '/meta.json', 'parseJSON');
-    if (!result.data) return;
+    if (!result.data) return false;
 
     const response = result.data as MetaJsonResponse;
     const lastModified = result.version;
@@ -424,6 +467,7 @@ export class Worker {
     };
 
     await Promise.all([pIitc, pPlugins].map(fn => fn()));
+    return true;
   }
 
   /**
@@ -464,30 +508,21 @@ export class Worker {
     const channel = this.channel;
     const local = await this.storage.get(['channel', 'last_check_external_update', 'plugins_user']);
     const updateCheckInterval = await this._readUpdateCheckInterval('external');
+    const lastCheck = local.last_check_external_update as number;
 
-    const timeDelta =
-      Math.floor(Date.now() / 1000) -
-      updateCheckInterval -
-      (local.last_check_external_update as number);
-    if (timeDelta >= 0 || force) {
+    const start = unixNow();
+    let nextCheck = isSet(lastCheck) && lastCheck <= start ? lastCheck + updateCheckInterval : 0;
+    if (force || start >= nextCheck) {
       clearTimeout(this.externalUpdateTimeoutId!);
       this.externalUpdateTimeoutId = null;
       await this._updateExternalPlugins(channel, local);
+      nextCheck = start + updateCheckInterval;
+      await this._save(channel, { last_check_external_update: start });
     }
 
-    if (!this.externalUpdateTimeoutId) {
-      await this._save(channel, {
-        last_check_external_update: Math.floor(Date.now() / 1000),
-      });
-
-      if (this.isDaemon) {
-        this.externalUpdateTimeoutId = setTimeout(async () => {
-          await this._checkExternalUpdates();
-        }, updateCheckInterval * 1000);
-      } else {
-        this.externalUpdateTimeoutId = null;
-      }
-    }
+    this._scheduleCheck('externalUpdateTimeoutId', nextCheck, updateCheckInterval, () =>
+      this._checkExternalUpdates()
+    );
   }
 
   /**
@@ -503,7 +538,7 @@ export class Worker {
       let existUpdates = false;
       const hash = `?${Date.now()}`;
       const updatedUids: string[] = [];
-      const currentTime = Math.floor(Date.now() / 1000);
+      const currentTime = unixNow();
 
       for (const uid of Object.keys(pluginsUser)) {
         const plugin = pluginsUser[uid];
@@ -570,7 +605,7 @@ export class Worker {
     const updatedUids: string[] = [];
     const removedUids: string[] = [];
     const addedUids: string[] = [];
-    const currentTime = Math.floor(Date.now() / 1000);
+    const currentTime = unixNow();
 
     // The stored catalog is still the previous one here (saved after this method
     // returns), so it lets us detect the exact run a plugin drops out of the catalog.
@@ -695,7 +730,7 @@ export class Worker {
 
   /** @internal */
   _computeCategories(plugins: PluginDict): CategoryViewDict {
-    const now = Math.floor(Date.now() / 1000);
+    const now = unixNow();
     const threshold = this.newPluginThreshold;
     const rawCategories: CategoryViewDict = {};
     for (const plugin of Object.values(plugins)) {

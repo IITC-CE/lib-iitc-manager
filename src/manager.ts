@@ -40,7 +40,11 @@ export class Manager extends Worker {
 
     // Change channel in storage and object
     this.channel = channel;
-    await this._save(channel, { channel: channel, last_check_update: null });
+    await this._save(channel, {
+      channel: channel,
+      last_check_update: null,
+      update_check_retry: null,
+    });
 
     // Ensure local code cache exists for new channel
     const newChannelData = await this.storage.get([`${channel}_plugins_local`]);
