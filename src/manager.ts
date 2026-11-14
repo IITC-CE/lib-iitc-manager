@@ -63,7 +63,8 @@ export class Manager extends Worker {
     if (typeof channel === 'undefined') channel = this.channel;
 
     const data: StorageData = {};
-    data[channel + '_update_check_interval'] = interval;
+    // May arrive as a string from a form field
+    data[channel + '_update_check_interval'] = Number(interval);
     await this.storage.set(data);
 
     if (channel === this.channel) await this.checkUpdates(true);
@@ -77,9 +78,7 @@ export class Manager extends Worker {
   async getUpdateCheckInterval(channel?: string): Promise<number> {
     await this.ready;
     if (typeof channel === 'undefined') channel = this.channel;
-    const key = `${channel}_update_check_interval`;
-    const data = await this.storage.get([key]);
-    return (data[key] as number) || 24 * 60 * 60;
+    return this._readUpdateCheckInterval(channel);
   }
 
   /**

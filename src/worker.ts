@@ -178,6 +178,19 @@ export class Worker {
   }
 
   /**
+   * Interval in seconds; strings are coerced, unset or invalid values fall back to 24 h.
+   *
+   * @param channel - Update channel, or `external` for external plugins.
+   * @internal
+   */
+  async _readUpdateCheckInterval(channel: string): Promise<number> {
+    const key = `${channel}_update_check_interval`;
+    const data = await this.storage.get([key]);
+    const interval = Number(data[key]);
+    return interval > 0 ? interval : 24 * 60 * 60;
+  }
+
+  /**
    * Saves passed data to local storage.
    * Adds the name of release branch before key, if necessary.
    *
@@ -325,13 +338,10 @@ export class Worker {
     const channel = this.channel;
     const storage = await this.storage.get([
       'last_check_update',
-      `${channel}_update_check_interval`,
       `${channel}_last_modified`,
       `${channel}_plugins_local`,
     ]);
-
-    let updateCheckInterval = storage[`${channel}_update_check_interval`] as number;
-    if (!updateCheckInterval) updateCheckInterval = 24 * 60 * 60;
+    const updateCheckInterval = await this._readUpdateCheckInterval(channel);
 
     if (!isSet(storage[`${channel}_last_modified`]) || !isSet(storage.last_check_update)) {
       clearTimeout(this.updateTimeoutId!);
@@ -452,17 +462,8 @@ export class Worker {
    */
   async _checkExternalUpdates(force?: boolean): Promise<void> {
     const channel = this.channel;
-    const local = await this.storage.get([
-      'channel',
-      'last_check_external_update',
-      'external_update_check_interval',
-      'plugins_user',
-    ]);
-
-    let updateCheckInterval = local['external_update_check_interval'] as number;
-    if (!updateCheckInterval) {
-      updateCheckInterval = 24 * 60 * 60;
-    }
+    const local = await this.storage.get(['channel', 'last_check_external_update', 'plugins_user']);
+    const updateCheckInterval = await this._readUpdateCheckInterval('external');
 
     const timeDelta =
       Math.floor(Date.now() / 1000) -

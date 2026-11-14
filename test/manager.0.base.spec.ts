@@ -5,7 +5,13 @@ import { Manager } from '../src/manager.js';
 import { IITC_CORE_UID } from '../src/worker.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
-import type { ManagerConfig, Plugin, PluginEventData } from '../src/types.js';
+import type {
+  ManagerConfig,
+  Plugin,
+  PluginEventData,
+  StorageAPI,
+  StorageData,
+} from '../src/types.js';
 
 describe('manage.js base integration tests', function () {
   let manager: Manager | null = null;
@@ -82,6 +88,16 @@ describe('manage.js base integration tests', function () {
     it('Should return default interval when not set', async function () {
       const interval = await manager!.getUpdateCheckInterval('external');
       expect(interval).to.equal(24 * 60 * 60);
+    });
+    it('Should read an interval stored as a string as a number', async function () {
+      // May be stored as a string from a form field
+      const data: StorageData = { channel: 'release', release_update_check_interval: '21600' };
+      const plainStorage: StorageAPI = {
+        get: async keys => Object.fromEntries((keys ?? []).map(key => [key, data[key]])),
+        set: async obj => void Object.assign(data, obj),
+      };
+      const stringManager = new Manager({ storage: plainStorage, isDaemon: false });
+      expect(await stringManager.getUpdateCheckInterval()).to.equal(21600);
     });
   });
 
