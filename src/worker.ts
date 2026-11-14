@@ -4,6 +4,7 @@ import { fetchResource, getUID, isSet, parseMeta } from './helpers.js';
 import { wrapPluginCode, appendSourceUrl } from './wrapper.js';
 import { getGmApiCode } from './gm-api.js';
 import { aggregateMatchPatterns } from './matching.js';
+import { migrate } from './migrations.js';
 import type {
   Channel,
   ManagerConfig,
@@ -41,8 +42,10 @@ export class Worker {
   isDaemon!: boolean;
   useFetchHeadMethod!: boolean;
   isInitialized: boolean;
-  /** Resolves once _init has loaded channel, networkHost and other settings from storage */
+  /** Resolves once _init has migrated storage and loaded channel, networkHost and other settings */
   ready: Promise<void>;
+  /** @internal Set by _init, consumed by the first run() */
+  _isMigrated: boolean;
   gmApi?: GmApiConfig;
   sourceUrlPrefix: string;
   appName: string;
@@ -91,6 +94,7 @@ export class Worker {
 
     this._gmApiMatches = [GM_API_DEFAULT_MATCH];
     this.isInitialized = false;
+    this._isMigrated = false;
     this.ready = this._init();
   }
 
@@ -99,6 +103,12 @@ export class Worker {
    * @internal
    */
   async _init(): Promise<void> {
+    // Migrate first: settings below expect the current schema
+    try {
+      this._isMigrated = await migrate(this.storage);
+    } catch (error) {
+      console.error('Storage migration failed:', error);
+    }
     this.channel = await this._syncStorage('channel', 'release', this.config.channel);
     this.networkHost = await this._syncStorage(
       'network_host',

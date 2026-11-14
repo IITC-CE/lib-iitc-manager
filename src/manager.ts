@@ -1,7 +1,6 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { Worker, IITC_CORE_UID, GM_API_UID, GM_API_DEFAULT_MATCH } from './worker.js';
-import * as migrations from './migrations.js';
 import { getUID, isSet, parseMeta, sanitizeFileName } from './helpers.js';
 import { appendSourceUrl } from './wrapper.js';
 import { aggregateMatchPatterns } from './matching.js';
@@ -28,6 +27,7 @@ export class Manager extends Worker {
    * @param channel - Update channel for IITC and plugins.
    */
   async setChannel(channel: Channel): Promise<void> {
+    await this.ready;
     const globalData = await this.storage.get(['plugins_user']);
     const pluginsUser = (globalData['plugins_user'] || {}) as PluginDict;
 
@@ -59,6 +59,7 @@ export class Manager extends Worker {
    * @param channel - Update channel for IITC and plugins.
    */
   async setUpdateCheckInterval(interval: number, channel?: string): Promise<void> {
+    await this.ready;
     if (typeof channel === 'undefined') channel = this.channel;
 
     const data: StorageData = {};
@@ -74,6 +75,7 @@ export class Manager extends Worker {
    * @param channel - Update channel for IITC and plugins.
    */
   async getUpdateCheckInterval(channel?: string): Promise<number> {
+    await this.ready;
     if (typeof channel === 'undefined') channel = this.channel;
     const key = `${channel}_update_check_interval`;
     const data = await this.storage.get([key]);
@@ -86,6 +88,7 @@ export class Manager extends Worker {
    * @param url - URL of the repository.
    */
   async setCustomChannelUrl(url: string): Promise<void> {
+    await this.ready;
     const networkHost = (await this.storage
       .get(['network_host'])
       .then(data => data.network_host)) as typeof this.networkHost;
@@ -96,11 +99,13 @@ export class Manager extends Worker {
 
   /**
    * Running the IITC and plugins manager.
-   * Migrates data storage as needed, then loads or updates UserScripts from the repositories.
+   * Loads or updates UserScripts from the repositories; after a storage migration
+   * forces the update and re-sends user plugins.
    */
   async run(): Promise<void> {
     await this.ready;
-    const isMigrated = await migrations.migrate(this.storage);
+    const isMigrated = this._isMigrated;
+    this._isMigrated = false;
     await this.checkUpdates(isMigrated);
     if (isMigrated) {
       const local = await this.storage.get(['plugins_user']);
@@ -118,6 +123,7 @@ export class Manager extends Worker {
    * Combines server catalog with local installation state and user overrides.
    */
   async getPluginsView(): Promise<PluginsView> {
+    await this.ready;
     const channel = this.channel;
     const storage = await this.storage.get([
       `${channel}_plugins_catalog`,
@@ -154,6 +160,7 @@ export class Manager extends Worker {
    * Returns an object of all enabled plugins, including IITC core, with plugin UID as the key.
    */
   async getEnabledPlugins(): Promise<PluginDict> {
+    await this.ready;
     const channel = this.channel;
     const storage = await this.storage.get([
       `${channel}_iitc_core`,
@@ -246,6 +253,7 @@ export class Manager extends Worker {
    * @param force - Forced to run the update right now.
    */
   async checkUpdates(force?: boolean): Promise<void> {
+    await this.ready;
     await Promise.all([this._checkInternalUpdates(force), this._checkExternalUpdates(force)]);
   }
 
@@ -256,6 +264,7 @@ export class Manager extends Worker {
    * @param action - Type of action with the plugin.
    */
   async managePlugin(uid: string, action: 'on' | 'off' | 'delete'): Promise<void> {
+    await this.ready;
     const channel = this.channel;
     const local = await this.storage.get([
       `${channel}_plugins_catalog`,
@@ -341,6 +350,7 @@ export class Manager extends Worker {
    * @param scripts - Array of UserScripts.
    */
   async addUserScripts(scripts: UserScript[]): Promise<PluginDict> {
+    await this.ready;
     const channel = this.channel;
     const local = await this.storage.get([
       'iitc_core_user',
@@ -454,6 +464,7 @@ export class Manager extends Worker {
    * @param params - The parameters for the backup data retrieval.
    */
   async getBackupData(params: Partial<BackupParams>): Promise<BackupData> {
+    await this.ready;
     // Process the input parameters using the 'paramsProcessing' function from the 'backup' module.
     const processedParams = backup.paramsProcessing(params);
 
@@ -494,6 +505,7 @@ export class Manager extends Worker {
    * @param backupData - The backup data object containing the data to be set.
    */
   async setBackupData(params: Partial<BackupParams>, backupData: BackupData): Promise<void> {
+    await this.ready;
     // Process the input parameters using the 'paramsProcessing' function from the 'backup' module.
     const processedParams = backup.paramsProcessing(params);
 
