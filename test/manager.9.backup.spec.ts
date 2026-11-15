@@ -102,14 +102,14 @@ describe('getBackupData and setBackupData', function () {
   describe('run', function () {
     it('Should not return an error', async function () {
       const run = await manager!.run();
-      expect(run).to.be.undefined;
+      expect(run.ok).to.be.true;
     });
   });
 
   describe('Enable plugins and add plugin settings data', function () {
     it('Enable first plugin', async function () {
       const run = await manager!.managePlugin(firstPluginUid, 'on');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
     });
     it('Add custom IITC core', async function () {
       const scripts = [

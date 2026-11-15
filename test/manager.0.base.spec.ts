@@ -5,7 +5,13 @@ import { Manager } from '../src/manager.js';
 import { IITC_CORE_UID } from '../src/worker.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
-import type { ManagerConfig, Plugin, PluginEventData } from '../src/types.js';
+import type {
+  ManagerConfig,
+  Plugin,
+  PluginEventData,
+  StorageAPI,
+  StorageData,
+} from '../src/types.js';
 
 describe('manage.js base integration tests', function () {
   let manager: Manager | null = null;
@@ -39,7 +45,7 @@ describe('manage.js base integration tests', function () {
   describe('run', function () {
     it('Should not return an error', async function () {
       const run = await manager!.run();
-      expect(run).to.be.undefined;
+      expect(run.ok).to.be.true;
     });
   });
 
@@ -53,14 +59,14 @@ describe('manage.js base integration tests', function () {
   describe('setChannel', function () {
     it('Should not return an error', async function () {
       const channel = await manager!.setChannel('release');
-      expect(channel).to.be.undefined;
+      expect(channel.ok).to.be.true;
     });
   });
 
   describe('setUpdateCheckInterval', function () {
     it('Should not return an error', async function () {
       const fn = await manager!.setUpdateCheckInterval(24 * 60 * 60, 'release');
-      expect(fn).to.be.undefined;
+      expect(fn.ok).to.be.true;
     });
     it('Should set correct interval in seconds', async function () {
       const interval = await storage
@@ -83,6 +89,16 @@ describe('manage.js base integration tests', function () {
       const interval = await manager!.getUpdateCheckInterval('external');
       expect(interval).to.equal(24 * 60 * 60);
     });
+    it('Should read an interval stored as a string as a number', async function () {
+      // May be stored as a string from a form field
+      const data: StorageData = { channel: 'release', release_update_check_interval: '21600' };
+      const plainStorage: StorageAPI = {
+        get: async keys => Object.fromEntries((keys ?? []).map(key => [key, data[key]])),
+        set: async obj => void Object.assign(data, obj),
+      };
+      const stringManager = new Manager({ storage: plainStorage, isDaemon: false });
+      expect(await stringManager.getUpdateCheckInterval()).to.equal(21600);
+    });
   });
 
   describe('inject', function () {
@@ -90,5 +106,26 @@ describe('manage.js base integration tests', function () {
       const inject = await manager!.inject();
       expect(inject).to.be.undefined;
     });
+  });
+});
+
+describe('progress indicator', function () {
+  it('is hidden after a failed request', async function () {
+    storage.resetStorage();
+    const calls: boolean[] = [];
+    const manager = new Manager({
+      storage: storage,
+      channel: 'release',
+      networkHost: {
+        release: 'http://127.0.0.1:1/release',
+        beta: 'http://127.0.0.1:1/beta',
+        custom: 'http://127.0.0.1:1/',
+      },
+      onProgress: (isShow: boolean) => calls.push(isShow),
+      isDaemon: false,
+    });
+    await manager.ready;
+    await manager.checkUpdates();
+    expect(calls.at(-1)).to.equal(false);
   });
 });

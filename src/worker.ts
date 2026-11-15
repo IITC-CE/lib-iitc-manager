@@ -1,9 +1,10 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { fetchResource, clearWait, getUID, isSet, parseMeta, wait } from './helpers.js';
+import { fetchResource, getUID, isSet, parseMeta } from './helpers.js';
 import { wrapPluginCode, appendSourceUrl } from './wrapper.js';
 import { getGmApiCode } from './gm-api.js';
 import { aggregateMatchPatterns } from './matching.js';
+import { migrate } from './migrations.js';
 import type {
   Channel,
   ManagerConfig,
@@ -20,8 +21,14 @@ import type {
   PluginEventData,
   UpdateType,
   RequestVariant,
+  UpdateCheckRetry,
+  FailedFile,
+  InternalCheckResult,
+  ExternalCheckResult,
   FetchResourceOptions,
   FetchResourceResult,
+  FetchError,
+  PluginMeta,
   MetaJsonResponse,
 } from './types.js';
 
@@ -29,6 +36,49 @@ export const IITC_CORE_UID =
   'IITC: Ingress intel map total conversion+https://github.com/IITC-CE/ingress-intel-total-conversion';
 export const GM_API_UID = 'gm_api';
 export const GM_API_DEFAULT_MATCH = 'https://intel.ingress.com/*';
+
+/** Current Unix time in seconds. */
+const unixNow = (): number => Math.floor(Date.now() / 1000);
+
+/** Network errors and 5xx mean the server may answer later; other failures wait for the next check. */
+const isTransient = (error: FetchError): boolean =>
+  error.kind === 'network' || (error.kind === 'http' && (error.status ?? 0) >= 500);
+
+/** Longest pause after failed update checks, in seconds. */
+const MAX_RETRY_PAUSE = 30 * 60;
+
+/** End of the pause in `retry`, at most 30 min from `now` in case the clock moved back. */
+const retryEnd = (retry: UpdateCheckRetry | null | undefined, now: number): number =>
+  Math.min(retry?.at ?? 0, now + MAX_RETRY_PAUSE);
+
+/** Pause after another failed check: doubles from 1 min up to `maxPause` seconds. */
+const nextRetry = (
+  retry: UpdateCheckRetry | null | undefined,
+  error: FetchError | undefined,
+  maxPause: number = MAX_RETRY_PAUSE
+): UpdateCheckRetry => {
+  const failures = (retry?.failures ?? 0) + 1;
+  const at = unixNow() + Math.min(60 * 2 ** (failures - 1), maxPause);
+  return error ? { failures, at, error } : { failures, at };
+};
+
+/** Keeps one check running per key; a forced check waits for a non-forced one with the same key. */
+class CheckSlot<T> {
+  private running = new Map<string, { force: boolean; promise: Promise<T> }>();
+
+  run(key: string, force: boolean, check: () => Promise<T>): Promise<T> {
+    const running = this.running.get(key);
+    if (running && (running.force || !force)) return running.promise;
+    const promise = running ? running.promise.then(check, check) : check();
+    const entry = { force, promise };
+    this.running.set(key, entry);
+    const clear = () => {
+      if (this.running.get(key) === entry) this.running.delete(key);
+    };
+    promise.then(clear, clear);
+    return promise;
+  }
+}
 
 /**
  * This class contains methods for managing IITC and plugins.
@@ -41,15 +91,26 @@ export class Worker {
   isDaemon!: boolean;
   useFetchHeadMethod!: boolean;
   isInitialized: boolean;
-  /** Resolves once _init has loaded channel, networkHost and other settings from storage */
+  /** Resolves once _init has migrated storage and loaded channel, networkHost and other settings */
   ready: Promise<void>;
+  /** @internal Set by _init, consumed by the first run() */
+  _isMigrated: boolean;
   gmApi?: GmApiConfig;
   sourceUrlPrefix: string;
   appName: string;
   progressIntervalId: ReturnType<typeof setInterval> | null;
+  /** Number of requests in flight; progress is shown while it is above zero */
+  activeRequests: number;
   updateTimeoutId: ReturnType<typeof setTimeout> | null;
   externalUpdateTimeoutId: ReturnType<typeof setTimeout> | null;
+  /** @internal */
+  _internalChecks = new CheckSlot<InternalCheckResult>();
+  /** @internal */
+  _externalChecks = new CheckSlot<ExternalCheckResult>();
+  /** @internal */
+  _pluginsQueue: Promise<unknown> = Promise.resolve();
 
+  /** @deprecated Never called. */
   message?: (message: string, args?: string | string[]) => void;
   onProgress?: (isShow: boolean) => void;
   injectPlugin: (plugin: Plugin) => void | Promise<void>;
@@ -66,6 +127,7 @@ export class Worker {
   constructor(config: ManagerConfig) {
     this.config = config;
     this.progressIntervalId = null;
+    this.activeRequests = 0;
     this.updateTimeoutId = null;
     this.externalUpdateTimeoutId = null;
     this.storage =
@@ -88,6 +150,7 @@ export class Worker {
 
     this._gmApiMatches = [GM_API_DEFAULT_MATCH];
     this.isInitialized = false;
+    this._isMigrated = false;
     this.ready = this._init();
   }
 
@@ -96,6 +159,12 @@ export class Worker {
    * @internal
    */
   async _init(): Promise<void> {
+    // Migrate first: settings below expect the current schema
+    try {
+      this._isMigrated = await migrate(this.storage);
+    } catch (error) {
+      console.error('Storage migration failed:', error);
+    }
     this.channel = await this._syncStorage('channel', 'release', this.config.channel);
     this.networkHost = await this._syncStorage(
       'network_host',
@@ -165,6 +234,19 @@ export class Worker {
   }
 
   /**
+   * Interval in seconds; strings are coerced, unset or invalid values fall back to 24 h.
+   *
+   * @param channel - Update channel, or `external` for external plugins.
+   * @internal
+   */
+  async _readUpdateCheckInterval(channel: string): Promise<number> {
+    const key = `${channel}_update_check_interval`;
+    const data = await this.storage.get([key]);
+    const interval = Number(data[key]);
+    return interval > 0 ? interval : 24 * 60 * 60;
+  }
+
+  /**
    * Saves passed data to local storage.
    * Adds the name of release branch before key, if necessary.
    *
@@ -176,9 +258,14 @@ export class Worker {
     const data: StorageData = {};
     Object.keys(options).forEach(key => {
       if (
-        ['iitc_version', 'last_modified', 'iitc_core', 'plugins_catalog', 'plugins_local'].indexOf(
-          key
-        ) !== -1
+        [
+          'iitc_version',
+          'last_modified',
+          'iitc_core',
+          'plugins_catalog',
+          'plugins_local',
+          'pending_files',
+        ].indexOf(key) !== -1
       ) {
         data[`${channel}_${key}`] = options[key];
       } else {
@@ -196,6 +283,19 @@ export class Worker {
     if (affectsView) {
       this._emitPluginsChanged();
     }
+  }
+
+  /**
+   * Runs read-modify-save sections over plugin storage keys one at a time.
+   * `fn` must not wait for network requests or host callbacks.
+   *
+   * @param fn - Section that re-reads the keys it changes and saves them.
+   * @internal
+   */
+  _mutatePlugins<T>(fn: () => Promise<T>): Promise<T> {
+    const result = this._pluginsQueue.then(fn);
+    this._pluginsQueue = result.catch(() => {});
+    return result;
   }
 
   /**
@@ -270,35 +370,17 @@ export class Worker {
   _emitPluginsChanged(): void {}
 
   /**
-   * The method requests data from the specified URL.
-   * It is a wrapper over {@link fetchResource} function, with the addition of retries to load in case of problems
-   * and a message to user about errors.
+   * Wraps {@link fetchResource}, calling `onProgress(true)` while any request is in flight and `onProgress(false)` when the last one ends.
    *
    * @param url - URL of the resource you want to fetch.
    * @param variant - Type of request.
-   * @param retry - Is retry in case of an error | number of request attempt.
    * @internal
    */
-  async _getUrl(
-    url: string,
-    variant?: RequestVariant,
-    retry?: boolean | number
-  ): Promise<FetchResourceResult> {
-    if ((retry as number) > 1) {
-      let seconds = (retry as number) * (retry as number);
-      if (seconds > 30 * 60) seconds = 30 * 60; // maximum is 30 minutes
-      try {
-        this.message!('serverNotAvailableRetry', String(seconds));
-      } catch {
-        // Ignore if there is no message receiver
-      }
-      await wait(seconds);
+  async _getUrl(url: string, variant?: RequestVariant): Promise<FetchResourceResult> {
+    if (this.activeRequests++ === 0) {
+      // Repeated so that a UI opened mid-request also learns about it
+      this.progressIntervalId = setInterval(() => this.onProgress?.(true), 300);
     }
-
-    clearInterval(this.progressIntervalId!);
-    this.progressIntervalId = setInterval(async () => {
-      this.onProgress!(true);
-    }, 300);
     try {
       const options: FetchResourceOptions = {
         useFetchHeadMethod: this.useFetchHeadMethod,
@@ -310,71 +392,132 @@ export class Worker {
         options.headOnly = true;
       }
 
-      const result = await fetchResource(url, options);
-
-      clearInterval(this.progressIntervalId!);
-      if (result.data !== null || result.version !== null) {
-        this.onProgress!(false);
-      }
-      return result;
-    } catch {
-      if (retry === undefined) {
+      return await fetchResource(url, options);
+    } finally {
+      if (--this.activeRequests === 0) {
         clearInterval(this.progressIntervalId!);
-        return { data: null, version: null };
+        this.progressIntervalId = null;
+        this.onProgress?.(false);
       }
-      return await this._getUrl(url, variant, (retry as number) + 1);
     }
   }
 
   /**
-   * Runs periodic checks and installs updates for IITC and plugins.
+   * Runs `_runInternalCheck`, or returns the running check for the same channel and host.
+   * A forced check waits for a running non-forced one.
    *
    * @param force - Forced to run the update right now.
    * @internal
    */
-  async _checkInternalUpdates(force?: boolean): Promise<void> {
+  _checkInternalUpdates(force: boolean = false): Promise<InternalCheckResult> {
+    const key = this._internalKey();
+    // A queued check whose channel or host changed meanwhile joins the check for the new one
+    return this._internalChecks.run(key, force, () =>
+      key === this._internalKey()
+        ? this._runInternalCheck(force)
+        : this._checkInternalUpdates(force)
+    );
+  }
+
+  /** @internal */
+  _internalKey(): string {
+    return `${this.channel} ${this.networkHost[this.channel]}`;
+  }
+
+  /**
+   * Runs periodic checks and installs updates for IITC and plugins.
+   * A failed check sets a growing pause, which `force` ignores.
+   *
+   * @param force - Forced to run the update right now.
+   * @internal
+   */
+  async _runInternalCheck(force: boolean): Promise<InternalCheckResult> {
     const channel = this.channel;
+    const host = this.networkHost[channel];
     const storage = await this.storage.get([
       'last_check_update',
-      `${channel}_update_check_interval`,
+      'update_check_retry',
       `${channel}_last_modified`,
       `${channel}_plugins_local`,
+      `${channel}_pending_files`,
     ]);
+    let updateCheckInterval = await this._readUpdateCheckInterval(channel);
+    const lastModified = storage[`${channel}_last_modified`];
+    const lastCheck = storage.last_check_update as number;
+    const retry = storage.update_check_retry as UpdateCheckRetry | null | undefined;
+    const pendingFiles = (storage[`${channel}_pending_files`] || []) as string[];
 
-    let updateCheckInterval = storage[`${channel}_update_check_interval`] as number;
-    if (!updateCheckInterval) updateCheckInterval = 24 * 60 * 60;
+    const start = unixNow();
+    // A timestamp from the future (clock moved back) makes the check due
+    const scheduled = () =>
+      isSet(lastModified) && isSet(lastCheck) && lastCheck <= start
+        ? lastCheck + updateCheckInterval
+        : 0;
+    let nextCheck = Math.max(scheduled(), retryEnd(retry, start));
 
-    if (!isSet(storage[`${channel}_last_modified`]) || !isSet(storage.last_check_update)) {
-      clearWait();
-      clearTimeout(this.updateTimeoutId!);
-      this.updateTimeoutId = null;
-      await this._updateInternalIITC(channel, storage);
-    } else {
-      const timeDelta =
-        Math.floor(Date.now() / 1000) - updateCheckInterval - (storage.last_check_update as number);
-      if (timeDelta >= 0 || force) {
-        clearWait();
-        clearTimeout(this.updateTimeoutId!);
-        this.updateTimeoutId = null;
-        const result = await this._getUrl(this.networkHost[channel] + '/meta.json', 'head', true);
-        if (result.version !== storage[`${channel}_last_modified`] || force) {
-          await this._updateInternalIITC(channel, storage);
+    let result: InternalCheckResult = { status: 'not-due', failed: [] };
+    if (force || start >= nextCheck) {
+      if (force || !isSet(lastModified)) {
+        result = await this._updateInternalIITC(channel, storage, host);
+      } else {
+        // Without HEAD support this is a full GET, so its body is reused below
+        const head = await this._getUrl(
+          host + '/meta.json',
+          this.useFetchHeadMethod ? 'head' : 'parseJSON'
+        );
+        const meta = this.useFetchHeadMethod ? undefined : head;
+        if (head.error?.kind === 'network') {
+          result = { status: 'failed', error: head.error, failed: [] };
+        } else if (head.version === lastModified && !pendingFiles.length) {
+          result = { status: 'not-modified', failed: [] };
+        } else {
+          result = await this._updateInternalIITC(channel, storage, host, pendingFiles, meta);
         }
       }
-    }
-    if (!this.updateTimeoutId) {
-      await this._save(channel, {
-        last_check_update: Math.floor(Date.now() / 1000),
-      });
 
-      if (this.isDaemon) {
-        this.updateTimeoutId = setTimeout(async () => {
-          await this._checkInternalUpdates();
-        }, updateCheckInterval * 1000);
+      // The interval may have been changed while the check was running
+      updateCheckInterval = await this._readUpdateCheckInterval(channel);
+      // Channel changed mid-check: setChannel reset the state and reschedules
+      if (this.channel !== channel) return result;
+      if (result.status !== 'failed') {
+        nextCheck = start + updateCheckInterval;
+        await this._save(channel, { last_check_update: start, update_check_retry: null });
       } else {
-        this.updateTimeoutId = null;
+        const error = result.error ?? result.failed.find(f => isTransient(f.error))?.error;
+        // A channel that was never fetched has no catalog yet, so retry it sooner
+        const next = nextRetry(retry, error, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
+        nextCheck = Math.max(scheduled(), next.at);
+        await this._save(channel, { update_check_retry: next });
       }
     }
+
+    if (this.channel !== channel) return result;
+    this._scheduleCheck('updateTimeoutId', nextCheck, updateCheckInterval, () =>
+      this._checkInternalUpdates()
+    );
+    return result;
+  }
+
+  /**
+   * Re-arms a daemon timer to fire at `nextCheck`, but no later than `interval` from now.
+   *
+   * @param timer - Timer field to re-arm.
+   * @param nextCheck - Unix time in seconds when the check is due.
+   * @param interval - Update check interval in seconds.
+   * @param check - Check to run.
+   * @internal
+   */
+  _scheduleCheck(
+    timer: 'updateTimeoutId' | 'externalUpdateTimeoutId',
+    nextCheck: number,
+    interval: number,
+    check: () => Promise<unknown>
+  ): void {
+    clearTimeout(this[timer]!);
+    this[timer] = null;
+    if (!this.isDaemon) return;
+    const delay = Math.min(Math.max(0, nextCheck - unixNow()), interval);
+    this[timer] = setTimeout(check, delay * 1000);
   }
 
   /**
@@ -382,51 +525,96 @@ export class Worker {
    *
    * @param channel - Current channel.
    * @param local - Data from storage.
+   * @param host - Repository URL captured when the check started.
+   * @param pendingFiles - UIDs (IITC_CORE_UID for the core) that failed in the last check;
+   * if meta.json is unchanged since then, only these are downloaded.
+   * @param meta - Already received meta.json response.
    * @internal
    */
-  async _updateInternalIITC(channel: Channel, local: StorageData): Promise<void> {
-    const result = await this._getUrl(this.networkHost[channel] + '/meta.json', 'parseJSON', true);
-    if (!result.data) return;
+  async _updateInternalIITC(
+    channel: Channel,
+    local: StorageData,
+    host: string,
+    pendingFiles?: string[],
+    meta?: FetchResourceResult
+  ): Promise<InternalCheckResult> {
+    const result = meta ?? (await this._getUrl(host + '/meta.json', 'parseJSON'));
+    if (!result.data) return { status: 'failed', error: result.error, failed: [] };
 
     const response = result.data as MetaJsonResponse;
     const lastModified = result.version;
+    const only =
+      pendingFiles && lastModified === local[`${channel}_last_modified`]
+        ? new Set(pendingFiles)
+        : undefined;
 
     const pluginsCatalog = this._getPluginsCatalog(response);
-    let pluginsLocal = local[`${channel}_plugins_local`] as PluginDict;
+    const pluginsLocal = local[`${channel}_plugins_local`] as PluginDict;
 
-    const pIitc = async () => {
-      const res = await this._getUrl(
-        this.networkHost[this.channel] + '/total-conversion-build.user.js'
-      );
-      if (res.data) {
-        const iitcCore = parseMeta(res.data as string) as Plugin;
-        iitcCore['uid'] = getUID(iitcCore)!;
-        iitcCore['code'] = res.data as string;
-        await this._save(channel, {
-          iitc_core: iitcCore,
-        });
-        await this._sendPluginsEvent(channel, [iitcCore['uid']], 'update', 'local');
+    const [core, res] = await Promise.all([
+      !only || only.has(IITC_CORE_UID)
+        ? this._fetchUserscript(host + '/total-conversion-build.user.js')
+        : null,
+      this._updateLocalPlugins(channel, pluginsCatalog, pluginsLocal, host, only),
+    ]);
+    const failed = [...res.failed];
+    let iitcCore: Plugin | undefined;
+    if (core && 'error' in core) {
+      failed.push({ uid: IITC_CORE_UID, error: core.error });
+    } else if (core) {
+      iitcCore = { ...core.meta, uid: getUID(core.meta)!, code: core.code } as Plugin;
+    }
+
+    await this._mutatePlugins(async () => {
+      // Plugins may have been enabled while downloading: apply only this check's changes
+      const current = await this.storage.get([`${channel}_plugins_local`, 'plugins_state']);
+      const pluginsLocal = (current[`${channel}_plugins_local`] || {}) as PluginDict;
+      const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
+      for (const uid of [...res.updatedUids, ...res.addedUids]) {
+        pluginsLocal[uid] = res.pluginsLocal[uid];
       }
-    };
-
-    const pPlugins = async () => {
-      const res = await this._updateLocalPlugins(channel, pluginsCatalog, pluginsLocal);
-      pluginsLocal = res.pluginsLocal;
+      for (const uid of res.removedUids) {
+        // removedUids also lists enabled plugins that keep their cached code
+        if (!(uid in res.pluginsLocal) && pluginsState[uid]?.status !== 'on') {
+          delete pluginsLocal[uid];
+        }
+      }
       await this._save(channel, {
+        ...(iitcCore ? { iitc_core: iitcCore } : {}),
         iitc_version: response['iitc_version'],
         last_modified: lastModified,
         plugins_catalog: pluginsCatalog,
         plugins_local: pluginsLocal,
+        pending_files: failed.map(f => f.uid),
       });
-      if (res.updatedUids.length)
-        await this._sendPluginsEvent(channel, res.updatedUids, 'update', 'local');
-      if (res.removedUids.length)
-        await this._sendPluginsEvent(channel, res.removedUids, 'remove', 'local');
-      if (res.addedUids.length)
-        await this._sendPluginsEvent(channel, res.addedUids, 'add', 'local');
-    };
+    });
+    if (iitcCore) await this._sendPluginsEvent(channel, [iitcCore['uid']], 'update', 'local');
+    if (res.updatedUids.length)
+      await this._sendPluginsEvent(channel, res.updatedUids, 'update', 'local');
+    if (res.removedUids.length)
+      await this._sendPluginsEvent(channel, res.removedUids, 'remove', 'local');
+    if (res.addedUids.length) await this._sendPluginsEvent(channel, res.addedUids, 'add', 'local');
 
-    await Promise.all([pIitc, pPlugins].map(fn => fn()));
+    if (failed.some(f => isTransient(f.error))) return { status: 'failed', failed };
+    const updated =
+      iitcCore || res.updatedUids.length || res.addedUids.length || res.removedUids.length;
+    return { status: updated ? 'updated' : 'not-modified', failed };
+  }
+
+  /**
+   * Fetches a userscript; a response without a ==UserScript== header counts as `invalid`.
+   *
+   * @param url - URL of the userscript.
+   * @internal
+   */
+  async _fetchUserscript(
+    url: string
+  ): Promise<{ code: string; meta: PluginMeta } | { error: FetchError }> {
+    const res = await this._getUrl(url);
+    if (res.error) return { error: res.error };
+    const meta = parseMeta(res.data as string);
+    if (!meta) return { error: { kind: 'invalid' } };
+    return { code: res.data as string, meta };
   }
 
   /**
@@ -458,48 +646,65 @@ export class Worker {
   }
 
   /**
-   * Runs periodic checks and installs updates for external plugins.
+   * Runs `_runExternalCheck`, or returns the running check.
+   * A forced check waits for a running non-forced one.
    *
    * @param force - Forced to run the update right now.
    * @internal
    */
-  async _checkExternalUpdates(force?: boolean): Promise<void> {
+  _checkExternalUpdates(force: boolean = false): Promise<ExternalCheckResult> {
+    return this._externalChecks.run('external', force, () => this._runExternalCheck(force));
+  }
+
+  /**
+   * Runs periodic checks and installs updates for external plugins.
+   * If every request fails with a network error, a growing pause is set, which `force` ignores.
+   *
+   * @param force - Forced to run the update right now.
+   * @internal
+   */
+  async _runExternalCheck(force: boolean): Promise<ExternalCheckResult> {
     const channel = this.channel;
     const local = await this.storage.get([
-      'channel',
       'last_check_external_update',
-      'external_update_check_interval',
+      'external_update_check_retry',
       'plugins_user',
     ]);
+    let updateCheckInterval = await this._readUpdateCheckInterval('external');
+    const lastCheck = local.last_check_external_update as number;
+    const retry = local.external_update_check_retry as UpdateCheckRetry | null | undefined;
 
-    let updateCheckInterval = local['external_update_check_interval'] as number;
-    if (!updateCheckInterval) {
-      updateCheckInterval = 24 * 60 * 60;
-    }
-
-    const timeDelta =
-      Math.floor(Date.now() / 1000) -
-      updateCheckInterval -
-      (local.last_check_external_update as number);
-    if (timeDelta >= 0 || force) {
+    const start = unixNow();
+    const scheduled = () =>
+      isSet(lastCheck) && lastCheck <= start ? lastCheck + updateCheckInterval : 0;
+    let nextCheck = Math.max(scheduled(), retryEnd(retry, start));
+    let result: ExternalCheckResult = { status: 'not-due', updated: [], failed: [] };
+    if (force || start >= nextCheck) {
       clearTimeout(this.externalUpdateTimeoutId!);
       this.externalUpdateTimeoutId = null;
-      await this._updateExternalPlugins(channel, local);
-    }
-
-    if (!this.externalUpdateTimeoutId) {
-      await this._save(channel, {
-        last_check_external_update: Math.floor(Date.now() / 1000),
-      });
-
-      if (this.isDaemon) {
-        this.externalUpdateTimeoutId = setTimeout(async () => {
-          await this._checkExternalUpdates();
-        }, updateCheckInterval * 1000);
+      const { reached, updated, failed } = await this._updateExternalPlugins(channel, local);
+      const offline =
+        !reached && failed.length > 0 && failed.every(f => f.error.kind === 'network');
+      result = { status: offline ? 'failed' : 'checked', updated, failed };
+      // The interval may have been changed while the check was running
+      updateCheckInterval = await this._readUpdateCheckInterval('external');
+      if (offline) {
+        const next = nextRetry(retry, failed[0].error);
+        nextCheck = Math.max(scheduled(), next.at);
+        await this._save(channel, { external_update_check_retry: next });
       } else {
-        this.externalUpdateTimeoutId = null;
+        nextCheck = start + updateCheckInterval;
+        await this._save(channel, {
+          last_check_external_update: start,
+          external_update_check_retry: null,
+        });
       }
     }
+
+    this._scheduleCheck('externalUpdateTimeoutId', nextCheck, updateCheckInterval, () =>
+      this._checkExternalUpdates()
+    );
+    return result;
   }
 
   /**
@@ -507,53 +712,76 @@ export class Worker {
    *
    * @param channel - Current channel.
    * @param local - Data from storage.
+   * @returns Whether any update description was received, updated and failed plugins.
    * @internal
    */
-  async _updateExternalPlugins(channel: Channel, local: StorageData): Promise<void> {
-    const pluginsUser = local['plugins_user'] as PluginDict | undefined;
-    if (pluginsUser) {
-      let existUpdates = false;
-      const hash = `?${Date.now()}`;
-      const updatedUids: string[] = [];
-      const currentTime = Math.floor(Date.now() / 1000);
+  async _updateExternalPlugins(
+    channel: Channel,
+    local: StorageData
+  ): Promise<{ reached: boolean; updated: string[]; failed: FailedFile[] }> {
+    const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
+    const uids = Object.keys(pluginsUser).filter(
+      uid => pluginsUser[uid]?.['updateURL'] && pluginsUser[uid]?.['downloadURL']
+    );
+    const updates: PluginDict = {};
+    const failed: FailedFile[] = [];
+    let reached = false;
+    const currentTime = unixNow();
 
-      for (const uid of Object.keys(pluginsUser)) {
-        const plugin = pluginsUser[uid];
-
-        if (!plugin) continue;
-
-        if (plugin['updateURL'] && plugin['downloadURL']) {
-          // download meta info
-          const resultMeta = await this._getUrl(plugin['updateURL'] + hash);
-          if (resultMeta.data) {
-            const meta = parseMeta(resultMeta.data as string);
-            // if new version
-            if (meta && meta['version'] && meta['version'] !== plugin['version']) {
-              // download userscript
-              const resultCode = await this._getUrl(plugin['downloadURL'] + hash);
-              if (resultCode.data && parseMeta(resultCode.data as string)) {
-                existUpdates = true;
-                pluginsUser[uid] = {
-                  ...meta,
-                  uid,
-                  code: resultCode.data as string,
-                  updatedAt: currentTime,
-                  addedAt: plugin.addedAt,
-                } as Plugin;
-                updatedUids.push(uid);
-              }
-            }
-          }
-        }
+    const checkPlugin = async (uid: string) => {
+      const plugin = pluginsUser[uid];
+      const head = await this._fetchUserscript(plugin['updateURL'] as string);
+      if ('error' in head) {
+        failed.push({ uid, error: head.error });
+        return;
       }
+      reached = true;
+      if (!head.meta['version'] || head.meta['version'] === plugin['version']) return;
+      const code = await this._fetchUserscript(plugin['downloadURL'] as string);
+      if ('error' in code) {
+        failed.push({ uid, error: code.error });
+        return;
+      }
+      if (code.code === plugin.code) return;
+      updates[uid] = {
+        ...code.meta,
+        uid,
+        code: code.code,
+        // Set when the plugin was added; the downloaded header may lack them
+        filename: plugin.filename ?? code.meta.filename,
+        category: code.meta.category ?? plugin.category,
+        updateURL: code.meta.updateURL ?? plugin.updateURL,
+        downloadURL: code.meta.downloadURL ?? plugin.downloadURL,
+        addedAt: plugin.addedAt,
+        updatedAt: currentTime,
+      } as Plugin;
+    };
 
-      if (existUpdates) {
-        await this._save(channel, {
-          plugins_user: pluginsUser,
-        });
+    // A few at a time: requests queued by the browser would run into the fetch timeout
+    const queue = [...uids];
+    const worker = async () => {
+      while (queue.length) await checkPlugin(queue.shift()!);
+    };
+    await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+
+    let updatedUids: string[] = [];
+    if (Object.keys(updates).length) {
+      updatedUids = await this._mutatePlugins(async () => {
+        // Re-read: plugins may have been added, replaced or deleted while downloading
+        const current = await this.storage.get(['plugins_user']);
+        const currentUser = (current['plugins_user'] || {}) as PluginDict;
+        const changed = uids.filter(
+          uid => updates[uid] && currentUser[uid] && currentUser[uid].code === pluginsUser[uid].code
+        );
+        for (const uid of changed) currentUser[uid] = updates[uid];
+        if (changed.length) await this._save(channel, { plugins_user: currentUser });
+        return changed;
+      });
+      if (updatedUids.length) {
         await this._sendPluginsEvent(channel, updatedUids, 'update', 'user');
       }
     }
+    return { reached, updated: updatedUids, failed };
   }
 
   /**
@@ -562,25 +790,42 @@ export class Worker {
    * @param channel - Current channel.
    * @param pluginsCatalog - Data from storage, key "[channel]_plugins_catalog".
    * @param pluginsLocal - Data from storage, key "[channel]_plugins_local".
+   * @param host - Repository URL captured when the check started.
+   * @param only - Download only these UIDs; others keep their cached code.
    * @internal
    */
   async _updateLocalPlugins(
     channel: Channel,
     pluginsCatalog: PluginDict,
-    pluginsLocal: PluginDict
+    pluginsLocal: PluginDict,
+    host: string,
+    only?: Set<string>
   ): Promise<{
     pluginsLocal: PluginDict;
     addedUids: string[];
     updatedUids: string[];
     removedUids: string[];
+    failed: FailedFile[];
   }> {
     if (!isSet(pluginsLocal))
-      return { pluginsLocal: {}, addedUids: [], updatedUids: [], removedUids: [] };
+      return { pluginsLocal: {}, addedUids: [], updatedUids: [], removedUids: [], failed: [] };
 
     const updatedUids: string[] = [];
     const removedUids: string[] = [];
     const addedUids: string[] = [];
-    const currentTime = Math.floor(Date.now() / 1000);
+    const failed: FailedFile[] = [];
+    const currentTime = unixNow();
+
+    const download = async (uid: string, filename: string, done: string[]) => {
+      const result = await this._fetchUserscript(`${host}/plugins/${filename}`);
+      if ('error' in result) {
+        failed.push({ uid, error: result.error });
+        return;
+      }
+      // `plugins_local` is a pure code cache; metadata lives in the catalog
+      pluginsLocal[uid] = { code: result.code, filename, updatedAt: currentTime } as Plugin;
+      done.push(uid);
+    };
 
     // The stored catalog is still the previous one here (saved after this method
     // returns), so it lets us detect the exact run a plugin drops out of the catalog.
@@ -607,18 +852,7 @@ export class Worker {
           ((pluginsCatalog[uid] as Plugin)?.['filename'] as string) ||
           (pluginsLocal[uid]['filename'] as string);
         if (filename && pluginsCatalog[uid]) {
-          const result = await this._getUrl(
-            `${this.networkHost[this.channel]}/plugins/${filename}`
-          );
-          if (result.data) {
-            // `plugins_local` is a pure code cache; metadata lives in the catalog
-            pluginsLocal[uid] = {
-              code: result.data as string,
-              filename: filename,
-              updatedAt: currentTime,
-            } as Plugin;
-            updatedUids.push(uid);
-          }
+          if (!only || only.has(uid)) await download(uid, filename, updatedUids);
         } else if (pluginsState[uid]?.status !== 'on') {
           delete pluginsLocal[uid];
           removedUids.push(uid);
@@ -627,25 +861,13 @@ export class Worker {
           // A user override keeps the plugin active, so it is left untouched.
           removedUids.push(uid);
         }
-      } else if (pluginsState[uid]?.status === 'on') {
+      } else if (pluginsState[uid]?.status === 'on' && (!only || only.has(uid))) {
         const filename = (pluginsCatalog[uid] as Plugin)['filename'] as string;
-        if (filename) {
-          const result = await this._getUrl(
-            `${this.networkHost[this.channel]}/plugins/${filename}`
-          );
-          if (result.data) {
-            pluginsLocal[uid] = {
-              code: result.data as string,
-              filename: filename,
-              updatedAt: currentTime,
-            } as Plugin;
-            addedUids.push(uid);
-          }
-        }
+        if (filename) await download(uid, filename, addedUids);
       }
     }
 
-    return { pluginsLocal, addedUids, updatedUids, removedUids };
+    return { pluginsLocal, addedUids, updatedUids, removedUids, failed };
   }
 
   /** @internal */
@@ -709,7 +931,7 @@ export class Worker {
 
   /** @internal */
   _computeCategories(plugins: PluginDict): CategoryViewDict {
-    const now = Math.floor(Date.now() / 1000);
+    const now = unixNow();
     const threshold = this.newPluginThreshold;
     const rawCategories: CategoryViewDict = {};
     for (const plugin of Object.values(plugins)) {
@@ -791,6 +1013,8 @@ export class Worker {
     const allPluginsState = (globalData['plugins_state'] || {}) as PluginStateDict;
 
     const plugins: PluginEventData['plugins'] = {};
+    // Entries that only hold for `channel`: its cached code and the removals its check found
+    const channelScoped: string[] = [];
 
     for (const uid of uids) {
       if (uid === GM_API_UID) continue;
@@ -831,6 +1055,7 @@ export class Worker {
       if (catalogGap && !isSet(pluginUser) && event !== 'remove') continue;
 
       if (event === 'remove' || (!isSet(pluginLocal) && !isSet(pluginUser))) {
+        if (updateType === 'local') channelScoped.push(uid);
         plugins[uid] = {};
         continue;
       }
@@ -839,6 +1064,7 @@ export class Worker {
       const useUser = isSet(pluginUser) && (updateType === undefined || updateType === 'user');
 
       if (useLocal) {
+        channelScoped.push(uid);
         plugins[uid] = pluginLocal || {};
       } else if (useUser) {
         plugins[uid] = pluginUser || {};
@@ -850,6 +1076,7 @@ export class Worker {
       }
     }
 
+    if (channel !== this.channel) for (const uid of channelScoped) delete plugins[uid];
     if (Object.keys(plugins).length) {
       // Wrap plugin code with GM API bindings when gm_api is configured
       if (this.gmApi && (event === 'add' || event === 'update')) {

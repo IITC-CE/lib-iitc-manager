@@ -1,8 +1,7 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { Worker, IITC_CORE_UID, GM_API_UID, GM_API_DEFAULT_MATCH } from './worker.js';
-import * as migrations from './migrations.js';
-import { getUID, isSet, parseMeta, sanitizeFileName } from './helpers.js';
+import { getUID, parseMeta, sanitizeFileName } from './helpers.js';
 import { appendSourceUrl } from './wrapper.js';
 import { aggregateMatchPatterns } from './matching.js';
 import * as backup from './backup.js';
@@ -16,6 +15,10 @@ import type {
   BackupParams,
   BackupData,
   UserScript,
+  UpdateCheckResult,
+  UpdateCheckRetry,
+  UpdateStatus,
+  ManagePluginResult,
 } from './types.js';
 
 /**
@@ -26,8 +29,10 @@ export class Manager extends Worker {
    * Changes the update channel and calls for an update.
    *
    * @param channel - Update channel for IITC and plugins.
+   * @returns Result of the forced update check.
    */
-  async setChannel(channel: Channel): Promise<void> {
+  async setChannel(channel: Channel): Promise<UpdateCheckResult> {
+    await this.ready;
     const globalData = await this.storage.get(['plugins_user']);
     const pluginsUser = (globalData['plugins_user'] || {}) as PluginDict;
 
@@ -40,7 +45,11 @@ export class Manager extends Worker {
 
     // Change channel in storage and object
     this.channel = channel;
-    await this._save(channel, { channel: channel, last_check_update: null });
+    await this._save(channel, {
+      channel: channel,
+      last_check_update: null,
+      update_check_retry: null,
+    });
 
     // Ensure local code cache exists for new channel
     const newChannelData = await this.storage.get([`${channel}_plugins_local`]);
@@ -49,23 +58,26 @@ export class Manager extends Worker {
     }
 
     // checkUpdates fires 'update' for IITC core and re-injects enabled built-ins
-    await this.checkUpdates(true);
+    return this.checkUpdates(true);
   }
 
   /**
-   * Changes the update check interval. If the interval for the current channel changes, a forced update check is started to apply the new interval.
+   * Changes the update check interval and reschedules checks; a check runs if it is now due.
    *
    * @param interval - Update check interval in seconds.
-   * @param channel - Update channel for IITC and plugins.
+   * @param channel - Update channel for IITC and plugins, or `external` for external plugins.
+   * @returns Result of the update check.
    */
-  async setUpdateCheckInterval(interval: number, channel?: string): Promise<void> {
+  async setUpdateCheckInterval(interval: number, channel?: string): Promise<UpdateCheckResult> {
+    await this.ready;
     if (typeof channel === 'undefined') channel = this.channel;
 
     const data: StorageData = {};
-    data[channel + '_update_check_interval'] = interval;
+    // May arrive as a string from a form field
+    data[channel + '_update_check_interval'] = Number(interval);
     await this.storage.set(data);
 
-    if (channel === this.channel) await this.checkUpdates(true);
+    return this.checkUpdates();
   }
 
   /**
@@ -74,10 +86,9 @@ export class Manager extends Worker {
    * @param channel - Update channel for IITC and plugins.
    */
   async getUpdateCheckInterval(channel?: string): Promise<number> {
+    await this.ready;
     if (typeof channel === 'undefined') channel = this.channel;
-    const key = `${channel}_update_check_interval`;
-    const data = await this.storage.get([key]);
-    return (data[key] as number) || 24 * 60 * 60;
+    return this._readUpdateCheckInterval(channel);
   }
 
   /**
@@ -86,6 +97,7 @@ export class Manager extends Worker {
    * @param url - URL of the repository.
    */
   async setCustomChannelUrl(url: string): Promise<void> {
+    await this.ready;
     const networkHost = (await this.storage
       .get(['network_host'])
       .then(data => data.network_host)) as typeof this.networkHost;
@@ -96,12 +108,16 @@ export class Manager extends Worker {
 
   /**
    * Running the IITC and plugins manager.
-   * Migrates data storage as needed, then loads or updates UserScripts from the repositories.
+   * Loads or updates UserScripts from the repositories; after a storage migration
+   * forces the update and re-sends user plugins.
+   *
+   * @returns Result of the update check.
    */
-  async run(): Promise<void> {
+  async run(): Promise<UpdateCheckResult> {
     await this.ready;
-    const isMigrated = await migrations.migrate(this.storage);
-    await this.checkUpdates(isMigrated);
+    const isMigrated = this._isMigrated;
+    this._isMigrated = false;
+    const result = await this.checkUpdates(isMigrated);
     if (isMigrated) {
       const local = await this.storage.get(['plugins_user']);
       const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
@@ -111,6 +127,7 @@ export class Manager extends Worker {
         await this._sendPluginsEvent(this.channel, allUids, 'add', 'user');
       }
     }
+    return result;
   }
 
   /**
@@ -118,6 +135,7 @@ export class Manager extends Worker {
    * Combines server catalog with local installation state and user overrides.
    */
   async getPluginsView(): Promise<PluginsView> {
+    await this.ready;
     const channel = this.channel;
     const storage = await this.storage.get([
       `${channel}_plugins_catalog`,
@@ -154,6 +172,7 @@ export class Manager extends Worker {
    * Returns an object of all enabled plugins, including IITC core, with plugin UID as the key.
    */
   async getEnabledPlugins(): Promise<PluginDict> {
+    await this.ready;
     const channel = this.channel;
     const storage = await this.storage.get([
       `${channel}_iitc_core`,
@@ -242,11 +261,43 @@ export class Manager extends Worker {
 
   /**
    * Runs periodic checks and installs updates for IITC, internal and external plugins.
+   * Joins the running check of the same channel; `force` during a non-forced check runs after it.
    *
    * @param force - Forced to run the update right now.
+   * @returns Result of the update check.
    */
-  async checkUpdates(force?: boolean): Promise<void> {
-    await Promise.all([this._checkInternalUpdates(force), this._checkExternalUpdates(force)]);
+  async checkUpdates(force?: boolean): Promise<UpdateCheckResult> {
+    await this.ready;
+    const [internal, external] = await Promise.all([
+      this._checkInternalUpdates(force),
+      this._checkExternalUpdates(force),
+    ]);
+    return { ok: internal.status !== 'failed', internal, external };
+  }
+
+  /**
+   * Returns the state of update checks from storage, without network requests.
+   *
+   * @returns Last successful check and pause after failures, for internal and external checks.
+   */
+  async getUpdateStatus(): Promise<UpdateStatus> {
+    await this.ready;
+    const data = await this.storage.get([
+      'last_check_update',
+      'update_check_retry',
+      'last_check_external_update',
+      'external_update_check_retry',
+    ]);
+    return {
+      internal: {
+        lastCheck: (data.last_check_update as number) ?? null,
+        retry: (data.update_check_retry as UpdateCheckRetry) ?? null,
+      },
+      external: {
+        lastCheck: (data.last_check_external_update as number) ?? null,
+        retry: (data.external_update_check_retry as UpdateCheckRetry) ?? null,
+      },
+    };
   }
 
   /**
@@ -254,66 +305,73 @@ export class Manager extends Worker {
    *
    * @param uid - Unique identifier of the plugin.
    * @param action - Type of action with the plugin.
+   * @returns `ok: false` if enabling failed; nothing is changed then.
    */
-  async managePlugin(uid: string, action: 'on' | 'off' | 'delete'): Promise<void> {
+  async managePlugin(uid: string, action: 'on' | 'off' | 'delete'): Promise<ManagePluginResult> {
+    await this.ready;
     const channel = this.channel;
-    const local = await this.storage.get([
-      `${channel}_plugins_catalog`,
-      `${channel}_plugins_local`,
-      'plugins_user',
-      'plugins_state',
-    ]);
-
-    const pluginsCatalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
-    let pluginsLocal = local[`${channel}_plugins_local`] as PluginDict;
-    const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
-    const pluginsState = (local['plugins_state'] || {}) as PluginStateDict;
-
-    if (!isSet(pluginsLocal)) pluginsLocal = {};
-
+    const host = this.networkHost[channel];
     const currentTime = Math.floor(Date.now() / 1000);
-    const isUserPlugin = uid in pluginsUser;
 
     if (action === 'on') {
-      if (isUserPlugin || pluginsLocal[uid] !== undefined) {
-        pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
-        // User plugins carry their own metadata; built-ins merge catalog metadata
-        // (incl. `match`) with the cached code, or stay silent if absent from the catalog.
-        if (isUserPlugin) {
-          await this._injectWithGmApi(pluginsUser[uid]);
-        } else if (pluginsCatalog[uid]) {
-          await this._injectWithGmApi({
-            ...pluginsCatalog[uid],
-            code: pluginsLocal[uid]['code'],
-          } as Plugin);
-        }
-        await this._save(channel, { plugins_state: pluginsState });
-        await this._sendPluginsEvent(channel, [uid], 'add');
-      } else {
-        const filename = pluginsCatalog[uid]?.['filename'];
-        const result = await this._getUrl(`${this.networkHost[channel]}/plugins/${filename}`);
-        if (result.data) {
-          // `plugins_local` is a pure code cache; catalog carries the metadata
-          pluginsLocal[uid] = {
-            code: result.data as string,
-            filename: filename,
-            updatedAt: currentTime,
-          } as Plugin;
-          pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
+      const local = await this.storage.get([
+        `${channel}_plugins_catalog`,
+        `${channel}_plugins_local`,
+        'plugins_user',
+      ]);
+      const pluginsCatalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
+      const pluginsLocal = (local[`${channel}_plugins_local`] || {}) as PluginDict;
+      const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
+      const isUserPlugin = uid in pluginsUser;
 
-          await this._injectWithGmApi({
-            ...pluginsCatalog[uid],
-            code: result.data as string,
-          } as Plugin);
-
-          await this._save(channel, { plugins_local: pluginsLocal, plugins_state: pluginsState });
-          await this._sendPluginsEvent(channel, [uid], 'add');
-        }
+      let downloaded: Plugin | undefined;
+      let failure: ManagePluginResult | undefined;
+      if (!isUserPlugin && pluginsLocal[uid] === undefined) {
+        const filename = pluginsCatalog[uid]?.filename;
+        const result = filename
+          ? await this._fetchUserscript(`${host}/plugins/${filename}`)
+          : { error: { kind: 'not-in-catalog' as const } };
+        if ('error' in result) failure = { ok: false, error: result.error };
+        // `plugins_local` is a pure code cache; catalog carries the metadata
+        else downloaded = { code: result.code, filename, updatedAt: currentTime } as Plugin;
       }
+      // The channel changed meanwhile: enable the plugin on the new one instead
+      if (this.channel !== channel) return this.managePlugin(uid, action);
+      if (failure) return failure;
+
+      // User plugins carry their own metadata; built-ins merge catalog metadata
+      // (incl. `match`) with the cached code, or stay silent if absent from the catalog.
+      if (isUserPlugin) {
+        await this._injectWithGmApi(pluginsUser[uid]);
+      } else if (pluginsCatalog[uid]) {
+        await this._injectWithGmApi({
+          ...pluginsCatalog[uid],
+          code: (downloaded ?? pluginsLocal[uid])['code'],
+        } as Plugin);
+      }
+      await this._mutatePlugins(async () => {
+        const localKey = `${channel}_plugins_local`;
+        const current = await this.storage.get([
+          'plugins_state',
+          ...(downloaded ? [localKey] : []),
+        ]);
+        const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
+        pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
+        const data: StorageData = { plugins_state: pluginsState };
+        if (downloaded) {
+          data.plugins_local = { ...(current[localKey] as PluginDict), [uid]: downloaded };
+        }
+        await this._save(channel, data);
+      });
+      await this._sendPluginsEvent(channel, [uid], 'add');
     }
     if (action === 'off') {
-      pluginsState[uid] = { status: 'off', statusChangedAt: currentTime };
-      await this._save(channel, { plugins_state: pluginsState });
+      await this._mutatePlugins(async () => {
+        const current = await this.storage.get(['plugins_state']);
+        const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
+        pluginsState[uid] = { status: 'off', statusChangedAt: currentTime };
+        await this._save(channel, { plugins_state: pluginsState });
+      });
       await this._sendPluginsEvent(channel, [uid], 'remove');
     }
     if (action === 'delete') {
@@ -321,17 +379,24 @@ export class Manager extends Worker {
         await this._save(channel, { iitc_core_user: null });
         await this._sendPluginsEvent(channel, [uid], 'update');
       } else {
-        const isEnabled = pluginsState[uid]?.status === 'on';
+        const isEnabled = await this._mutatePlugins(async () => {
+          const current = await this.storage.get(['plugins_user', 'plugins_state']);
+          const pluginsUser = (current['plugins_user'] || {}) as PluginDict;
+          const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
+          const wasEnabled = pluginsState[uid]?.status === 'on';
 
-        delete pluginsUser[uid];
-        pluginsState[uid] = { status: 'off' };
+          delete pluginsUser[uid];
+          pluginsState[uid] = { status: 'off' };
 
-        await this._save(channel, { plugins_user: pluginsUser, plugins_state: pluginsState });
+          await this._save(channel, { plugins_user: pluginsUser, plugins_state: pluginsState });
+          return wasEnabled;
+        });
         if (isEnabled) {
           await this._sendPluginsEvent(channel, [uid], 'remove');
         }
       }
     }
+    return { ok: true };
   }
 
   /**
@@ -341,95 +406,94 @@ export class Manager extends Worker {
    * @param scripts - Array of UserScripts.
    */
   async addUserScripts(scripts: UserScript[]): Promise<PluginDict> {
+    await this.ready;
     const channel = this.channel;
-    const local = await this.storage.get([
-      'iitc_core_user',
-      `${channel}_plugins_catalog`,
-      `${channel}_plugins_local`,
-      'plugins_user',
-      'plugins_state',
-    ]);
+    const { addedUids, updatedUids, installedScripts } = await this._mutatePlugins(async () => {
+      const local = await this.storage.get([
+        `${channel}_plugins_catalog`,
+        'plugins_user',
+        'plugins_state',
+      ]);
 
-    let iitcCoreUser = local['iitc_core_user'] as Plugin | undefined;
-    const pluginsCatalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
-    let pluginsLocal = local[`${channel}_plugins_local`] as PluginDict;
-    const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
-    const pluginsState = (local['plugins_state'] || {}) as PluginStateDict;
+      let iitcCoreUser: Plugin | undefined;
+      const pluginsCatalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
+      const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
+      const pluginsState = (local['plugins_state'] || {}) as PluginStateDict;
 
-    if (!isSet(pluginsLocal)) pluginsLocal = {};
+      const addedUids: string[] = [];
+      const updatedUids: string[] = [];
+      const installedScripts: PluginDict = {};
+      const currentTime = Math.floor(Date.now() / 1000);
 
-    const addedUids: string[] = [];
-    const updatedUids: string[] = [];
-    const installedScripts: PluginDict = {};
-    const currentTime = Math.floor(Date.now() / 1000);
+      scripts.forEach(script => {
+        const meta = script['meta'];
+        const code = script['code'];
+        const pluginUid = getUID(meta);
 
-    scripts.forEach(script => {
-      const meta = script['meta'];
-      const code = script['code'];
-      const pluginUid = getUID(meta);
+        if (pluginUid === null)
+          throw new Error('The plugin has an incorrect ==UserScript== header');
 
-      if (pluginUid === null) throw new Error('The plugin has an incorrect ==UserScript== header');
-
-      if (pluginUid === IITC_CORE_UID) {
-        iitcCoreUser = Object.assign(meta, {
-          uid: pluginUid,
-          code: code,
-        }) as Plugin;
-        updatedUids.push(pluginUid);
-        installedScripts[pluginUid] = iitcCoreUser;
-      } else {
-        const isUserPlugin = pluginsUser[pluginUid] !== undefined;
-        pluginsUser[pluginUid] = Object.assign(meta, {
-          uid: pluginUid,
-          filename: meta['filename']
-            ? meta['filename']
-            : sanitizeFileName(`${meta['name']}.user.js`),
-          code: code,
-          addedAt: currentTime,
-        }) as Plugin;
-        pluginsState[pluginUid] = { status: 'on', statusChangedAt: currentTime };
-
-        if (pluginUid in pluginsCatalog && !isUserPlugin) {
+        if (pluginUid === IITC_CORE_UID) {
+          iitcCoreUser = Object.assign(meta, {
+            uid: pluginUid,
+            code: code,
+          }) as Plugin;
           updatedUids.push(pluginUid);
-          // Return merged catalog+user view with override flag (mirrors _computePluginsView)
-          const catalogEntry = pluginsCatalog[pluginUid];
-          const userEntry = pluginsUser[pluginUid];
-          const state = pluginsState[pluginUid];
-          const userMeta = parseMeta(userEntry.code ?? '');
-          const overridePlugin: Plugin = {
-            ...catalogEntry,
-            ...(userMeta ?? {}),
-            status: state.status,
-            code: userEntry.code,
-            user: true,
-            override: true,
-            addedAt: userEntry.addedAt,
-            statusChangedAt: state.statusChangedAt,
-          } as Plugin;
-          delete overridePlugin.match;
-          if (userEntry.match !== undefined) overridePlugin.match = userEntry.match;
-          installedScripts[pluginUid] = overridePlugin;
+          installedScripts[pluginUid] = iitcCoreUser;
         } else {
-          if (pluginsUser[pluginUid]['category'] === undefined) {
-            pluginsUser[pluginUid]['category'] = 'Misc';
-          }
-          addedUids.push(pluginUid);
-          const state = pluginsState[pluginUid];
-          installedScripts[pluginUid] = {
-            ...pluginsUser[pluginUid],
-            status: state.status,
-            statusChangedAt: state.statusChangedAt,
-            user: true,
-          };
-        }
-      }
-    });
+          const isUserPlugin = pluginsUser[pluginUid] !== undefined;
+          pluginsUser[pluginUid] = Object.assign(meta, {
+            uid: pluginUid,
+            filename: meta['filename']
+              ? meta['filename']
+              : sanitizeFileName(`${meta['name']}.user.js`),
+            code: code,
+            addedAt: currentTime,
+          }) as Plugin;
+          pluginsState[pluginUid] = { status: 'on', statusChangedAt: currentTime };
 
-    await this._save(channel, {
-      iitc_core_user: iitcCoreUser,
-      plugins_local: pluginsLocal,
-      plugins_user: pluginsUser,
-      plugins_state: pluginsState,
+          if (pluginUid in pluginsCatalog && !isUserPlugin) {
+            updatedUids.push(pluginUid);
+            // Return merged catalog+user view with override flag (mirrors _computePluginsView)
+            const catalogEntry = pluginsCatalog[pluginUid];
+            const userEntry = pluginsUser[pluginUid];
+            const state = pluginsState[pluginUid];
+            const userMeta = parseMeta(userEntry.code ?? '');
+            const overridePlugin: Plugin = {
+              ...catalogEntry,
+              ...(userMeta ?? {}),
+              status: state.status,
+              code: userEntry.code,
+              user: true,
+              override: true,
+              addedAt: userEntry.addedAt,
+              statusChangedAt: state.statusChangedAt,
+            } as Plugin;
+            delete overridePlugin.match;
+            if (userEntry.match !== undefined) overridePlugin.match = userEntry.match;
+            installedScripts[pluginUid] = overridePlugin;
+          } else {
+            if (pluginsUser[pluginUid]['category'] === undefined) {
+              pluginsUser[pluginUid]['category'] = 'Misc';
+            }
+            addedUids.push(pluginUid);
+            const state = pluginsState[pluginUid];
+            installedScripts[pluginUid] = {
+              ...pluginsUser[pluginUid],
+              status: state.status,
+              statusChangedAt: state.statusChangedAt,
+              user: true,
+            };
+          }
+        }
+      });
+
+      await this._save(channel, {
+        ...(iitcCoreUser ? { iitc_core_user: iitcCoreUser } : {}),
+        plugins_user: pluginsUser,
+        plugins_state: pluginsState,
+      });
+      return { addedUids, updatedUids, installedScripts };
     });
 
     if (addedUids.length) await this._sendPluginsEvent(channel, addedUids, 'add');
@@ -454,6 +518,7 @@ export class Manager extends Worker {
    * @param params - The parameters for the backup data retrieval.
    */
   async getBackupData(params: Partial<BackupParams>): Promise<BackupData> {
+    await this.ready;
     // Process the input parameters using the 'paramsProcessing' function from the 'backup' module.
     const processedParams = backup.paramsProcessing(params);
 
@@ -494,6 +559,7 @@ export class Manager extends Worker {
    * @param backupData - The backup data object containing the data to be set.
    */
   async setBackupData(params: Partial<BackupParams>, backupData: BackupData): Promise<void> {
+    await this.ready;
     // Process the input parameters using the 'paramsProcessing' function from the 'backup' module.
     const processedParams = backup.paramsProcessing(params);
 

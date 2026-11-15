@@ -15,6 +15,7 @@ import type {
 describe('plugins_local as a pure code cache', function () {
   const pluginAUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
   const intelMatch = ['https://intel.ingress.com/*'];
+  const host = 'http://127.0.0.1:31606/release';
 
   function createManager(): Manager {
     storage.resetStorage();
@@ -158,18 +159,23 @@ describe('plugins_local as a pure code cache', function () {
     delete catalogWithoutA[pluginAUid];
 
     // First run after the drop: remove once, but keep the cached code
-    const res1 = await manager._updateLocalPlugins('release', catalogWithoutA, { ...local });
+    const res1 = await manager._updateLocalPlugins('release', catalogWithoutA, { ...local }, host);
     expect(res1.removedUids).to.include(pluginAUid);
     expect(res1.pluginsLocal[pluginAUid]).to.have.property('code');
 
     // Persist the A-less catalog, then run again: stays silent, code still cached
     await storage.set({ release_plugins_catalog: catalogWithoutA });
-    const res2 = await manager._updateLocalPlugins('release', catalogWithoutA, res1.pluginsLocal);
+    const res2 = await manager._updateLocalPlugins(
+      'release',
+      catalogWithoutA,
+      res1.pluginsLocal,
+      host
+    );
     expect(res2.removedUids).to.not.include(pluginAUid);
     expect(res2.pluginsLocal[pluginAUid]).to.have.property('code');
 
     // Catalog returns: A is re-fetched and surfaces again for the host to re-inject
-    const res3 = await manager._updateLocalPlugins('release', fullCatalog, res2.pluginsLocal);
+    const res3 = await manager._updateLocalPlugins('release', fullCatalog, res2.pluginsLocal, host);
     expect(res3.updatedUids).to.include(pluginAUid);
   });
 
@@ -224,7 +230,7 @@ describe('plugins_local as a pure code cache', function () {
 
     // The override keeps the plugin active, so dropping the built-in from the
     // catalog must not emit a remove for it.
-    const res = await manager._updateLocalPlugins('release', catalogWithoutA, { ...local });
+    const res = await manager._updateLocalPlugins('release', catalogWithoutA, { ...local }, host);
     expect(res.removedUids).to.not.include(pluginAUid);
 
     // Parity: getEnabledPlugins still injects the override

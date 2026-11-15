@@ -3,6 +3,8 @@
 import { describe, it } from 'mocha';
 import * as helpers from '../src/helpers.js';
 import { expect } from 'chai';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 describe('parseMeta', function () {
   it('without arguments', function () {
@@ -87,6 +89,40 @@ describe('fetchResource', function () {
     expect(result.data, 'data exists when HEAD disabled').to.exist;
     expect(result.data, 'data is object').to.be.an.instanceof(Object);
     expect(result.version, 'version exists').to.exist;
+  });
+
+  it('reports network error when connection fails', async function () {
+    const result = await helpers.fetchResource('http://127.0.0.1:1/meta.json');
+    expect(result).to.deep.equal({ data: null, version: null, error: { kind: 'network' } });
+  });
+
+  it('reports http error with status', async function () {
+    const result = await helpers.fetchResource('http://127.0.0.1:31606/release/missing.json');
+    expect(result).to.deep.equal({
+      data: null,
+      version: null,
+      error: { kind: 'http', status: 404 },
+    });
+  });
+
+  it('reports invalid error when JSON cannot be parsed', async function () {
+    const result = await helpers.fetchResource(
+      'http://127.0.0.1:31606/release/total-conversion-build.meta.js',
+      { parseJSON: true }
+    );
+    expect(result).to.deep.equal({ data: null, version: null, error: { kind: 'invalid' } });
+  });
+
+  it('keeps an existing query string intact', async function () {
+    const server = createServer((req, res) => res.end(req.url));
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      const result = await helpers.fetchResource(`http://127.0.0.1:${port}/plugin.js?a=1`);
+      expect(result.data).to.match(/^\/plugin\.js\?a=1&\d+$/);
+    } finally {
+      server.close();
+    }
   });
 });
 

@@ -250,6 +250,7 @@ export interface ManagerConfig {
    * Sends an information message to user.
    * You then need to map the message name to human-readable text in application.
    *
+   * @deprecated Never called; update checks and `managePlugin` return their errors instead.
    * @param message - The name of the message sent to user.
    * @param args - A single substitution string, or an array of substitution strings.
    */
@@ -329,13 +330,91 @@ export interface FetchResourceOptions {
 }
 
 /**
+ * Reason a fetch failed. A plain object so it survives JSON serialization.
+ */
+export type FetchError = {
+  /**
+   * `network` - request failed or timed out, or the body could not be read;
+   * `http` - server answered with a non-2xx status;
+   * `invalid` - `parseJSON` was set and the body is not valid JSON,
+   * or a downloaded userscript has no ==UserScript== header.
+   */
+  kind: 'network' | 'http' | 'invalid';
+  /** HTTP status code, set for `http`. */
+  status?: number;
+};
+
+/**
+ * A file that could not be updated. IITC core is reported as `IITC_CORE_UID`.
+ */
+export interface FailedFile {
+  /** Plugin UID. */
+  uid: string;
+  /** Why the file was not updated. */
+  error: FetchError;
+}
+
+/**
+ * Result of the check for IITC and built-in plugins.
+ */
+export interface InternalCheckResult {
+  /**
+   * `not-due` - skipped, the check is not due yet;
+   * `not-modified` - nothing was downloaded;
+   * `updated` - IITC or plugins were downloaded, or plugins dropped out of the catalog;
+   * `failed` - meta.json was not received, or a file failed with a network error or 5xx.
+   */
+  status: 'not-due' | 'not-modified' | 'updated' | 'failed';
+  /** Why meta.json was not received. */
+  error?: FetchError;
+  /** Files that failed in this check; they are retried on the next one. */
+  failed: FailedFile[];
+}
+
+/**
+ * Result of the check for external (user) plugins.
+ */
+export interface ExternalCheckResult {
+  /**
+   * `not-due` - skipped, the check is not due yet;
+   * `checked` - plugins were checked, some may have failed;
+   * `failed` - every plugin failed with a network error.
+   */
+  status: 'not-due' | 'checked' | 'failed';
+  /** UIDs of updated plugins. */
+  updated: string[];
+  /** Plugins that could not be checked or downloaded. */
+  failed: FailedFile[];
+}
+
+/**
+ * Result of `Manager.managePlugin()`. Enabling fails if the plugin code could not be downloaded,
+ * or the plugin is neither installed nor in the catalog of the current channel (`not-in-catalog`).
+ */
+export type ManagePluginResult =
+  | { ok: true }
+  | { ok: false; error: FetchError | { kind: 'not-in-catalog' } };
+
+/**
+ * Result of an update check.
+ */
+export interface UpdateCheckResult {
+  /** False if the check for IITC and built-in plugins failed. */
+  ok: boolean;
+  internal: InternalCheckResult;
+  external: ExternalCheckResult;
+}
+
+/**
  * Result of fetchResource function.
  */
 export interface FetchResourceResult {
-  /** Response data: parsed JSON object, text string, or null for HEAD requests. */
+  /** Response data: parsed JSON object, text string, or null for HEAD requests and on error. */
   data: string | object | null;
-  /** Resource version from Last-Modified header, or null if unavailable. */
+  /** Resource version from ETag or Last-Modified header, or null if unavailable. */
   version: string | null;
+  /** Set only when the request failed. */
+  error?: FetchError;
 }
 
 /**
@@ -406,6 +485,37 @@ export type UpdateType = 'local' | 'user';
  * @internal
  */
 export type RequestVariant = 'parseJSON' | 'head' | null;
+
+// A type alias, not an interface, so it is assignable to StorageValue
+/**
+ * Pause after failed update checks.
+ */
+export type UpdateCheckRetry = {
+  /** Consecutive failed checks. */
+  failures: number;
+  /** Unix time in seconds before which no scheduled check runs. */
+  at: number;
+  /** Error of the last failed check. */
+  error?: FetchError;
+};
+
+/**
+ * State of one kind of update check, read from storage without network requests.
+ */
+export interface CheckStatus {
+  /** Unix time in seconds of the last check that did not fail, or null. */
+  lastCheck: number | null;
+  /** Pause after failed checks, or null. */
+  retry: UpdateCheckRetry | null;
+}
+
+/**
+ * State of update checks, returned by `Manager.getUpdateStatus()`.
+ */
+export interface UpdateStatus {
+  internal: CheckStatus;
+  external: CheckStatus;
+}
 
 /**
  * Ingress domain types.

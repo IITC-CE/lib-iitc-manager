@@ -32,7 +32,7 @@ describe('manage.js custom repo integration tests', function () {
   describe('run', function () {
     it('Should not return an error', async function () {
       const run = await manager!.run();
-      expect(run).to.be.undefined;
+      expect(run.ok).to.be.true;
     });
   });
 
@@ -53,7 +53,7 @@ describe('manage.js custom repo integration tests', function () {
 
     it('Switching to a custom channel', async function () {
       const channel = await manager!.setChannel('custom');
-      expect(channel).to.be.undefined;
+      expect(channel.ok).to.be.true;
     });
 
     it('Check the IITC version', async function () {
@@ -65,7 +65,7 @@ describe('manage.js custom repo integration tests', function () {
 
     it('Switching back to the Release channel', async function () {
       const channel = await manager!.setChannel('release');
-      expect(channel).to.be.undefined;
+      expect(channel.ok).to.be.true;
     });
   });
 });

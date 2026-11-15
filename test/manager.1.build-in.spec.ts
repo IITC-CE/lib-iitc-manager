@@ -46,7 +46,7 @@ describe('manage.js build-in plugins integration tests', function () {
   describe('run', function () {
     it('Should not return an error', async function () {
       const run = await manager!.run();
-      expect(run).to.be.undefined;
+      expect(run.ok).to.be.true;
     });
   });
 
@@ -60,7 +60,7 @@ describe('manage.js build-in plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(firstPluginUid, 'on');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get([
         'release_plugins_catalog',
@@ -97,7 +97,7 @@ describe('manage.js build-in plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(secondPluginUid, 'on');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get([
         'release_plugins_catalog',
@@ -137,7 +137,7 @@ describe('manage.js build-in plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(firstPluginUid, 'off');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get([
         'release_plugins_catalog',
@@ -281,7 +281,7 @@ describe('Delete external plugins - comprehensive tests', function () {
   it('should correctly handle deletion of plugin with override flag', async function () {
     // First, load built-in plugins through manager.run()
     const run = await manager!.run();
-    expect(run).to.be.undefined;
+    expect(run.ok).to.be.true;
 
     // Setup: Add external plugin that overrides built-in plugin
     const builtInUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
