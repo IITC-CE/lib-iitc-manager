@@ -60,7 +60,7 @@ describe('manage.js build-in plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(firstPluginUid, 'on');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get([
         'release_plugins_catalog',
@@ -97,7 +97,7 @@ describe('manage.js build-in plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(secondPluginUid, 'on');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get([
         'release_plugins_catalog',
@@ -137,7 +137,7 @@ describe('manage.js build-in plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(firstPluginUid, 'off');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get([
         'release_plugins_catalog',

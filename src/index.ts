@@ -72,6 +72,7 @@ export type {
   InternalCheckResult,
   ExternalCheckResult,
   UpdateCheckResult,
+  ManagePluginResult,
   UpdateCheckRetry,
   CheckStatus,
   UpdateStatus,

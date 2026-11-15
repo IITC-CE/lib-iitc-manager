@@ -387,6 +387,14 @@ export interface ExternalCheckResult {
 }
 
 /**
+ * Result of `Manager.managePlugin()`. Enabling fails if the plugin code could not be downloaded,
+ * or the plugin is neither installed nor in the catalog of the current channel (`not-in-catalog`).
+ */
+export type ManagePluginResult =
+  | { ok: true }
+  | { ok: false; error: FetchError | { kind: 'not-in-catalog' } };
+
+/**
  * Result of an update check.
  */
 export interface UpdateCheckResult {

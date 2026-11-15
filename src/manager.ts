@@ -18,6 +18,7 @@ import type {
   UpdateCheckResult,
   UpdateCheckRetry,
   UpdateStatus,
+  ManagePluginResult,
 } from './types.js';
 
 /**
@@ -304,8 +305,9 @@ export class Manager extends Worker {
    *
    * @param uid - Unique identifier of the plugin.
    * @param action - Type of action with the plugin.
+   * @returns `ok: false` if enabling failed; nothing is changed then.
    */
-  async managePlugin(uid: string, action: 'on' | 'off' | 'delete'): Promise<void> {
+  async managePlugin(uid: string, action: 'on' | 'off' | 'delete'): Promise<ManagePluginResult> {
     await this.ready;
     const channel = this.channel;
     const host = this.networkHost[channel];
@@ -327,41 +329,32 @@ export class Manager extends Worker {
     const isUserPlugin = uid in pluginsUser;
 
     if (action === 'on') {
-      if (isUserPlugin || pluginsLocal[uid] !== undefined) {
-        pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
-        // User plugins carry their own metadata; built-ins merge catalog metadata
-        // (incl. `match`) with the cached code, or stay silent if absent from the catalog.
-        if (isUserPlugin) {
-          await this._injectWithGmApi(pluginsUser[uid]);
-        } else if (pluginsCatalog[uid]) {
-          await this._injectWithGmApi({
-            ...pluginsCatalog[uid],
-            code: pluginsLocal[uid]['code'],
-          } as Plugin);
-        }
-        await this._save(channel, { plugins_state: pluginsState });
-        await this._sendPluginsEvent(channel, [uid], 'add');
-      } else {
-        const filename = pluginsCatalog[uid]?.['filename'];
-        const result = await this._getUrl(`${host}/plugins/${filename}`);
-        if (result.data) {
-          // `plugins_local` is a pure code cache; catalog carries the metadata
-          pluginsLocal[uid] = {
-            code: result.data as string,
-            filename: filename,
-            updatedAt: currentTime,
-          } as Plugin;
-          pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
-
-          await this._injectWithGmApi({
-            ...pluginsCatalog[uid],
-            code: result.data as string,
-          } as Plugin);
-
-          await this._save(channel, { plugins_local: pluginsLocal, plugins_state: pluginsState });
-          await this._sendPluginsEvent(channel, [uid], 'add');
-        }
+      const download = !isUserPlugin && pluginsLocal[uid] === undefined;
+      if (download) {
+        const filename = pluginsCatalog[uid]?.filename;
+        if (!filename) return { ok: false, error: { kind: 'not-in-catalog' } };
+        const result = await this._fetchUserscript(`${host}/plugins/${filename}`);
+        if ('error' in result) return { ok: false, error: result.error };
+        // `plugins_local` is a pure code cache; catalog carries the metadata
+        pluginsLocal[uid] = { code: result.code, filename, updatedAt: currentTime } as Plugin;
       }
+
+      pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
+      // User plugins carry their own metadata; built-ins merge catalog metadata
+      // (incl. `match`) with the cached code, or stay silent if absent from the catalog.
+      if (isUserPlugin) {
+        await this._injectWithGmApi(pluginsUser[uid]);
+      } else if (pluginsCatalog[uid]) {
+        await this._injectWithGmApi({
+          ...pluginsCatalog[uid],
+          code: pluginsLocal[uid]['code'],
+        } as Plugin);
+      }
+      await this._save(channel, {
+        ...(download ? { plugins_local: pluginsLocal } : {}),
+        plugins_state: pluginsState,
+      });
+      await this._sendPluginsEvent(channel, [uid], 'add');
     }
     if (action === 'off') {
       pluginsState[uid] = { status: 'off', statusChangedAt: currentTime };
@@ -384,6 +377,7 @@ export class Manager extends Worker {
         }
       }
     }
+    return { ok: true };
   }
 
   /**

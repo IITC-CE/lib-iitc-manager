@@ -298,7 +298,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(external2Uid, 'off');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get([
         'release_plugins_catalog',
@@ -330,7 +330,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(external2Uid, 'on');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get([
         'release_plugins_catalog',
@@ -362,7 +362,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(external2Uid, 'delete');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get(['release_plugins_catalog', 'plugins_user']);
       expect(dbData['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
@@ -382,7 +382,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(external1Uid, 'delete');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get(['release_plugins_catalog', 'plugins_user']);
       expect(dbData['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
@@ -465,7 +465,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(external1Uid, 'delete');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get(['release_plugins_catalog', 'plugins_user']);
       expect(dbData['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
@@ -556,7 +556,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(external1Uid, 'off');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get([
         'release_plugins_catalog',
@@ -585,7 +585,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(external1Uid, 'delete');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get(['release_plugins_catalog', 'plugins_user']);
       expect(dbData['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
@@ -730,7 +730,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(external3Uid, 'delete');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get(['release_plugins_catalog', 'plugins_user']);
       expect(dbData['release_plugins_catalog'], 'release_plugins_catalog').to.have.all.keys(
@@ -754,7 +754,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run1 = await manager!.managePlugin(external3Uid, 'on');
-      expect(run1).to.be.undefined;
+      expect(run1).to.deep.equal({ ok: true });
 
       pluginEventCallback = (data: PluginEventData) => {
         expect(data).to.have.all.keys('event', 'plugins');
@@ -764,7 +764,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run2 = await manager!.managePlugin(external3Uid, 'off');
-      expect(run2).to.be.undefined;
+      expect(run2).to.deep.equal({ ok: true });
 
       const dbData = await storage.get(['release_plugins_local', 'plugins_state']);
       const pluginsLocal = dbData['release_plugins_local'] as StorageData;
@@ -839,7 +839,7 @@ describe('manage.js external plugins integration tests', function () {
       };
 
       const run = await manager!.managePlugin(iitcCustomUid, 'delete');
-      expect(run).to.be.undefined;
+      expect(run).to.deep.equal({ ok: true });
 
       const dbData = await storage.get(['iitc_core_user']);
       expect(dbData['iitc_core_user']).to.be.null;
