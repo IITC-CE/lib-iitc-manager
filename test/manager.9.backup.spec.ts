@@ -275,3 +275,43 @@ describe('setBackupData preserves the disabled state of restored external plugin
     expect(entry['status']).to.equal('off');
   });
 });
+
+describe('setBackupData with a backup that has no usable channel', function () {
+  // IITC Button imports settings even from a backup exported without them
+  const cases: [string, StorageData][] = [
+    ['no channel', {}],
+    ['an unknown channel', { channel: 'unknown' }],
+  ];
+
+  for (const [title, channelSetting] of cases) {
+    it(`Keeps the current channel when the backup has ${title}`, async function () {
+      storage.resetStorage();
+      const manager = new Manager({
+        storage: storage,
+        channel: 'beta',
+        networkHost: {
+          release: 'http://127.0.0.1:31606/release',
+          beta: 'http://127.0.0.1:31606/beta',
+          custom: 'http://127.0.0.1/',
+        },
+        isDaemon: false,
+      });
+
+      await manager.setBackupData(
+        { settings: true },
+        {
+          external_plugins: {},
+          data: {
+            iitc_settings: { ...channelSetting, release_update_check_interval: 3600 },
+            plugins_data: {},
+            app: 'IITC Button',
+          },
+        }
+      );
+
+      expect(manager.channel).to.equal('beta');
+      const stored = await storage.get(['channel', 'release_update_check_interval']);
+      expect(stored).to.deep.equal({ channel: 'beta', release_update_check_interval: 3600 });
+    });
+  }
+});

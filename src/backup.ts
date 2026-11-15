@@ -2,7 +2,7 @@
 
 import { isSet, parseMeta, sanitizeFileName } from './helpers.js';
 import deepmerge from '@bundled-es-modules/deepmerge';
-import type { BackupParams, StorageData } from './types.js';
+import type { BackupParams, Channel, StorageData } from './types.js';
 import type { Manager } from './manager.js';
 
 /**
@@ -141,16 +141,14 @@ export const exportExternalPlugins = (
  */
 export const importIitcSettings = async (self: Manager, backup: StorageData): Promise<void> => {
   const backupObj = Object.assign({}, backup);
-  const defaultChannel = self.channel;
+  // Backups exported without settings have no channel
+  const channel = backupObj.channel as Channel;
+  const isChannel = ['release', 'beta', 'custom'].includes(channel);
+  if (!isChannel) delete backupObj.channel;
 
-  // Set the IITC settings from the backup object into the storage
   await self.storage.set(backupObj);
 
-  // Check if the channel in the backup object is different from the original channel
-  const setChannel = backupObj.channel as import('./types.js').Channel;
-  if (setChannel !== defaultChannel) {
-    await self.setChannel(setChannel);
-  }
+  if (isChannel && channel !== self.channel) await self.setChannel(channel);
 };
 
 /**
