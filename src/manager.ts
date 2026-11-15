@@ -1,7 +1,7 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
 import { Worker, IITC_CORE_UID, GM_API_UID, GM_API_DEFAULT_MATCH } from './worker.js';
-import { getUID, isSet, parseMeta, sanitizeFileName } from './helpers.js';
+import { getUID, parseMeta, sanitizeFileName } from './helpers.js';
 import { appendSourceUrl } from './wrapper.js';
 import { aggregateMatchPatterns } from './matching.js';
 import * as backup from './backup.js';
@@ -311,35 +311,29 @@ export class Manager extends Worker {
     await this.ready;
     const channel = this.channel;
     const host = this.networkHost[channel];
-    const local = await this.storage.get([
-      `${channel}_plugins_catalog`,
-      `${channel}_plugins_local`,
-      'plugins_user',
-      'plugins_state',
-    ]);
-
-    const pluginsCatalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
-    let pluginsLocal = local[`${channel}_plugins_local`] as PluginDict;
-    const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
-    const pluginsState = (local['plugins_state'] || {}) as PluginStateDict;
-
-    if (!isSet(pluginsLocal)) pluginsLocal = {};
-
     const currentTime = Math.floor(Date.now() / 1000);
-    const isUserPlugin = uid in pluginsUser;
 
     if (action === 'on') {
-      const download = !isUserPlugin && pluginsLocal[uid] === undefined;
-      if (download) {
+      const local = await this.storage.get([
+        `${channel}_plugins_catalog`,
+        `${channel}_plugins_local`,
+        'plugins_user',
+      ]);
+      const pluginsCatalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
+      const pluginsLocal = (local[`${channel}_plugins_local`] || {}) as PluginDict;
+      const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
+      const isUserPlugin = uid in pluginsUser;
+
+      let downloaded: Plugin | undefined;
+      if (!isUserPlugin && pluginsLocal[uid] === undefined) {
         const filename = pluginsCatalog[uid]?.filename;
         if (!filename) return { ok: false, error: { kind: 'not-in-catalog' } };
         const result = await this._fetchUserscript(`${host}/plugins/${filename}`);
         if ('error' in result) return { ok: false, error: result.error };
         // `plugins_local` is a pure code cache; catalog carries the metadata
-        pluginsLocal[uid] = { code: result.code, filename, updatedAt: currentTime } as Plugin;
+        downloaded = { code: result.code, filename, updatedAt: currentTime } as Plugin;
       }
 
-      pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
       // User plugins carry their own metadata; built-ins merge catalog metadata
       // (incl. `match`) with the cached code, or stay silent if absent from the catalog.
       if (isUserPlugin) {
@@ -347,18 +341,32 @@ export class Manager extends Worker {
       } else if (pluginsCatalog[uid]) {
         await this._injectWithGmApi({
           ...pluginsCatalog[uid],
-          code: pluginsLocal[uid]['code'],
+          code: (downloaded ?? pluginsLocal[uid])['code'],
         } as Plugin);
       }
-      await this._save(channel, {
-        ...(download ? { plugins_local: pluginsLocal } : {}),
-        plugins_state: pluginsState,
+      await this._mutatePlugins(async () => {
+        const localKey = `${channel}_plugins_local`;
+        const current = await this.storage.get([
+          'plugins_state',
+          ...(downloaded ? [localKey] : []),
+        ]);
+        const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
+        pluginsState[uid] = { status: 'on', statusChangedAt: currentTime };
+        const data: StorageData = { plugins_state: pluginsState };
+        if (downloaded) {
+          data.plugins_local = { ...(current[localKey] as PluginDict), [uid]: downloaded };
+        }
+        await this._save(channel, data);
       });
       await this._sendPluginsEvent(channel, [uid], 'add');
     }
     if (action === 'off') {
-      pluginsState[uid] = { status: 'off', statusChangedAt: currentTime };
-      await this._save(channel, { plugins_state: pluginsState });
+      await this._mutatePlugins(async () => {
+        const current = await this.storage.get(['plugins_state']);
+        const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
+        pluginsState[uid] = { status: 'off', statusChangedAt: currentTime };
+        await this._save(channel, { plugins_state: pluginsState });
+      });
       await this._sendPluginsEvent(channel, [uid], 'remove');
     }
     if (action === 'delete') {
@@ -366,12 +374,18 @@ export class Manager extends Worker {
         await this._save(channel, { iitc_core_user: null });
         await this._sendPluginsEvent(channel, [uid], 'update');
       } else {
-        const isEnabled = pluginsState[uid]?.status === 'on';
+        const isEnabled = await this._mutatePlugins(async () => {
+          const current = await this.storage.get(['plugins_user', 'plugins_state']);
+          const pluginsUser = (current['plugins_user'] || {}) as PluginDict;
+          const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
+          const wasEnabled = pluginsState[uid]?.status === 'on';
 
-        delete pluginsUser[uid];
-        pluginsState[uid] = { status: 'off' };
+          delete pluginsUser[uid];
+          pluginsState[uid] = { status: 'off' };
 
-        await this._save(channel, { plugins_user: pluginsUser, plugins_state: pluginsState });
+          await this._save(channel, { plugins_user: pluginsUser, plugins_state: pluginsState });
+          return wasEnabled;
+        });
         if (isEnabled) {
           await this._sendPluginsEvent(channel, [uid], 'remove');
         }
@@ -389,94 +403,92 @@ export class Manager extends Worker {
   async addUserScripts(scripts: UserScript[]): Promise<PluginDict> {
     await this.ready;
     const channel = this.channel;
-    const local = await this.storage.get([
-      'iitc_core_user',
-      `${channel}_plugins_catalog`,
-      `${channel}_plugins_local`,
-      'plugins_user',
-      'plugins_state',
-    ]);
+    const { addedUids, updatedUids, installedScripts } = await this._mutatePlugins(async () => {
+      const local = await this.storage.get([
+        `${channel}_plugins_catalog`,
+        'plugins_user',
+        'plugins_state',
+      ]);
 
-    let iitcCoreUser = local['iitc_core_user'] as Plugin | undefined;
-    const pluginsCatalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
-    let pluginsLocal = local[`${channel}_plugins_local`] as PluginDict;
-    const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
-    const pluginsState = (local['plugins_state'] || {}) as PluginStateDict;
+      let iitcCoreUser: Plugin | undefined;
+      const pluginsCatalog = (local[`${channel}_plugins_catalog`] || {}) as PluginDict;
+      const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
+      const pluginsState = (local['plugins_state'] || {}) as PluginStateDict;
 
-    if (!isSet(pluginsLocal)) pluginsLocal = {};
+      const addedUids: string[] = [];
+      const updatedUids: string[] = [];
+      const installedScripts: PluginDict = {};
+      const currentTime = Math.floor(Date.now() / 1000);
 
-    const addedUids: string[] = [];
-    const updatedUids: string[] = [];
-    const installedScripts: PluginDict = {};
-    const currentTime = Math.floor(Date.now() / 1000);
+      scripts.forEach(script => {
+        const meta = script['meta'];
+        const code = script['code'];
+        const pluginUid = getUID(meta);
 
-    scripts.forEach(script => {
-      const meta = script['meta'];
-      const code = script['code'];
-      const pluginUid = getUID(meta);
+        if (pluginUid === null)
+          throw new Error('The plugin has an incorrect ==UserScript== header');
 
-      if (pluginUid === null) throw new Error('The plugin has an incorrect ==UserScript== header');
-
-      if (pluginUid === IITC_CORE_UID) {
-        iitcCoreUser = Object.assign(meta, {
-          uid: pluginUid,
-          code: code,
-        }) as Plugin;
-        updatedUids.push(pluginUid);
-        installedScripts[pluginUid] = iitcCoreUser;
-      } else {
-        const isUserPlugin = pluginsUser[pluginUid] !== undefined;
-        pluginsUser[pluginUid] = Object.assign(meta, {
-          uid: pluginUid,
-          filename: meta['filename']
-            ? meta['filename']
-            : sanitizeFileName(`${meta['name']}.user.js`),
-          code: code,
-          addedAt: currentTime,
-        }) as Plugin;
-        pluginsState[pluginUid] = { status: 'on', statusChangedAt: currentTime };
-
-        if (pluginUid in pluginsCatalog && !isUserPlugin) {
+        if (pluginUid === IITC_CORE_UID) {
+          iitcCoreUser = Object.assign(meta, {
+            uid: pluginUid,
+            code: code,
+          }) as Plugin;
           updatedUids.push(pluginUid);
-          // Return merged catalog+user view with override flag (mirrors _computePluginsView)
-          const catalogEntry = pluginsCatalog[pluginUid];
-          const userEntry = pluginsUser[pluginUid];
-          const state = pluginsState[pluginUid];
-          const userMeta = parseMeta(userEntry.code ?? '');
-          const overridePlugin: Plugin = {
-            ...catalogEntry,
-            ...(userMeta ?? {}),
-            status: state.status,
-            code: userEntry.code,
-            user: true,
-            override: true,
-            addedAt: userEntry.addedAt,
-            statusChangedAt: state.statusChangedAt,
-          } as Plugin;
-          delete overridePlugin.match;
-          if (userEntry.match !== undefined) overridePlugin.match = userEntry.match;
-          installedScripts[pluginUid] = overridePlugin;
+          installedScripts[pluginUid] = iitcCoreUser;
         } else {
-          if (pluginsUser[pluginUid]['category'] === undefined) {
-            pluginsUser[pluginUid]['category'] = 'Misc';
-          }
-          addedUids.push(pluginUid);
-          const state = pluginsState[pluginUid];
-          installedScripts[pluginUid] = {
-            ...pluginsUser[pluginUid],
-            status: state.status,
-            statusChangedAt: state.statusChangedAt,
-            user: true,
-          };
-        }
-      }
-    });
+          const isUserPlugin = pluginsUser[pluginUid] !== undefined;
+          pluginsUser[pluginUid] = Object.assign(meta, {
+            uid: pluginUid,
+            filename: meta['filename']
+              ? meta['filename']
+              : sanitizeFileName(`${meta['name']}.user.js`),
+            code: code,
+            addedAt: currentTime,
+          }) as Plugin;
+          pluginsState[pluginUid] = { status: 'on', statusChangedAt: currentTime };
 
-    await this._save(channel, {
-      iitc_core_user: iitcCoreUser,
-      plugins_local: pluginsLocal,
-      plugins_user: pluginsUser,
-      plugins_state: pluginsState,
+          if (pluginUid in pluginsCatalog && !isUserPlugin) {
+            updatedUids.push(pluginUid);
+            // Return merged catalog+user view with override flag (mirrors _computePluginsView)
+            const catalogEntry = pluginsCatalog[pluginUid];
+            const userEntry = pluginsUser[pluginUid];
+            const state = pluginsState[pluginUid];
+            const userMeta = parseMeta(userEntry.code ?? '');
+            const overridePlugin: Plugin = {
+              ...catalogEntry,
+              ...(userMeta ?? {}),
+              status: state.status,
+              code: userEntry.code,
+              user: true,
+              override: true,
+              addedAt: userEntry.addedAt,
+              statusChangedAt: state.statusChangedAt,
+            } as Plugin;
+            delete overridePlugin.match;
+            if (userEntry.match !== undefined) overridePlugin.match = userEntry.match;
+            installedScripts[pluginUid] = overridePlugin;
+          } else {
+            if (pluginsUser[pluginUid]['category'] === undefined) {
+              pluginsUser[pluginUid]['category'] = 'Misc';
+            }
+            addedUids.push(pluginUid);
+            const state = pluginsState[pluginUid];
+            installedScripts[pluginUid] = {
+              ...pluginsUser[pluginUid],
+              status: state.status,
+              statusChangedAt: state.statusChangedAt,
+              user: true,
+            };
+          }
+        }
+      });
+
+      await this._save(channel, {
+        ...(iitcCoreUser ? { iitc_core_user: iitcCoreUser } : {}),
+        plugins_user: pluginsUser,
+        plugins_state: pluginsState,
+      });
+      return { addedUids, updatedUids, installedScripts };
     });
 
     if (addedUids.length) await this._sendPluginsEvent(channel, addedUids, 'add');

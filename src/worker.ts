@@ -107,6 +107,8 @@ export class Worker {
   _internalChecks = new CheckSlot<InternalCheckResult>();
   /** @internal */
   _externalChecks = new CheckSlot<ExternalCheckResult>();
+  /** @internal */
+  _pluginsQueue: Promise<unknown> = Promise.resolve();
 
   /** @deprecated Never called. */
   message?: (message: string, args?: string | string[]) => void;
@@ -281,6 +283,19 @@ export class Worker {
     if (affectsView) {
       this._emitPluginsChanged();
     }
+  }
+
+  /**
+   * Runs read-modify-save sections over plugin storage keys one at a time.
+   * `fn` must not wait for network requests or host callbacks.
+   *
+   * @param fn - Section that re-reads the keys it changes and saves them.
+   * @internal
+   */
+  _mutatePlugins<T>(fn: () => Promise<T>): Promise<T> {
+    const result = this._pluginsQueue.then(fn);
+    this._pluginsQueue = result.catch(() => {});
+    return result;
   }
 
   /**
@@ -552,13 +567,28 @@ export class Worker {
       iitcCore = { ...core.meta, uid: getUID(core.meta)!, code: core.code } as Plugin;
     }
 
-    await this._save(channel, {
-      ...(iitcCore ? { iitc_core: iitcCore } : {}),
-      iitc_version: response['iitc_version'],
-      last_modified: lastModified,
-      plugins_catalog: pluginsCatalog,
-      plugins_local: res.pluginsLocal,
-      pending_files: failed.map(f => f.uid),
+    await this._mutatePlugins(async () => {
+      // Plugins may have been enabled while downloading: apply only this check's changes
+      const current = await this.storage.get([`${channel}_plugins_local`, 'plugins_state']);
+      const pluginsLocal = (current[`${channel}_plugins_local`] || {}) as PluginDict;
+      const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
+      for (const uid of [...res.updatedUids, ...res.addedUids]) {
+        pluginsLocal[uid] = res.pluginsLocal[uid];
+      }
+      for (const uid of res.removedUids) {
+        // removedUids also lists enabled plugins that keep their cached code
+        if (!(uid in res.pluginsLocal) && pluginsState[uid]?.status !== 'on') {
+          delete pluginsLocal[uid];
+        }
+      }
+      await this._save(channel, {
+        ...(iitcCore ? { iitc_core: iitcCore } : {}),
+        iitc_version: response['iitc_version'],
+        last_modified: lastModified,
+        plugins_catalog: pluginsCatalog,
+        plugins_local: pluginsLocal,
+        pending_files: failed.map(f => f.uid),
+      });
     });
     if (iitcCore) await this._sendPluginsEvent(channel, [iitcCore['uid']], 'update', 'local');
     if (res.updatedUids.length)
@@ -738,15 +768,18 @@ export class Worker {
 
     let updatedUids: string[] = [];
     if (Object.keys(updates).length) {
-      // Re-read: plugins may have been added, replaced or deleted while downloading
-      const current = await this.storage.get(['plugins_user']);
-      const currentUser = (current['plugins_user'] || {}) as PluginDict;
-      updatedUids = uids.filter(
-        uid => updates[uid] && currentUser[uid] && currentUser[uid].code === pluginsUser[uid].code
-      );
-      for (const uid of updatedUids) currentUser[uid] = updates[uid];
+      updatedUids = await this._mutatePlugins(async () => {
+        // Re-read: plugins may have been added, replaced or deleted while downloading
+        const current = await this.storage.get(['plugins_user']);
+        const currentUser = (current['plugins_user'] || {}) as PluginDict;
+        const changed = uids.filter(
+          uid => updates[uid] && currentUser[uid] && currentUser[uid].code === pluginsUser[uid].code
+        );
+        for (const uid of changed) currentUser[uid] = updates[uid];
+        if (changed.length) await this._save(channel, { plugins_user: currentUser });
+        return changed;
+      });
       if (updatedUids.length) {
-        await this._save(channel, { plugins_user: currentUser });
         await this._sendPluginsEvent(channel, updatedUids, 'update', 'user');
       }
     }
