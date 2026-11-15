@@ -108,6 +108,7 @@ export class Worker {
   /** @internal */
   _externalChecks = new CheckSlot<ExternalCheckResult>();
 
+  /** @deprecated Never called. */
   message?: (message: string, args?: string | string[]) => void;
   onProgress?: (isShow: boolean) => void;
   injectPlugin: (plugin: Plugin) => void | Promise<void>;

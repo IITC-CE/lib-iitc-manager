@@ -18,9 +18,6 @@ import { Manager } from 'lib-iitc-manager';
 
 const manager = new Manager({
     storage: browser.storage.local,
-    message: (message, args) => {
-        console.log("Message for user:", message, args);
-    },
     onProgress: isShow => {
         console.log(isShow ? "Show progress bar" : "Hide progress bar");
     },

@@ -250,6 +250,7 @@ export interface ManagerConfig {
    * Sends an information message to user.
    * You then need to map the message name to human-readable text in application.
    *
+   * @deprecated Never called; update checks and `managePlugin` return their errors instead.
    * @param message - The name of the message sent to user.
    * @param args - A single substitution string, or an array of substitution strings.
    */
