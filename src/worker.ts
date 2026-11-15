@@ -457,8 +457,6 @@ export class Worker {
 
     let result: InternalCheckResult = { status: 'not-due', failed: [] };
     if (force || start >= nextCheck) {
-      clearTimeout(this.updateTimeoutId!);
-      this.updateTimeoutId = null;
       if (force || !isSet(lastModified)) {
         result = await this._updateInternalIITC(channel, storage, host);
       } else {
@@ -477,11 +475,10 @@ export class Worker {
         }
       }
 
-      // Channel changed mid-check: setChannel reset the state and reschedules
-      if (this.channel !== channel) return result;
-
       // The interval may have been changed while the check was running
       updateCheckInterval = await this._readUpdateCheckInterval(channel);
+      // Channel changed mid-check: setChannel reset the state and reschedules
+      if (this.channel !== channel) return result;
       if (result.status !== 'failed') {
         nextCheck = start + updateCheckInterval;
         await this._save(channel, { last_check_update: start, update_check_retry: null });
@@ -494,6 +491,7 @@ export class Worker {
       }
     }
 
+    if (this.channel !== channel) return result;
     this._scheduleCheck('updateTimeoutId', nextCheck, updateCheckInterval, () =>
       this._checkInternalUpdates()
     );
