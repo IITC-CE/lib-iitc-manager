@@ -713,12 +713,18 @@ export class Worker {
         failed.push({ uid, error: code.error });
         return;
       }
+      if (code.code === plugin.code) return;
       updates[uid] = {
-        ...head.meta,
+        ...code.meta,
         uid,
         code: code.code,
-        updatedAt: currentTime,
+        // Set when the plugin was added; the downloaded header may lack them
+        filename: plugin.filename ?? code.meta.filename,
+        category: code.meta.category ?? plugin.category,
+        updateURL: code.meta.updateURL ?? plugin.updateURL,
+        downloadURL: code.meta.downloadURL ?? plugin.downloadURL,
         addedAt: plugin.addedAt,
+        updatedAt: currentTime,
       } as Plugin;
     };
 

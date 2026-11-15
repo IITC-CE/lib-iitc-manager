@@ -124,4 +124,48 @@ describe('External plugin checks', function () {
     const pluginsUser = (await read('plugins_user')) as StorageData;
     expect((pluginsUser[`A+${ns}`] as StorageData).version).to.equal('9.9.9');
   });
+
+  it('keeps fields set when the plugin was added and takes metadata from the code', async function () {
+    const ext = 'https://plugins.example.com';
+    const header = (version: string) =>
+      `// ==UserScript==\n// @name X\n// @namespace ${ns}\n// @version ${version}\n// ==/UserScript==`;
+    await storage.set({ last_check_external_update: null });
+    await manager.addUserScripts([
+      {
+        meta: {
+          name: 'X',
+          namespace: ns,
+          version: '0.0.1',
+          filename: 'custom-x.user.js',
+          updateURL: `${ext}/x.meta.js`,
+          downloadURL: `${ext}/x.user.js`,
+        },
+        code: header('0.0.1'),
+      },
+    ]);
+    // The .meta.js lags behind the code
+    const responses: Record<string, string> = {
+      [`${ext}/x.meta.js`]: header('0.2.0'),
+      [`${ext}/x.user.js`]: header('0.3.0'),
+    };
+    const getUrl = manager._getUrl.bind(manager);
+    manager._getUrl = async (url, variant) =>
+      url in responses ? { data: responses[url], version: null } : getUrl(url, variant);
+
+    await manager.checkUpdates(false);
+
+    const plugin = ((await read('plugins_user')) as StorageData)[`X+${ns}`] as StorageData;
+    expect(plugin).to.include({
+      filename: 'custom-x.user.js',
+      category: 'Misc',
+      version: '0.3.0',
+      updateURL: `${ext}/x.meta.js`,
+      downloadURL: `${ext}/x.user.js`,
+    });
+
+    // Unchanged code is not stored again, though .meta.js still differs from it
+    await storage.set({ last_check_external_update: null });
+    const { external } = await manager.checkUpdates(false);
+    expect(external.updated).to.be.empty;
+  });
 });
