@@ -4,22 +4,27 @@ import { describe, it, beforeEach } from 'mocha';
 import { Manager } from '../src/manager.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
+import type { Plugin, PluginEventData } from '../src/types.js';
 
 const host = 'http://127.0.0.1:31606/release';
+const betaHost = 'http://127.0.0.1:31606/beta';
 const pluginAUrl = `${host}/plugins/plugin-a.user.js`;
 const pluginAUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
 const pluginBUid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
 
 describe('Concurrent plugin changes', function () {
   let manager: Manager;
+  let events: PluginEventData[];
 
   beforeEach(async function () {
     storage.resetStorage();
+    events = [];
     manager = new Manager({
       storage,
       channel: 'release',
-      networkHost: { release: host, beta: host, custom: host },
+      networkHost: { release: host, beta: betaHost, custom: host },
       isDaemon: false,
+      onPluginEvent: e => events.push(e),
     });
     await manager.run();
   });
@@ -41,6 +46,16 @@ describe('Concurrent plugin changes', function () {
       return getUrl(u, variant);
     };
     return { held, release };
+  }
+
+  /** `@version` of the code in each received plugin event. */
+  function versions(): string[] {
+    return events.flatMap(e =>
+      Object.values(e.plugins).flatMap(p => {
+        const version = /@version\s+(\S+)/.exec((p as Plugin).code ?? '')?.[1];
+        return version ? [version] : [];
+      })
+    );
   }
 
   async function expectEnabled(uid: string): Promise<void> {
@@ -76,5 +91,51 @@ describe('Concurrent plugin changes', function () {
 
     await expectEnabled(pluginAUid);
     await expectEnabled(pluginBUid);
+  });
+
+  it('sends no events of the old channel after switching channels', async function () {
+    await manager.managePlugin(pluginAUid, 'on');
+    const { held, release } = holdDownload(`${host}/total-conversion-build.user.js`);
+    const check = manager.checkUpdates(true);
+    await held;
+
+    await manager.setChannel('beta');
+    events = [];
+    release();
+    await check;
+
+    expect(events).to.deep.equal([]);
+  });
+
+  it('enables a plugin on the new channel if the channel changes while downloading it', async function () {
+    const { held, release } = holdDownload(pluginAUrl);
+    const enabling = manager.managePlugin(pluginAUid, 'on');
+    await held;
+
+    await manager.setChannel('beta');
+    events = [];
+    release();
+    expect(await enabling).to.deep.equal({ ok: true });
+
+    // Plugin A on the beta fixture
+    expect(versions()).to.deep.equal(['0.2.0']);
+    await expectEnabled(pluginAUid);
+  });
+
+  it('still disables a user plugin while switching channels', async function () {
+    const meta = {
+      name: 'User plugin',
+      namespace: 'https://example.com',
+      match: ['https://intel.ingress.com/*'],
+    };
+    const code =
+      '// ==UserScript==\n// @name User plugin\n// @namespace https://example.com\n// ==/UserScript==';
+    await manager.addUserScripts([{ meta, code }]);
+    const uid = 'User plugin+https://example.com';
+    events = [];
+
+    await Promise.all([manager.managePlugin(uid, 'off'), manager.setChannel('beta')]);
+
+    expect(events.filter(e => e.event === 'remove' && uid in e.plugins)).to.have.lengthOf(1);
   });
 });

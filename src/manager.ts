@@ -325,14 +325,19 @@ export class Manager extends Worker {
       const isUserPlugin = uid in pluginsUser;
 
       let downloaded: Plugin | undefined;
+      let failure: ManagePluginResult | undefined;
       if (!isUserPlugin && pluginsLocal[uid] === undefined) {
         const filename = pluginsCatalog[uid]?.filename;
-        if (!filename) return { ok: false, error: { kind: 'not-in-catalog' } };
-        const result = await this._fetchUserscript(`${host}/plugins/${filename}`);
-        if ('error' in result) return { ok: false, error: result.error };
+        const result = filename
+          ? await this._fetchUserscript(`${host}/plugins/${filename}`)
+          : { error: { kind: 'not-in-catalog' as const } };
+        if ('error' in result) failure = { ok: false, error: result.error };
         // `plugins_local` is a pure code cache; catalog carries the metadata
-        downloaded = { code: result.code, filename, updatedAt: currentTime } as Plugin;
+        else downloaded = { code: result.code, filename, updatedAt: currentTime } as Plugin;
       }
+      // The channel changed meanwhile: enable the plugin on the new one instead
+      if (this.channel !== channel) return this.managePlugin(uid, action);
+      if (failure) return failure;
 
       // User plugins carry their own metadata; built-ins merge catalog metadata
       // (incl. `match`) with the cached code, or stay silent if absent from the catalog.

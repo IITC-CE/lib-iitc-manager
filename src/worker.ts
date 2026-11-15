@@ -1015,6 +1015,8 @@ export class Worker {
     const allPluginsState = (globalData['plugins_state'] || {}) as PluginStateDict;
 
     const plugins: PluginEventData['plugins'] = {};
+    // Entries that only hold for `channel`: its cached code and the removals its check found
+    const channelScoped: string[] = [];
 
     for (const uid of uids) {
       if (uid === GM_API_UID) continue;
@@ -1055,6 +1057,7 @@ export class Worker {
       if (catalogGap && !isSet(pluginUser) && event !== 'remove') continue;
 
       if (event === 'remove' || (!isSet(pluginLocal) && !isSet(pluginUser))) {
+        if (updateType === 'local') channelScoped.push(uid);
         plugins[uid] = {};
         continue;
       }
@@ -1063,6 +1066,7 @@ export class Worker {
       const useUser = isSet(pluginUser) && (updateType === undefined || updateType === 'user');
 
       if (useLocal) {
+        channelScoped.push(uid);
         plugins[uid] = pluginLocal || {};
       } else if (useUser) {
         plugins[uid] = pluginUser || {};
@@ -1074,6 +1078,7 @@ export class Worker {
       }
     }
 
+    if (channel !== this.channel) for (const uid of channelScoped) delete plugins[uid];
     if (Object.keys(plugins).length) {
       // Wrap plugin code with GM API bindings when gm_api is configured
       if (this.gmApi && (event === 'add' || event === 'update')) {
