@@ -2,7 +2,7 @@
 
 import { isSet, parseMeta, sanitizeFileName } from './helpers.js';
 import deepmerge from '@bundled-es-modules/deepmerge';
-import type { BackupParams, Channel, StorageData } from './types.js';
+import type { BackupParams, Channel, NetworkHost, StorageData } from './types.js';
 import type { Manager } from './manager.js';
 
 /**
@@ -147,6 +147,9 @@ export const importIitcSettings = async (self: Manager, backup: StorageData): Pr
   if (!isChannel) delete backupObj.channel;
 
   await self.storage.set(backupObj);
+
+  // The running manager keeps its own copy of the hosts
+  if (isSet(backupObj.network_host)) self.networkHost = backupObj.network_host as NetworkHost;
 
   if (isChannel && channel !== self.channel) await self.setChannel(channel);
 };

@@ -315,3 +315,39 @@ describe('setBackupData with a backup that has no usable channel', function () {
     });
   }
 });
+
+describe('setBackupData with a backup that changes the custom channel URL', function () {
+  it('Downloads IITC from the imported URL when switching to the custom channel', async function () {
+    storage.resetStorage();
+    const networkHost = {
+      release: 'http://127.0.0.1:31606/release',
+      beta: 'http://127.0.0.1:31606/beta',
+      custom: 'http://127.0.0.1:31606/release',
+    };
+    const manager = new Manager({
+      storage: storage,
+      channel: 'release',
+      networkHost: networkHost,
+      isDaemon: false,
+    });
+
+    await manager.setBackupData(
+      { settings: true },
+      {
+        external_plugins: {},
+        data: {
+          iitc_settings: {
+            channel: 'custom',
+            network_host: { ...networkHost, custom: 'http://127.0.0.1:31606/beta' },
+          },
+          plugins_data: {},
+          app: 'IITC Button',
+        },
+      }
+    );
+
+    // The release fixture has core 0.32.1, the beta fixture 0.33.0
+    const core = (await storage.get(['custom_iitc_core']))['custom_iitc_core'] as StorageData;
+    expect(core['version']).to.equal('0.33.0');
+  });
+});
