@@ -1,10 +1,17 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { describe, it, before } from 'mocha';
+import { describe, it, before, beforeEach } from 'mocha';
 import { Manager } from '../src/manager.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
-import type { BackupData, ManagerConfig, Plugin, PluginDict, StorageData } from '../src/types.js';
+import type {
+  BackupData,
+  ManagerConfig,
+  Plugin,
+  PluginDict,
+  PluginEventData,
+  StorageData,
+} from '../src/types.js';
 
 describe('getBackupData and setBackupData', function () {
   let manager: Manager | null = null;
@@ -349,5 +356,90 @@ describe('setBackupData with a backup that changes the custom channel URL', func
     // The release fixture has core 0.32.1, the beta fixture 0.33.0
     const core = (await storage.get(['custom_iitc_core']))['custom_iitc_core'] as StorageData;
     expect(core['version']).to.equal('0.33.0');
+  });
+});
+
+describe('setBackupData with a backup that changes which plugins are enabled', function () {
+  const pluginAUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const pluginBUid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  let manager: Manager;
+  let events: PluginEventData[];
+
+  beforeEach(async function () {
+    storage.resetStorage();
+    events = [];
+    manager = new Manager({
+      storage: storage,
+      channel: 'release',
+      networkHost: {
+        release: 'http://127.0.0.1:31606/release',
+        beta: 'http://127.0.0.1:31606/beta',
+        custom: 'http://127.0.0.1/',
+      },
+      isDaemon: false,
+      onPluginEvent: e => events.push(e),
+    });
+    await manager.run();
+  });
+
+  /** Imports `settings` on the unchanged channel. */
+  async function importSettings(settings: StorageData): Promise<void> {
+    events = [];
+    await manager.setBackupData(
+      { settings: true },
+      {
+        external_plugins: {},
+        data: {
+          iitc_settings: { channel: 'release', ...settings },
+          plugins_data: {},
+          app: 'IITC Button',
+        },
+      }
+    );
+  }
+
+  /** Code carried by each `add` event for `uid`. */
+  function addedCode(uid: string): (string | undefined)[] {
+    return events
+      .filter(e => e.event === 'add' && uid in e.plugins)
+      .map(e => (e.plugins[uid] as Plugin).code);
+  }
+
+  it('Sends a remove event for an enabled plugin missing from the backup', async function () {
+    await manager.managePlugin(pluginBUid, 'on');
+
+    await importSettings({ plugins_state: {} });
+
+    expect(events.filter(e => e.event === 'remove' && pluginBUid in e.plugins)).to.have.lengthOf(1);
+  });
+
+  it('Sends no remove event when the backup has no plugin state', async function () {
+    await manager.managePlugin(pluginBUid, 'on');
+
+    await importSettings({});
+
+    expect(events.filter(e => e.event === 'remove')).to.be.empty;
+  });
+
+  it('Downloads a built-in plugin enabled by the backup', async function () {
+    await importSettings({ plugins_state: { [pluginAUid]: { status: 'on' } } });
+
+    const code = (await manager.getEnabledPlugins())[pluginAUid]?.code;
+    expect(code).to.be.a('string').and.include('Plugin A');
+    expect(addedCode(pluginAUid)).to.deep.equal([code]);
+  });
+
+  it('Sends an add event for a disabled user plugin enabled by the backup', async function () {
+    const code =
+      '// ==UserScript==\n// @name User plugin\n// @namespace https://example.com\n// ==/UserScript==';
+    const uid = 'User plugin+https://example.com';
+    await manager.addUserScripts([
+      { meta: { name: 'User plugin', namespace: 'https://example.com' }, code },
+    ]);
+    await manager.managePlugin(uid, 'off');
+
+    await importSettings({ plugins_state: { [uid]: { status: 'on' } } });
+
+    expect(addedCode(uid)).to.deep.equal([code]);
   });
 });

@@ -2,7 +2,14 @@
 
 import { isSet, parseMeta, sanitizeFileName } from './helpers.js';
 import deepmerge from '@bundled-es-modules/deepmerge';
-import type { BackupParams, Channel, NetworkHost, StorageData } from './types.js';
+import type {
+  BackupParams,
+  Channel,
+  NetworkHost,
+  PluginDict,
+  PluginStateDict,
+  StorageData,
+} from './types.js';
 import type { Manager } from './manager.js';
 
 /**
@@ -134,7 +141,8 @@ export const exportExternalPlugins = (
 };
 
 /**
- * Imports IITC settings from the provided backup object.
+ * Imports IITC settings from the backup object, notifies the host of plugins it disables
+ * or enables, and runs a forced update check.
  *
  * @param self - IITC manager object.
  * @param backup - The backup object containing IITC settings to import.
@@ -146,12 +154,33 @@ export const importIitcSettings = async (self: Manager, backup: StorageData): Pr
   const isChannel = ['release', 'beta', 'custom'].includes(channel);
   if (!isChannel) delete backupObj.channel;
 
-  await self.storage.set(backupObj);
+  const enabledUids = (storage: StorageData): string[] => {
+    const pluginsState = (storage['plugins_state'] || {}) as PluginStateDict;
+    return Object.keys(pluginsState).filter(uid => pluginsState[uid]?.status === 'on');
+  };
+  const { removed, added } = await self._mutatePlugins(async () => {
+    const old = await self.storage.get(['plugins_state', 'plugins_user']);
+    const before = enabledUids(old);
+    await self.storage.set(backupObj);
+    // A backup without plugins_state keeps the stored one
+    const after = enabledUids(await self.storage.get(['plugins_state']));
+    const pluginsUser = (old['plugins_user'] || {}) as PluginDict;
+    return {
+      removed: before.filter(uid => !after.includes(uid)),
+      // Built-ins may have no cached code yet; the forced check announces them
+      added: after.filter(uid => !before.includes(uid) && uid in pluginsUser),
+    };
+  });
 
   // The running manager keeps its own copy of the hosts
   if (isSet(backupObj.network_host)) self.networkHost = backupObj.network_host as NetworkHost;
 
+  if (removed.length) await self._sendPluginsEvent(self.channel, removed, 'remove');
+  if (added.length) await self._sendPluginsEvent(self.channel, added, 'add');
+
+  // setChannel runs the same forced check
   if (isChannel && channel !== self.channel) await self.setChannel(channel);
+  else await self.checkUpdates(true);
 };
 
 /**
