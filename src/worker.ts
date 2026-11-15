@@ -500,6 +500,7 @@ export class Worker {
 
   /**
    * Re-arms a daemon timer to fire at `nextCheck`, but no later than `interval` from now.
+   * A rejected check never reaches its own re-arm, so it is retried after a pause.
    *
    * @param timer - Timer field to re-arm.
    * @param nextCheck - Unix time in seconds when the check is due.
@@ -517,7 +518,16 @@ export class Worker {
     this[timer] = null;
     if (!this.isDaemon) return;
     const delay = Math.min(Math.max(0, nextCheck - unixNow()), interval);
-    this[timer] = setTimeout(check, delay * 1000);
+    const id = setTimeout(() => {
+      check().catch(error => {
+        console.error('Update check failed:', error);
+        // Another check may have re-armed the timer meanwhile
+        if (this[timer] === id) {
+          this._scheduleCheck(timer, unixNow() + MAX_RETRY_PAUSE, interval, check);
+        }
+      });
+    }, delay * 1000);
+    this[timer] = id;
   }
 
   /**
@@ -680,8 +690,6 @@ export class Worker {
     let nextCheck = Math.max(scheduled(), retryEnd(retry, start));
     let result: ExternalCheckResult = { status: 'not-due', updated: [], failed: [] };
     if (force || start >= nextCheck) {
-      clearTimeout(this.externalUpdateTimeoutId!);
-      this.externalUpdateTimeoutId = null;
       const { reached, updated, failed } = await this._updateExternalPlugins(channel, local);
       const offline =
         !reached && failed.length > 0 && failed.every(f => f.error.kind === 'network');

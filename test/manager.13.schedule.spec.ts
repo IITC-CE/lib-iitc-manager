@@ -9,6 +9,7 @@ import type { StorageAPI, StorageData } from '../src/types.js';
 const fixtureHost = 'http://127.0.0.1:31606/release';
 const offlineHost = 'http://127.0.0.1:1/release';
 const now = () => Math.floor(Date.now() / 1000);
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /** Creates a manager and records every requested URL. */
 function createManager(
@@ -111,6 +112,28 @@ describe('Update check schedule', function () {
     expect((retry.at as number) - now()).to.be.within(0, 60);
   });
 
+  it('a daemon timer whose check throws is logged and armed again', async function () {
+    const { manager } = createManager(fixtureHost);
+    await manager.ready;
+    manager.isDaemon = true;
+    const error = new Error('quota exceeded');
+    const logged: unknown[] = [];
+    const consoleError = console.error;
+    console.error = (...args: unknown[]) => void logged.push(...args);
+    let calls = 0;
+    try {
+      // The interval caps the pause after a failure; the second call does not re-arm
+      manager._scheduleCheck('updateTimeoutId', 0, 0.05, async () => {
+        if (++calls === 1) throw error;
+      });
+      await sleep(200);
+    } finally {
+      console.error = consoleError;
+    }
+    expect(calls).to.equal(2);
+    expect(logged).to.include(error);
+  });
+
   describe('external plugins', function () {
     const pluginUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
     const metaUrl = `${fixtureHost}/plugins/plugin-a.meta.js`;
@@ -146,6 +169,28 @@ describe('Update check schedule', function () {
       await manager.checkUpdates(false);
       expect(urls.some(url => url.startsWith(metaUrl))).to.be.false;
       expect(data.last_check_external_update).to.equal(lastCheck);
+    });
+
+    it('a failed check called by the app keeps the daemon timer armed', async function () {
+      let full = false;
+      const { manager } = createManager(fixtureHost, {
+        get: plainStorage.get,
+        set: async obj => {
+          if (full) throw new Error('quota exceeded');
+          await plainStorage.set(obj);
+        },
+      });
+      await manager.ready;
+      manager.isDaemon = true;
+      let fired = false;
+      manager._scheduleCheck('externalUpdateTimeoutId', 0, 0.05, async () => {
+        fired = true;
+      });
+      full = true;
+      const failure = await manager._checkExternalUpdates(true).catch((e: Error) => e);
+      expect(failure).to.be.an('error').with.property('message', 'quota exceeded');
+      await sleep(100);
+      expect(fired).to.be.true;
     });
   });
 });
