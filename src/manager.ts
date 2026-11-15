@@ -335,8 +335,10 @@ export class Manager extends Worker {
         // `plugins_local` is a pure code cache; catalog carries the metadata
         else downloaded = { code: result.code, filename, updatedAt: currentTime } as Plugin;
       }
-      // The channel changed meanwhile: enable the plugin on the new one instead
-      if (this.channel !== channel) return this.managePlugin(uid, action);
+      // The channel or host changed meanwhile: enable the plugin on the new one instead
+      if (this.channel !== channel || this.networkHost[channel] !== host) {
+        return this.managePlugin(uid, action);
+      }
       if (failure) return failure;
 
       // User plugins carry their own metadata; built-ins merge catalog metadata

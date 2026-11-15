@@ -138,4 +138,56 @@ describe('Concurrent plugin changes', function () {
 
     expect(events.filter(e => e.event === 'remove' && uid in e.plugins)).to.have.lengthOf(1);
   });
+
+  describe('custom URL changed while downloading', function () {
+    beforeEach(async function () {
+      await manager.setChannel('custom');
+    });
+
+    it('keeps the data of the new host when the old-host check ends', async function () {
+      const { held, release } = holdDownload(`${host}/total-conversion-build.user.js`);
+      const oldCheck = manager.checkUpdates(true);
+      await held;
+
+      await manager.setCustomChannelUrl(betaHost);
+      await manager.checkUpdates(true);
+      events = [];
+      release();
+      await oldCheck;
+
+      const { custom_iitc_core: core } = await storage.get(['custom_iitc_core']);
+      // IITC core on the beta fixture
+      expect((core as Plugin).version).to.equal('0.33.0');
+      expect(events).to.deep.equal([]);
+    });
+
+    it('does not count the old-host check as a check of the new host', async function () {
+      await storage.set({ last_check_update: 1 });
+      const { held, release } = holdDownload(`${host}/meta.json`);
+      const oldCheck = manager.checkUpdates();
+      await held;
+
+      await manager.setCustomChannelUrl(betaHost);
+      release();
+      await oldCheck;
+
+      expect((await manager.getUpdateStatus()).internal.lastCheck).to.equal(1);
+    });
+
+    it('enables a plugin with the code of the new host', async function () {
+      const { held, release } = holdDownload(pluginAUrl);
+      const enabling = manager.managePlugin(pluginAUid, 'on');
+      await held;
+
+      await manager.setCustomChannelUrl(betaHost);
+      await manager.checkUpdates(true);
+      events = [];
+      release();
+      expect(await enabling).to.deep.equal({ ok: true });
+
+      // Plugin A on the beta fixture
+      expect(versions()).to.deep.equal(['0.2.0']);
+      await expectEnabled(pluginAUid);
+    });
+  });
 });

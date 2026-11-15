@@ -479,15 +479,18 @@ export class Worker {
       updateCheckInterval = await this._readUpdateCheckInterval(channel);
       // Channel changed mid-check: setChannel reset the state and reschedules
       if (this.channel !== channel) return result;
-      if (result.status !== 'failed') {
-        nextCheck = start + updateCheckInterval;
-        await this._save(channel, { last_check_update: start, update_check_retry: null });
-      } else {
-        const error = result.error ?? result.failed.find(f => isTransient(f.error))?.error;
-        // A channel that was never fetched has no catalog yet, so retry it sooner
-        const next = nextRetry(retry, error, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
-        nextCheck = Math.max(scheduled(), next.at);
-        await this._save(channel, { update_check_retry: next });
+      // Host changed mid-check: the new host was not checked, so record nothing
+      if (this.networkHost[channel] === host) {
+        if (result.status !== 'failed') {
+          nextCheck = start + updateCheckInterval;
+          await this._save(channel, { last_check_update: start, update_check_retry: null });
+        } else {
+          const error = result.error ?? result.failed.find(f => isTransient(f.error))?.error;
+          // A channel that was never fetched has no catalog yet, so retry it sooner
+          const next = nextRetry(retry, error, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
+          nextCheck = Math.max(scheduled(), next.at);
+          await this._save(channel, { update_check_retry: next });
+        }
       }
     }
 
@@ -575,9 +578,11 @@ export class Worker {
       iitcCore = { ...core.meta, uid: getUID(core.meta)!, code: core.code } as Plugin;
     }
 
-    await this._mutatePlugins(async () => {
+    const saved = await this._mutatePlugins(async () => {
       // Plugins may have been enabled while downloading: apply only this check's changes
       const current = await this.storage.get([`${channel}_plugins_local`, 'plugins_state']);
+      // Host changed while downloading: the files are from the old one
+      if (this.networkHost[channel] !== host) return false;
       const pluginsLocal = (current[`${channel}_plugins_local`] || {}) as PluginDict;
       const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
       for (const uid of [...res.updatedUids, ...res.addedUids]) {
@@ -597,7 +602,9 @@ export class Worker {
         plugins_local: pluginsLocal,
         pending_files: failed.map(f => f.uid),
       });
+      return true;
     });
+    if (!saved) return { status: 'not-modified', failed: [] };
     if (iitcCore) await this._sendPluginsEvent(channel, [iitcCore['uid']], 'update', 'local');
     if (res.updatedUids.length)
       await this._sendPluginsEvent(channel, res.updatedUids, 'update', 'local');
