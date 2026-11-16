@@ -176,12 +176,10 @@ describe('Cross-channel plugin state preservation', function () {
 
     before(async function () {
       storage.resetStorage();
-      // Simulate scenario: plugins_state says Beta plugin A is on but local cache is empty.
-      // This can happen after a storage migration or when switching to a channel that
-      // now includes a plugin the user had previously enabled.
+      // plugins_state has Beta plugin A on, but the channel was never checked:
+      // `beta_plugins_local` is unset, as after a settings import on a fresh install.
       await storage.set({
         plugins_state: { [drawToolsUid]: { status: 'on' } },
-        beta_plugins_local: {},
       });
       manager = new Manager({
         ...baseConfig,

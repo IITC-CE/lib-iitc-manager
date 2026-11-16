@@ -51,12 +51,6 @@ export class Manager extends Worker {
       update_check_retry: null,
     });
 
-    // Ensure local code cache exists for new channel
-    const newChannelData = await this.storage.get([`${channel}_plugins_local`]);
-    if (!newChannelData[`${channel}_plugins_local`]) {
-      await this.storage.set({ [`${channel}_plugins_local`]: {} });
-    }
-
     // checkUpdates fires 'update' for IITC core and re-injects enabled built-ins
     return this.checkUpdates(true);
   }

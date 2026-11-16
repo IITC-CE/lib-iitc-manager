@@ -562,7 +562,7 @@ export class Worker {
         : undefined;
 
     const pluginsCatalog = this._getPluginsCatalog(response);
-    const pluginsLocal = local[`${channel}_plugins_local`] as PluginDict;
+    const pluginsLocal = (local[`${channel}_plugins_local`] || {}) as PluginDict;
 
     const [core, res] = await Promise.all([
       !only || only.has(IITC_CORE_UID)
@@ -822,9 +822,6 @@ export class Worker {
     removedUids: string[];
     failed: FailedFile[];
   }> {
-    if (!isSet(pluginsLocal))
-      return { pluginsLocal: {}, addedUids: [], updatedUids: [], removedUids: [], failed: [] };
-
     const updatedUids: string[] = [];
     const removedUids: string[] = [];
     const addedUids: string[] = [];
