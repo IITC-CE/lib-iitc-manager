@@ -47,6 +47,9 @@ const isTransient = (error: FetchError): boolean =>
 /** Longest pause after failed update checks, in seconds. */
 const MAX_RETRY_PAUSE = 30 * 60;
 
+/** Longest delay `setTimeout` accepts, in milliseconds; a longer one fires at once. */
+const MAX_TIMER_DELAY = 2 ** 31 - 1;
+
 /** End of the pause in `retry`, at most 30 min from `now` in case the clock moved back. */
 const retryEnd = (retry: UpdateCheckRetry | null | undefined, now: number): number =>
   Math.min(retry?.at ?? 0, now + MAX_RETRY_PAUSE);
@@ -529,7 +532,7 @@ export class Worker {
           this._scheduleCheck(timer, unixNow() + MAX_RETRY_PAUSE, interval, check);
         }
       });
-    }, delay * 1000);
+    }, Math.min(delay * 1000, MAX_TIMER_DELAY));
     this[timer] = id;
   }
 

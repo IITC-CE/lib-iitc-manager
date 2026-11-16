@@ -134,6 +134,22 @@ describe('Update check schedule', function () {
     expect(logged).to.include(error);
   });
 
+  it('a daemon timer does not fire early when the interval is longer than setTimeout allows', async function () {
+    const { manager } = createManager(fixtureHost);
+    await manager.ready;
+    manager.isDaemon = true;
+    const month = 30 * 24 * 60 * 60;
+    let calls = 0;
+    try {
+      manager._scheduleCheck('updateTimeoutId', now() + month, month, async () => void calls++);
+      await sleep(50);
+    } finally {
+      clearTimeout(manager.updateTimeoutId!);
+      manager.isDaemon = false;
+    }
+    expect(calls).to.equal(0);
+  });
+
   describe('external plugins', function () {
     const pluginUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
     const metaUrl = `${fixtureHost}/plugins/plugin-a.meta.js`;
