@@ -158,6 +158,7 @@ export class Worker {
 
   /** @deprecated Never called. */
   message?: (message: string, args?: string | string[]) => void;
+  /** @deprecated Use `onUpdateStatusChanged` and the `managePlugin` promise. */
   onProgress?: (isShow: boolean) => void;
   onUpdateStatusChanged?: (status: UpdateStatus) => void;
   injectPlugin: (plugin: Plugin) => void | Promise<void>;

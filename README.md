@@ -18,9 +18,6 @@ import { Manager } from 'lib-iitc-manager';
 
 const manager = new Manager({
     storage: browser.storage.local,
-    onProgress: isShow => {
-        console.log(isShow ? "Show progress bar" : "Hide progress bar");
-    },
     onUpdateStatusChanged: ({ channel, internal, external }) => {
         // Called whenever the state of update checks changes, including daemon checks.
         console.log(internal.checking ? "Checking for updates" : "Idle");
@@ -78,7 +75,8 @@ Pass `onPluginsViewChanged` in the config (see above), or poll with `getPluginsV
 `getUpdateStatus()` returns `{ channel, internal, external }` without network requests; each
 of `internal` and `external` has `checking`, `lastCheck`, `nextCheck` and `retry`. Pass
 `onUpdateStatusChanged` in the config to receive the same object whenever it changes, so a UI
-opened later reads it once and then follows the callback.
+opened later reads it once and then follows the callback. `onProgress` is deprecated: show
+progress for `managePlugin` while its promise is pending.
 
 ### Offline fallback for IITC core on cold start
 

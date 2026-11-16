@@ -259,6 +259,8 @@ export interface ManagerConfig {
   /**
    * Controls progress bar display.
    *
+   * @deprecated Use `onUpdateStatusChanged` for update checks and wait for the `managePlugin` promise
+   * for plugin downloads.
    * @param isShow - Whether to show the progress bar.
    */
   onProgress?: (isShow: boolean) => void;
