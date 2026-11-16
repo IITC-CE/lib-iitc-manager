@@ -1,10 +1,17 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { describe, it, before } from 'mocha';
+import { describe, it, before, beforeEach } from 'mocha';
 import { Manager } from '../src/manager.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
-import type { BackupData, ManagerConfig, Plugin, PluginDict, StorageData } from '../src/types.js';
+import type {
+  BackupData,
+  ManagerConfig,
+  Plugin,
+  PluginDict,
+  PluginEventData,
+  StorageData,
+} from '../src/types.js';
 
 describe('getBackupData and setBackupData', function () {
   let manager: Manager | null = null;
@@ -273,5 +280,233 @@ describe('setBackupData preserves the disabled state of restored external plugin
     const pluginsState = (await storage.get(['plugins_state']))['plugins_state'] as StorageData;
     const entry = pluginsState[pluginExtUid] as StorageData;
     expect(entry['status']).to.equal('off');
+  });
+});
+
+describe('setBackupData with a backup that has no usable channel', function () {
+  // IITC Button imports settings even from a backup exported without them
+  const cases: [string, StorageData][] = [
+    ['no channel', {}],
+    ['an unknown channel', { channel: 'unknown' }],
+  ];
+
+  for (const [title, channelSetting] of cases) {
+    it(`Keeps the current channel when the backup has ${title}`, async function () {
+      storage.resetStorage();
+      const manager = new Manager({
+        storage: storage,
+        channel: 'beta',
+        networkHost: {
+          release: 'http://127.0.0.1:31606/release',
+          beta: 'http://127.0.0.1:31606/beta',
+          custom: 'http://127.0.0.1/',
+        },
+        isDaemon: false,
+      });
+
+      await manager.setBackupData(
+        { settings: true },
+        {
+          external_plugins: {},
+          data: {
+            iitc_settings: { ...channelSetting, release_update_check_interval: 3600 },
+            plugins_data: {},
+            app: 'IITC Button',
+          },
+        }
+      );
+
+      expect(manager.channel).to.equal('beta');
+      const stored = await storage.get(['channel', 'release_update_check_interval']);
+      expect(stored).to.deep.equal({ channel: 'beta', release_update_check_interval: 3600 });
+    });
+  }
+});
+
+describe('setBackupData with a backup that changes the custom channel URL', function () {
+  it('Downloads IITC from the imported URL when switching to the custom channel', async function () {
+    storage.resetStorage();
+    const networkHost = {
+      release: 'http://127.0.0.1:31606/release',
+      beta: 'http://127.0.0.1:31606/beta',
+      custom: 'http://127.0.0.1:31606/release',
+    };
+    const manager = new Manager({
+      storage: storage,
+      channel: 'release',
+      networkHost: networkHost,
+      isDaemon: false,
+    });
+
+    await manager.setBackupData(
+      { settings: true },
+      {
+        external_plugins: {},
+        data: {
+          iitc_settings: {
+            channel: 'custom',
+            network_host: { ...networkHost, custom: 'http://127.0.0.1:31606/beta' },
+          },
+          plugins_data: {},
+          app: 'IITC Button',
+        },
+      }
+    );
+
+    // The release fixture has core 0.32.1, the beta fixture 0.33.0
+    const core = (await storage.get(['custom_iitc_core']))['custom_iitc_core'] as StorageData;
+    expect(core['version']).to.equal('0.33.0');
+  });
+});
+
+describe('setBackupData with a backup that changes which plugins are enabled', function () {
+  const pluginAUid = 'Plugin A+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  const pluginBUid = 'Plugin B+https://github.com/IITC-CE/ingress-intel-total-conversion';
+  let manager: Manager;
+  let events: PluginEventData[];
+
+  beforeEach(async function () {
+    storage.resetStorage();
+    events = [];
+    manager = new Manager({
+      storage: storage,
+      channel: 'release',
+      networkHost: {
+        release: 'http://127.0.0.1:31606/release',
+        beta: 'http://127.0.0.1:31606/beta',
+        custom: 'http://127.0.0.1/',
+      },
+      isDaemon: false,
+      onPluginEvent: e => events.push(e),
+    });
+    await manager.run();
+  });
+
+  /** Imports `settings` on the unchanged channel. */
+  async function importSettings(settings: StorageData): Promise<void> {
+    events = [];
+    await manager.setBackupData(
+      { settings: true },
+      {
+        external_plugins: {},
+        data: {
+          iitc_settings: { channel: 'release', ...settings },
+          plugins_data: {},
+          app: 'IITC Button',
+        },
+      }
+    );
+  }
+
+  /** Code carried by each `add` event for `uid`. */
+  function addedCode(uid: string): (string | undefined)[] {
+    return events
+      .filter(e => e.event === 'add' && uid in e.plugins)
+      .map(e => (e.plugins[uid] as Plugin).code);
+  }
+
+  it('Sends a remove event for an enabled plugin missing from the backup', async function () {
+    await manager.managePlugin(pluginBUid, 'on');
+
+    await importSettings({ plugins_state: {} });
+
+    expect(events.filter(e => e.event === 'remove' && pluginBUid in e.plugins)).to.have.lengthOf(1);
+  });
+
+  it('Sends no remove event when the backup has no plugin state', async function () {
+    await manager.managePlugin(pluginBUid, 'on');
+
+    await importSettings({});
+
+    expect(events.filter(e => e.event === 'remove')).to.be.empty;
+  });
+
+  it('Downloads a built-in plugin enabled by the backup', async function () {
+    await importSettings({ plugins_state: { [pluginAUid]: { status: 'on' } } });
+
+    const code = (await manager.getEnabledPlugins())[pluginAUid]?.code;
+    expect(code).to.be.a('string').and.include('Plugin A');
+    expect(addedCode(pluginAUid)).to.deep.equal([code]);
+  });
+
+  it('Sends an add event for a disabled user plugin enabled by the backup', async function () {
+    const code =
+      '// ==UserScript==\n// @name User plugin\n// @namespace https://example.com\n// ==/UserScript==';
+    const uid = 'User plugin+https://example.com';
+    await manager.addUserScripts([
+      { meta: { name: 'User plugin', namespace: 'https://example.com' }, code },
+    ]);
+    await manager.managePlugin(uid, 'off');
+
+    await importSettings({ plugins_state: { [uid]: { status: 'on' } } });
+
+    expect(addedCode(uid)).to.deep.equal([code]);
+  });
+});
+
+describe('setBackupData with external plugins grouped by channel', function () {
+  // The format of backups made before user plugins became global
+  const userscript = (name: string): string =>
+    `// ==UserScript==\n// @name ${name}\n// @namespace https://example.com\n// ==/UserScript==`;
+  let manager: Manager;
+
+  beforeEach(function () {
+    storage.resetStorage();
+    manager = new Manager({
+      storage: storage,
+      channel: 'release',
+      networkHost: {
+        release: 'http://127.0.0.1:31606/release',
+        beta: 'http://127.0.0.1:31606/beta',
+        custom: 'http://127.0.0.1/',
+      },
+      isDaemon: false,
+    });
+  });
+
+  function importExternal(externalPlugins: BackupData['external_plugins']): Promise<void> {
+    return manager.setBackupData(
+      { external: true },
+      {
+        external_plugins: externalPlugins,
+        data: { iitc_settings: {}, plugins_data: {}, app: 'IITC Button' },
+      }
+    );
+  }
+
+  it('Imports the plugins of every channel without switching channels', async function () {
+    await manager.run();
+    // A channel switch forces an update check
+    const requests: string[] = [];
+    const getUrl = manager._getUrl.bind(manager);
+    manager._getUrl = async (url, variant) => {
+      requests.push(url);
+      return getUrl(url, variant);
+    };
+
+    await importExternal({
+      release: { 'a.user.js': userscript('Plugin of release') },
+      beta: { 'b.user.js': userscript('Plugin of beta') },
+    });
+
+    expect(requests).to.be.empty;
+    expect(await manager.getEnabledPlugins()).to.include.all.keys(
+      'Plugin of release+https://example.com',
+      'Plugin of beta+https://example.com'
+    );
+  });
+
+  it('Rejects a file without a UserScript header, keeps the channel and saves nothing', async function () {
+    const failure = await importExternal({
+      shared: { 'a.user.js': userscript('Valid plugin') },
+      beta: { 'x.user.js': 'not a userscript' },
+    }).catch((e: Error) => e);
+
+    expect(failure).to.be.an('error');
+    expect((failure as Error).message).to.equal(
+      'The plugin has an incorrect ==UserScript== header'
+    );
+    expect(manager.channel).to.equal('release');
+    expect((await storage.get(['plugins_user'])).plugins_user ?? {}).to.be.empty;
   });
 });

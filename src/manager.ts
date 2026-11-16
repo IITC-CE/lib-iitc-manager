@@ -51,12 +51,6 @@ export class Manager extends Worker {
       update_check_retry: null,
     });
 
-    // Ensure local code cache exists for new channel
-    const newChannelData = await this.storage.get([`${channel}_plugins_local`]);
-    if (!newChannelData[`${channel}_plugins_local`]) {
-      await this.storage.set({ [`${channel}_plugins_local`]: {} });
-    }
-
     // checkUpdates fires 'update' for IITC core and re-injects enabled built-ins
     return this.checkUpdates(true);
   }
@@ -335,8 +329,10 @@ export class Manager extends Worker {
         // `plugins_local` is a pure code cache; catalog carries the metadata
         else downloaded = { code: result.code, filename, updatedAt: currentTime } as Plugin;
       }
-      // The channel changed meanwhile: enable the plugin on the new one instead
-      if (this.channel !== channel) return this.managePlugin(uid, action);
+      // The channel or host changed meanwhile: enable the plugin on the new one instead
+      if (this.channel !== channel || this.networkHost[channel] !== host) {
+        return this.managePlugin(uid, action);
+      }
       if (failure) return failure;
 
       // User plugins carry their own metadata; built-ins merge catalog metadata

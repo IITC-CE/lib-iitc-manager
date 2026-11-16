@@ -74,6 +74,7 @@ export function getGmApiCode(): string {
         key: key
       });
       delete target[key];
+      return true;
     }
   });
 
@@ -145,10 +146,10 @@ export function getGmApiCode(): string {
           if (!self._access("listValues"))
             return reject(new Error("Permission denied"));
           var keys = [];
-          var prelen = data_key.length;
+          var prefix = data_key + "_";
           for (var key of Object.keys(storage)) {
-            if (key.startsWith(data_key)) {
-              keys.push(key.substring(prelen + 1));
+            if (key.startsWith(prefix)) {
+              keys.push(key.substring(prefix.length));
             }
           }
           resolve(keys);

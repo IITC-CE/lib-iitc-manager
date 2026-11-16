@@ -47,6 +47,9 @@ const isTransient = (error: FetchError): boolean =>
 /** Longest pause after failed update checks, in seconds. */
 const MAX_RETRY_PAUSE = 30 * 60;
 
+/** Longest delay `setTimeout` accepts, in milliseconds; a longer one fires at once. */
+const MAX_TIMER_DELAY = 2 ** 31 - 1;
+
 /** End of the pause in `retry`, at most 30 min from `now` in case the clock moved back. */
 const retryEnd = (retry: UpdateCheckRetry | null | undefined, now: number): number =>
   Math.min(retry?.at ?? 0, now + MAX_RETRY_PAUSE);
@@ -479,15 +482,18 @@ export class Worker {
       updateCheckInterval = await this._readUpdateCheckInterval(channel);
       // Channel changed mid-check: setChannel reset the state and reschedules
       if (this.channel !== channel) return result;
-      if (result.status !== 'failed') {
-        nextCheck = start + updateCheckInterval;
-        await this._save(channel, { last_check_update: start, update_check_retry: null });
-      } else {
-        const error = result.error ?? result.failed.find(f => isTransient(f.error))?.error;
-        // A channel that was never fetched has no catalog yet, so retry it sooner
-        const next = nextRetry(retry, error, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
-        nextCheck = Math.max(scheduled(), next.at);
-        await this._save(channel, { update_check_retry: next });
+      // Host changed mid-check: the new host was not checked, so record nothing
+      if (this.networkHost[channel] === host) {
+        if (result.status !== 'failed') {
+          nextCheck = start + updateCheckInterval;
+          await this._save(channel, { last_check_update: start, update_check_retry: null });
+        } else {
+          const error = result.error ?? result.failed.find(f => isTransient(f.error))?.error;
+          // A channel that was never fetched has no catalog yet, so retry it sooner
+          const next = nextRetry(retry, error, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
+          nextCheck = Math.max(scheduled(), next.at);
+          await this._save(channel, { update_check_retry: next });
+        }
       }
     }
 
@@ -500,6 +506,7 @@ export class Worker {
 
   /**
    * Re-arms a daemon timer to fire at `nextCheck`, but no later than `interval` from now.
+   * A rejected check never reaches its own re-arm, so it is retried after a pause.
    *
    * @param timer - Timer field to re-arm.
    * @param nextCheck - Unix time in seconds when the check is due.
@@ -517,7 +524,16 @@ export class Worker {
     this[timer] = null;
     if (!this.isDaemon) return;
     const delay = Math.min(Math.max(0, nextCheck - unixNow()), interval);
-    this[timer] = setTimeout(check, delay * 1000);
+    const id = setTimeout(() => {
+      check().catch(error => {
+        console.error('Update check failed:', error);
+        // Another check may have re-armed the timer meanwhile
+        if (this[timer] === id) {
+          this._scheduleCheck(timer, unixNow() + MAX_RETRY_PAUSE, interval, check);
+        }
+      });
+    }, Math.min(delay * 1000, MAX_TIMER_DELAY));
+    this[timer] = id;
   }
 
   /**
@@ -549,7 +565,7 @@ export class Worker {
         : undefined;
 
     const pluginsCatalog = this._getPluginsCatalog(response);
-    const pluginsLocal = local[`${channel}_plugins_local`] as PluginDict;
+    const pluginsLocal = (local[`${channel}_plugins_local`] || {}) as PluginDict;
 
     const [core, res] = await Promise.all([
       !only || only.has(IITC_CORE_UID)
@@ -565,9 +581,11 @@ export class Worker {
       iitcCore = { ...core.meta, uid: getUID(core.meta)!, code: core.code } as Plugin;
     }
 
-    await this._mutatePlugins(async () => {
+    const saved = await this._mutatePlugins(async () => {
       // Plugins may have been enabled while downloading: apply only this check's changes
       const current = await this.storage.get([`${channel}_plugins_local`, 'plugins_state']);
+      // Host changed while downloading: the files are from the old one
+      if (this.networkHost[channel] !== host) return false;
       const pluginsLocal = (current[`${channel}_plugins_local`] || {}) as PluginDict;
       const pluginsState = (current['plugins_state'] || {}) as PluginStateDict;
       for (const uid of [...res.updatedUids, ...res.addedUids]) {
@@ -587,7 +605,9 @@ export class Worker {
         plugins_local: pluginsLocal,
         pending_files: failed.map(f => f.uid),
       });
+      return true;
     });
+    if (!saved) return { status: 'not-modified', failed: [] };
     if (iitcCore) await this._sendPluginsEvent(channel, [iitcCore['uid']], 'update', 'local');
     if (res.updatedUids.length)
       await this._sendPluginsEvent(channel, res.updatedUids, 'update', 'local');
@@ -680,8 +700,6 @@ export class Worker {
     let nextCheck = Math.max(scheduled(), retryEnd(retry, start));
     let result: ExternalCheckResult = { status: 'not-due', updated: [], failed: [] };
     if (force || start >= nextCheck) {
-      clearTimeout(this.externalUpdateTimeoutId!);
-      this.externalUpdateTimeoutId = null;
       const { reached, updated, failed } = await this._updateExternalPlugins(channel, local);
       const offline =
         !reached && failed.length > 0 && failed.every(f => f.error.kind === 'network');
@@ -807,9 +825,6 @@ export class Worker {
     removedUids: string[];
     failed: FailedFile[];
   }> {
-    if (!isSet(pluginsLocal))
-      return { pluginsLocal: {}, addedUids: [], updatedUids: [], removedUids: [], failed: [] };
-
     const updatedUids: string[] = [];
     const removedUids: string[] = [];
     const addedUids: string[] = [];

@@ -2,7 +2,15 @@
 
 import { isSet, parseMeta, sanitizeFileName } from './helpers.js';
 import deepmerge from '@bundled-es-modules/deepmerge';
-import type { BackupParams, StorageData } from './types.js';
+import type {
+  BackupParams,
+  Channel,
+  NetworkHost,
+  PluginDict,
+  PluginStateDict,
+  StorageData,
+  UserScript,
+} from './types.js';
 import type { Manager } from './manager.js';
 
 /**
@@ -134,23 +142,46 @@ export const exportExternalPlugins = (
 };
 
 /**
- * Imports IITC settings from the provided backup object.
+ * Imports IITC settings from the backup object, notifies the host of plugins it disables
+ * or enables, and runs a forced update check.
  *
  * @param self - IITC manager object.
  * @param backup - The backup object containing IITC settings to import.
  */
 export const importIitcSettings = async (self: Manager, backup: StorageData): Promise<void> => {
   const backupObj = Object.assign({}, backup);
-  const defaultChannel = self.channel;
+  // Backups exported without settings have no channel
+  const channel = backupObj.channel as Channel;
+  const isChannel = ['release', 'beta', 'custom'].includes(channel);
+  if (!isChannel) delete backupObj.channel;
 
-  // Set the IITC settings from the backup object into the storage
-  await self.storage.set(backupObj);
+  const enabledUids = (storage: StorageData): string[] => {
+    const pluginsState = (storage['plugins_state'] || {}) as PluginStateDict;
+    return Object.keys(pluginsState).filter(uid => pluginsState[uid]?.status === 'on');
+  };
+  const { removed, added } = await self._mutatePlugins(async () => {
+    const old = await self.storage.get(['plugins_state', 'plugins_user']);
+    const before = enabledUids(old);
+    await self.storage.set(backupObj);
+    // A backup without plugins_state keeps the stored one
+    const after = enabledUids(await self.storage.get(['plugins_state']));
+    const pluginsUser = (old['plugins_user'] || {}) as PluginDict;
+    return {
+      removed: before.filter(uid => !after.includes(uid)),
+      // Built-ins may have no cached code yet; the forced check announces them
+      added: after.filter(uid => !before.includes(uid) && uid in pluginsUser),
+    };
+  });
 
-  // Check if the channel in the backup object is different from the original channel
-  const setChannel = backupObj.channel as import('./types.js').Channel;
-  if (setChannel !== defaultChannel) {
-    await self.setChannel(setChannel);
-  }
+  // The running manager keeps its own copy of the hosts
+  if (isSet(backupObj.network_host)) self.networkHost = backupObj.network_host as NetworkHost;
+
+  if (removed.length) await self._sendPluginsEvent(self.channel, removed, 'remove');
+  if (added.length) await self._sendPluginsEvent(self.channel, added, 'add');
+
+  // setChannel runs the same forced check
+  if (isChannel && channel !== self.channel) await self.setChannel(channel);
+  else await self.checkUpdates(true);
 };
 
 /**
@@ -183,57 +214,22 @@ export const importPluginsSettings = async (self: Manager, backup: StorageData):
 };
 
 /**
- * Imports external plugins from the provided backup object.
- *
- * The function iterates through each channel in the backup object,
- * sets the current channel using `self.setChannel()`, and then extracts the plugin information
- * (metadata and code) for each plugin in the channel. The plugin information is added to the 'scripts'
- * array, which is then passed to `self.addUserScripts()` to add the external plugins. After processing
- * all channels, the function sets the default channel using `self.setChannel()` if it was changed during
- * the import process.
+ * Imports external plugins from a backup. Throws without saving any of them
+ * if a file has no valid ==UserScript== header.
  *
  * @param self - IITC manager object.
- * @param backup - The backup object containing external plugins to import.
+ * @param backup - Plugin code keyed by group ('shared', or a channel in older backups) and filename.
  */
 export const importExternalPlugins = async (
   self: Manager,
-  backup: { [channel: string]: { [filename: string]: string } }
+  backup: { [group: string]: { [filename: string]: string } }
 ): Promise<void> => {
-  // New format: 'shared' key holds global plugins not tied to any channel
-  if ('shared' in backup) {
-    const scripts: { meta: import('./types.js').PluginMeta; code: string }[] = [];
-    for (const [filename, code] of Object.entries(backup['shared'])) {
-      const meta = parseMeta(code)!;
-      meta['filename'] = filename;
-      scripts.push({ meta, code });
-    }
-    if (scripts.length) await self.addUserScripts(scripts);
-  }
-
-  // Legacy / per-channel format: temporarily switch channel to associate plugins correctly
-  const legacyChannels = Object.keys(backup).filter(
-    ch => ch !== 'shared' && Object.keys(backup[ch]).length > 0
-  );
-  if (legacyChannels.length > 0) {
-    const defaultChannel = self.channel;
-
-    for (const channel of legacyChannels) {
-      const scripts: { meta: import('./types.js').PluginMeta; code: string }[] = [];
-      await self.setChannel(channel as import('./types.js').Channel);
-
-      for (const [filename, code] of Object.entries(backup[channel])) {
-        const meta = parseMeta(code)!;
-        meta['filename'] = filename;
-        scripts.push({ meta, code });
-      }
-
-      await self.addUserScripts(scripts);
-    }
-
-    // If the current channel is different from the default channel,
-    // set the default channel using the 'self.setChannel()' method
-    if (self.channel !== defaultChannel) {
-      await self.setChannel(defaultChannel);
+  const scripts: UserScript[] = [];
+  for (const group of Object.values(backup)) {
+    for (const [filename, code] of Object.entries(group)) {
+      // A file without a header gets no uid and is rejected by addUserScripts
+      scripts.push({ meta: { ...parseMeta(code), filename }, code });
     }
   }
+  if (scripts.length) await self.addUserScripts(scripts);
 };
