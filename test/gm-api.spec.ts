@@ -1,5 +1,6 @@
 // Copyright (C) 2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
+import vm from 'node:vm';
 import { describe, it } from 'mocha';
 import { expect } from 'chai';
 import { getGmApiCode } from '../src/gm-api.js';
@@ -50,6 +51,44 @@ describe('getGmApiCode', function () {
     const code = getGmApiCode();
     expect(code).to.include('intel.ingress.com');
     expect(code).to.include('window.onload');
+  });
+});
+
+interface GmApi {
+  setValue(key: string, value: unknown): Promise<void>;
+  getValue(key: string, fallback?: unknown): Promise<unknown>;
+  deleteValue(key: string): Promise<void>;
+  listValues(): Promise<string[]>;
+}
+
+/**
+ * Runs the generated code in an empty VM context with a silent bridge;
+ * returns the `__iitc_gm__` factory.
+ */
+function loadGmFactory(): (options: Record<string, unknown>) => GmApi {
+  const window: Record<string, any> = {
+    __iitc_gm_bridge__: { send() {}, onResponse() {} },
+  };
+  vm.runInNewContext(getGmApiCode(), {
+    window,
+    document: { addEventListener() {} },
+    crypto: { getRandomValues: (array: Uint8Array) => array },
+  });
+  return window.__iitc_gm__;
+}
+
+describe('GM API value storage', function () {
+  it('listValues returns only the keys of the calling plugin', async function () {
+    const factory = loadGmFactory();
+    const meta = { grant: ['GM.setValue', 'GM.listValues'] };
+    // A 15-byte uid encodes without padding, so its data_key is a prefix of the longer one
+    const first = factory({ data_key: getPluginHash('Foo+https://a.b'), meta });
+    const second = factory({ data_key: getPluginHash('Foo+https://a.b/c'), meta });
+
+    await first.setValue('own', 1);
+    await second.setValue('foreign', 2);
+
+    expect(await first.listValues()).to.deep.equal(['own']);
   });
 });
 
