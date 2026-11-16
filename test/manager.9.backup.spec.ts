@@ -443,3 +443,70 @@ describe('setBackupData with a backup that changes which plugins are enabled', f
     expect(addedCode(uid)).to.deep.equal([code]);
   });
 });
+
+describe('setBackupData with external plugins grouped by channel', function () {
+  // The format of backups made before user plugins became global
+  const userscript = (name: string): string =>
+    `// ==UserScript==\n// @name ${name}\n// @namespace https://example.com\n// ==/UserScript==`;
+  let manager: Manager;
+
+  beforeEach(function () {
+    storage.resetStorage();
+    manager = new Manager({
+      storage: storage,
+      channel: 'release',
+      networkHost: {
+        release: 'http://127.0.0.1:31606/release',
+        beta: 'http://127.0.0.1:31606/beta',
+        custom: 'http://127.0.0.1/',
+      },
+      isDaemon: false,
+    });
+  });
+
+  function importExternal(externalPlugins: BackupData['external_plugins']): Promise<void> {
+    return manager.setBackupData(
+      { external: true },
+      {
+        external_plugins: externalPlugins,
+        data: { iitc_settings: {}, plugins_data: {}, app: 'IITC Button' },
+      }
+    );
+  }
+
+  it('Imports the plugins of every channel without switching channels', async function () {
+    await manager.run();
+    // A channel switch forces an update check
+    const requests: string[] = [];
+    const getUrl = manager._getUrl.bind(manager);
+    manager._getUrl = async (url, variant) => {
+      requests.push(url);
+      return getUrl(url, variant);
+    };
+
+    await importExternal({
+      release: { 'a.user.js': userscript('Plugin of release') },
+      beta: { 'b.user.js': userscript('Plugin of beta') },
+    });
+
+    expect(requests).to.be.empty;
+    expect(await manager.getEnabledPlugins()).to.include.all.keys(
+      'Plugin of release+https://example.com',
+      'Plugin of beta+https://example.com'
+    );
+  });
+
+  it('Rejects a file without a UserScript header, keeps the channel and saves nothing', async function () {
+    const failure = await importExternal({
+      shared: { 'a.user.js': userscript('Valid plugin') },
+      beta: { 'x.user.js': 'not a userscript' },
+    }).catch((e: Error) => e);
+
+    expect(failure).to.be.an('error');
+    expect((failure as Error).message).to.equal(
+      'The plugin has an incorrect ==UserScript== header'
+    );
+    expect(manager.channel).to.equal('release');
+    expect((await storage.get(['plugins_user'])).plugins_user ?? {}).to.be.empty;
+  });
+});

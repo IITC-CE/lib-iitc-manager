@@ -9,6 +9,7 @@ import type {
   PluginDict,
   PluginStateDict,
   StorageData,
+  UserScript,
 } from './types.js';
 import type { Manager } from './manager.js';
 
@@ -213,57 +214,22 @@ export const importPluginsSettings = async (self: Manager, backup: StorageData):
 };
 
 /**
- * Imports external plugins from the provided backup object.
- *
- * The function iterates through each channel in the backup object,
- * sets the current channel using `self.setChannel()`, and then extracts the plugin information
- * (metadata and code) for each plugin in the channel. The plugin information is added to the 'scripts'
- * array, which is then passed to `self.addUserScripts()` to add the external plugins. After processing
- * all channels, the function sets the default channel using `self.setChannel()` if it was changed during
- * the import process.
+ * Imports external plugins from a backup. Throws without saving any of them
+ * if a file has no valid ==UserScript== header.
  *
  * @param self - IITC manager object.
- * @param backup - The backup object containing external plugins to import.
+ * @param backup - Plugin code keyed by group ('shared', or a channel in older backups) and filename.
  */
 export const importExternalPlugins = async (
   self: Manager,
-  backup: { [channel: string]: { [filename: string]: string } }
+  backup: { [group: string]: { [filename: string]: string } }
 ): Promise<void> => {
-  // New format: 'shared' key holds global plugins not tied to any channel
-  if ('shared' in backup) {
-    const scripts: { meta: import('./types.js').PluginMeta; code: string }[] = [];
-    for (const [filename, code] of Object.entries(backup['shared'])) {
-      const meta = parseMeta(code)!;
-      meta['filename'] = filename;
-      scripts.push({ meta, code });
-    }
-    if (scripts.length) await self.addUserScripts(scripts);
-  }
-
-  // Legacy / per-channel format: temporarily switch channel to associate plugins correctly
-  const legacyChannels = Object.keys(backup).filter(
-    ch => ch !== 'shared' && Object.keys(backup[ch]).length > 0
-  );
-  if (legacyChannels.length > 0) {
-    const defaultChannel = self.channel;
-
-    for (const channel of legacyChannels) {
-      const scripts: { meta: import('./types.js').PluginMeta; code: string }[] = [];
-      await self.setChannel(channel as import('./types.js').Channel);
-
-      for (const [filename, code] of Object.entries(backup[channel])) {
-        const meta = parseMeta(code)!;
-        meta['filename'] = filename;
-        scripts.push({ meta, code });
-      }
-
-      await self.addUserScripts(scripts);
-    }
-
-    // If the current channel is different from the default channel,
-    // set the default channel using the 'self.setChannel()' method
-    if (self.channel !== defaultChannel) {
-      await self.setChannel(defaultChannel);
+  const scripts: UserScript[] = [];
+  for (const group of Object.values(backup)) {
+    for (const [filename, code] of Object.entries(group)) {
+      // A file without a header gets no uid and is rejected by addUserScripts
+      scripts.push({ meta: { ...parseMeta(code), filename }, code });
     }
   }
+  if (scripts.length) await self.addUserScripts(scripts);
 };
