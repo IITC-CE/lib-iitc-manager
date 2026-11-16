@@ -65,11 +65,11 @@ interface GmApi {
  * Runs the generated code in an empty VM context with a silent bridge;
  * returns the `__iitc_gm__` factory.
  */
-function loadGmFactory(): (options: Record<string, unknown>) => GmApi {
+function loadGmFactory(prologue = ''): (options: Record<string, unknown>) => GmApi {
   const window: Record<string, any> = {
     __iitc_gm_bridge__: { send() {}, onResponse() {} },
   };
-  vm.runInNewContext(getGmApiCode(), {
+  vm.runInNewContext(prologue + getGmApiCode(), {
     window,
     document: { addEventListener() {} },
     crypto: { getRandomValues: (array: Uint8Array) => array },
@@ -89,6 +89,20 @@ describe('GM API value storage', function () {
     await second.setValue('foreign', 2);
 
     expect(await first.listValues()).to.deep.equal(['own']);
+  });
+
+  it('deleteValue removes the value when the code runs in strict mode', async function () {
+    // The host prepends its bridge adapter, which may start with this directive
+    const factory = loadGmFactory('"use strict";\n');
+    const gm = factory({
+      data_key: getPluginHash('test-uid'),
+      meta: { grant: ['GM.setValue', 'GM.getValue', 'GM.deleteValue'] },
+    });
+
+    await gm.setValue('key', 1);
+    await gm.deleteValue('key');
+
+    expect(await gm.getValue('key', 'default')).to.equal('default');
   });
 });
 

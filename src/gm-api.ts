@@ -74,6 +74,7 @@ export function getGmApiCode(): string {
         key: key
       });
       delete target[key];
+      return true;
     }
   });
 
