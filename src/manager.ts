@@ -16,7 +16,6 @@ import type {
   BackupData,
   UserScript,
   UpdateCheckResult,
-  UpdateCheckRetry,
   UpdateStatus,
   ManagePluginResult,
 } from './types.js';
@@ -52,7 +51,11 @@ export class Manager extends Worker {
     });
 
     // checkUpdates fires 'update' for IITC core and re-injects enabled built-ins
-    return this.checkUpdates(true);
+    try {
+      return await this.checkUpdates(true);
+    } finally {
+      this._notifyUpdateStatus();
+    }
   }
 
   /**
@@ -71,7 +74,11 @@ export class Manager extends Worker {
     data[channel + '_update_check_interval'] = Number(interval);
     await this.storage.set(data);
 
-    return this.checkUpdates();
+    try {
+      return await this.checkUpdates();
+    } finally {
+      this._notifyUpdateStatus();
+    }
   }
 
   /**
@@ -98,6 +105,8 @@ export class Manager extends Worker {
     networkHost.custom = url;
     await this.storage.set({ network_host: networkHost });
     this.networkHost = networkHost;
+    // A check of the old URL no longer counts as running
+    this._notifyUpdateStatus();
   }
 
   /**
@@ -111,7 +120,8 @@ export class Manager extends Worker {
     await this.ready;
     const isMigrated = this._isMigrated;
     this._isMigrated = false;
-    const result = await this.checkUpdates(isMigrated);
+    // The host gets the status at start even when no check is due
+    const result = await this.checkUpdates(isMigrated).finally(() => this._notifyUpdateStatus());
     if (isMigrated) {
       const local = await this.storage.get(['plugins_user']);
       const pluginsUser = (local['plugins_user'] || {}) as PluginDict;
@@ -270,28 +280,14 @@ export class Manager extends Worker {
   }
 
   /**
-   * Returns the state of update checks from storage, without network requests.
+   * Returns the state of update checks, without network requests.
    *
-   * @returns Last successful check and pause after failures, for internal and external checks.
+   * @returns Whether a check is running, last successful check, when the next one is due
+   * and pause after failures, for internal and external checks.
    */
   async getUpdateStatus(): Promise<UpdateStatus> {
     await this.ready;
-    const data = await this.storage.get([
-      'last_check_update',
-      'update_check_retry',
-      'last_check_external_update',
-      'external_update_check_retry',
-    ]);
-    return {
-      internal: {
-        lastCheck: (data.last_check_update as number) ?? null,
-        retry: (data.update_check_retry as UpdateCheckRetry) ?? null,
-      },
-      external: {
-        lastCheck: (data.last_check_external_update as number) ?? null,
-        retry: (data.external_update_check_retry as UpdateCheckRetry) ?? null,
-      },
-    };
+    return this._readUpdateStatus();
   }
 
   /**

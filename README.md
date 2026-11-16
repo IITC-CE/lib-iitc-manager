@@ -21,6 +21,11 @@ const manager = new Manager({
     onProgress: isShow => {
         console.log(isShow ? "Show progress bar" : "Hide progress bar");
     },
+    onUpdateStatusChanged: ({ channel, internal, external }) => {
+        // Called whenever the state of update checks changes, including daemon checks.
+        console.log(internal.checking ? "Checking for updates" : "Idle");
+        console.log("Next check at", new Date(internal.nextCheck * 1000));
+    },
     injectPlugin: plugin => {
         console.log("Injecting plugin:", plugin.name);
         console.log(plugin.code);
@@ -67,6 +72,13 @@ if (core) {
 ### Reacting to plugin list changes
 
 Pass `onPluginsViewChanged` in the config (see above), or poll with `getPluginsView()` as needed.
+
+### Update check status
+
+`getUpdateStatus()` returns `{ channel, internal, external }` without network requests; each
+of `internal` and `external` has `checking`, `lastCheck`, `nextCheck` and `retry`. Pass
+`onUpdateStatusChanged` in the config to receive the same object whenever it changes, so a UI
+opened later reads it once and then follows the callback.
 
 ### Offline fallback for IITC core on cold start
 

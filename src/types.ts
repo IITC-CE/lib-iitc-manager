@@ -264,6 +264,14 @@ export interface ManagerConfig {
   onProgress?: (isShow: boolean) => void;
 
   /**
+   * Called with the whole status of update checks whenever it differs from the last one sent,
+   * including checks run by the daemon timer. `getUpdateStatus()` called from here returns the same.
+   *
+   * @param status - Current status, the same as `getUpdateStatus()` returns.
+   */
+  onUpdateStatusChanged?: (status: UpdateStatus) => void;
+
+  /**
    * Calls a function that injects UserScript plugin into the Ingress Intel window.
    *
    * @param plugin - UserScript plugin to run in the Ingress Intel window.
@@ -500,19 +508,25 @@ export type UpdateCheckRetry = {
 };
 
 /**
- * State of one kind of update check, read from storage without network requests.
+ * State of one kind of update check, read without network requests.
  */
 export interface CheckStatus {
+  /** A check of this kind is downloading, or a forced one is waiting for it. */
+  checking: boolean;
   /** Unix time in seconds of the last check that did not fail, or null. */
   lastCheck: number | null;
+  /** Unix time in seconds when `checkUpdates(false)` goes to the network; at or before now if it is due. */
+  nextCheck: number;
   /** Pause after failed checks, or null. */
   retry: UpdateCheckRetry | null;
 }
 
 /**
- * State of update checks, returned by `Manager.getUpdateStatus()`.
+ * State of update checks, returned by `Manager.getUpdateStatus()` and sent to `onUpdateStatusChanged`.
  */
 export interface UpdateStatus {
+  /** Channel the internal status belongs to. */
+  channel: Channel;
   internal: CheckStatus;
   external: CheckStatus;
 }
