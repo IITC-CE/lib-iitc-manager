@@ -150,7 +150,6 @@ describe('Concurrent plugin changes', function () {
       await held;
 
       await manager.setCustomChannelUrl(betaHost);
-      await manager.checkUpdates(true);
       events = [];
       release();
       await oldCheck;
@@ -168,10 +167,11 @@ describe('Concurrent plugin changes', function () {
       await held;
 
       await manager.setCustomChannelUrl(betaHost);
+      const { lastCheck } = (await manager.getUpdateStatus()).internal;
       release();
       await oldCheck;
 
-      expect((await manager.getUpdateStatus()).internal.lastCheck).to.equal(1);
+      expect((await manager.getUpdateStatus()).internal.lastCheck).to.equal(lastCheck);
     });
 
     it('enables a plugin with the code of the new host', async function () {
@@ -180,7 +180,6 @@ describe('Concurrent plugin changes', function () {
       await held;
 
       await manager.setCustomChannelUrl(betaHost);
-      await manager.checkUpdates(true);
       events = [];
       release();
       expect(await enabling).to.deep.equal({ ok: true });

@@ -94,19 +94,26 @@ export class Manager extends Worker {
 
   /**
    * Changes the URL of the repository with IITC and plugins for the custom channel.
+   * While the custom channel is active, a new URL starts over as `setChannel` does:
+   * the check state is reset and the new URL is checked at once.
    *
    * @param url - URL of the repository.
+   * @returns Result of the update check, forced for a new URL of the active channel.
    */
-  async setCustomChannelUrl(url: string): Promise<void> {
+  async setCustomChannelUrl(url: string): Promise<UpdateCheckResult> {
     await this.ready;
     const networkHost = (await this.storage
       .get(['network_host'])
       .then(data => data.network_host)) as typeof this.networkHost;
+    const isNewActive = this.channel === 'custom' && networkHost.custom !== url;
     networkHost.custom = url;
-    await this.storage.set({ network_host: networkHost });
+    // Set before the write, so that a running check of the old URL records nothing
     this.networkHost = networkHost;
-    // A check of the old URL no longer counts as running
-    this._notifyUpdateStatus();
+    await this.storage.set({
+      network_host: networkHost,
+      ...(isNewActive ? { last_check_update: null, update_check_retry: null } : {}),
+    });
+    return this.checkUpdates(isNewActive);
   }
 
   /**

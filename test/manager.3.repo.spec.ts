@@ -41,7 +41,7 @@ describe('manage.js custom repo integration tests', function () {
 
     it('Setting the URL of the custom repository', async function () {
       const run = await manager!.setCustomChannelUrl(customRepo);
-      expect(run).to.be.undefined;
+      expect(run.ok).to.be.true;
     });
 
     it('Check the URL of the custom repository', async function () {

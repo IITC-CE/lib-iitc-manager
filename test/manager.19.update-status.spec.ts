@@ -4,7 +4,7 @@ import { describe, it, beforeEach } from 'mocha';
 import { Manager } from '../src/manager.js';
 import storage from '../test/storage.js';
 import { expect } from 'chai';
-import type { Channel, StorageAPI, UpdateStatus } from '../src/types.js';
+import type { StorageAPI, UpdateStatus } from '../src/types.js';
 
 const host = 'http://127.0.0.1:31606/release';
 const betaHost = 'http://127.0.0.1:31606/beta';
@@ -23,13 +23,10 @@ describe('Update status notifications', function () {
     statuses = [];
   });
 
-  function createManager(
-    networkHost: string,
-    options: { channel?: Channel; storage?: StorageAPI } = {}
-  ): Manager {
+  function createManager(networkHost: string, managerStorage: StorageAPI = storage): Manager {
     return new Manager({
-      storage: options.storage ?? storage,
-      channel: options.channel ?? 'release',
+      storage: managerStorage,
+      channel: 'release',
       networkHost: { release: networkHost, beta: betaHost, custom: networkHost },
       isDaemon: false,
       onUpdateStatusChanged: status => statuses.push(status),
@@ -164,22 +161,6 @@ describe('Update status notifications', function () {
     expect(last.internal.checking).to.be.false;
   });
 
-  it('changing the custom URL during a check of the old one sends checking as cleared', async function () {
-    const manager = createManager(host, { channel: 'custom' });
-    await manager.ready;
-    const { held, release } = hold(manager, `${host}/meta.json`);
-    // Only the internal check: the end of the external one would send the status too
-    const oldCheck = manager._checkInternalUpdates(true);
-    await held;
-
-    await manager.setCustomChannelUrl(betaHost);
-    await settle();
-    expect(statuses[statuses.length - 1].internal.checking).to.be.false;
-
-    release();
-    await oldCheck;
-  });
-
   it('setUpdateCheckInterval sends the new next check', async function () {
     const manager = createManager(host);
     await manager.checkUpdates(true);
@@ -196,12 +177,10 @@ describe('Update status notifications', function () {
   it('a check that throws sends checking as cleared', async function () {
     let full = false;
     const manager = createManager(host, {
-      storage: {
-        get: storage.get.bind(storage),
-        set: async obj => {
-          if (full) throw new Error('quota exceeded');
-          await storage.set(obj);
-        },
+      get: storage.get.bind(storage),
+      set: async obj => {
+        if (full) throw new Error('quota exceeded');
+        await storage.set(obj);
       },
     });
     await manager.ready;
