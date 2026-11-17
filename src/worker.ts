@@ -30,6 +30,7 @@ import type {
   FetchError,
   PluginMeta,
   MetaJsonResponse,
+  UpdateStatus,
 } from './types.js';
 
 export const IITC_CORE_UID =
@@ -54,6 +55,21 @@ const MAX_TIMER_DELAY = 2 ** 31 - 1;
 const retryEnd = (retry: UpdateCheckRetry | null | undefined, now: number): number =>
   Math.min(retry?.at ?? 0, now + MAX_RETRY_PAUSE);
 
+/**
+ * Unix time in seconds when a non-forced check becomes due: `interval` after `lastCheck`,
+ * but not before the pause in `retry` ends. A `lastCheck` from the future (clock moved back) counts as none.
+ */
+const dueAt = (
+  lastCheck: number | null | undefined,
+  interval: number,
+  retry: UpdateCheckRetry | null | undefined,
+  now: number
+): number =>
+  Math.max(
+    typeof lastCheck === 'number' && lastCheck <= now ? lastCheck + interval : 0,
+    retryEnd(retry, now)
+  );
+
 /** Pause after another failed check: doubles from 1 min up to `maxPause` seconds. */
 const nextRetry = (
   retry: UpdateCheckRetry | null | undefined,
@@ -68,6 +84,8 @@ const nextRetry = (
 /** Keeps one check running per key; a forced check waits for a non-forced one with the same key. */
 class CheckSlot<T> {
   private running = new Map<string, { force: boolean; promise: Promise<T> }>();
+  /** Number of checks downloading, or forced and waiting to, by key */
+  private active = new Map<string, number>();
 
   run(key: string, force: boolean, check: () => Promise<T>): Promise<T> {
     const running = this.running.get(key);
@@ -80,6 +98,25 @@ class CheckSlot<T> {
     };
     promise.then(clear, clear);
     return promise;
+  }
+
+  /** Whether a check of `key` is downloading, or forced and waiting to. */
+  isActive(key: string): boolean {
+    return this.active.has(key);
+  }
+
+  /** Counts `work` as an active check of `key`, calling `onChange` when it starts and when it ends. */
+  async track<R>(key: string, onChange: () => void, work: () => Promise<R>): Promise<R> {
+    this.active.set(key, (this.active.get(key) ?? 0) + 1);
+    onChange();
+    try {
+      return await work();
+    } finally {
+      const left = this.active.get(key)! - 1;
+      if (left) this.active.set(key, left);
+      else this.active.delete(key);
+      onChange();
+    }
   }
 }
 
@@ -112,10 +149,18 @@ export class Worker {
   _externalChecks = new CheckSlot<ExternalCheckResult>();
   /** @internal */
   _pluginsQueue: Promise<unknown> = Promise.resolve();
+  /** @internal A status is being read and sent */
+  _statusSending = false;
+  /** @internal The status may have changed while it was being read */
+  _statusDirty = false;
+  /** @internal JSON of the last status sent */
+  _lastStatus?: string;
 
   /** @deprecated Never called. */
   message?: (message: string, args?: string | string[]) => void;
+  /** @deprecated Use `onUpdateStatusChanged` and the `managePlugin` promise. */
   onProgress?: (isShow: boolean) => void;
+  onUpdateStatusChanged?: (status: UpdateStatus) => void;
   injectPlugin: (plugin: Plugin) => void | Promise<void>;
   onPluginEvent: (event: PluginEventData) => void;
   onPluginsViewChanged?: (view: PluginsView) => void;
@@ -139,6 +184,7 @@ export class Worker {
         : (console.error("config key 'storage' is not set") as unknown as StorageAPI);
     this.message = this.config.message;
     this.onProgress = this.config.onProgress;
+    this.onUpdateStatusChanged = this.config.onUpdateStatusChanged;
     this.injectPlugin =
       this.config.injectPlugin ||
       function () {
@@ -373,6 +419,87 @@ export class Worker {
   _emitPluginsChanged(): void {}
 
   /**
+   * Sends the update status to `onUpdateStatusChanged` if it differs from the last one sent.
+   * Called wherever the status may have changed; a call during a send reads the status again after it.
+   *
+   * @internal
+   */
+  _notifyUpdateStatus(): void {
+    if (!this.onUpdateStatusChanged) return;
+    if (this._statusSending) {
+      this._statusDirty = true;
+      return;
+    }
+    this._statusSending = true;
+    void (async () => {
+      try {
+        do {
+          this._statusDirty = false;
+          try {
+            const status = await this._readUpdateStatus();
+            const json = JSON.stringify(status);
+            if (json !== this._lastStatus) {
+              this._lastStatus = json;
+              this.onUpdateStatusChanged?.(status);
+            }
+          } catch (error) {
+            console.error('Failed to send update status:', error);
+          }
+        } while (this._statusDirty);
+      } finally {
+        this._statusSending = false;
+      }
+    })();
+  }
+
+  /**
+   * Reads the update status: `checking` at the moment of the call, the rest from storage.
+   *
+   * @internal
+   */
+  async _readUpdateStatus(): Promise<UpdateStatus> {
+    const channel = this.channel;
+    const internalChecking = this._internalChecks.isActive(this._internalKey());
+    const externalChecking = this._externalChecks.isActive('external');
+    const data = await this.storage.get([
+      'last_check_update',
+      'update_check_retry',
+      'last_check_external_update',
+      'external_update_check_retry',
+      `${channel}_last_modified`,
+    ]);
+    const [internalInterval, externalInterval] = await Promise.all([
+      this._readUpdateCheckInterval(channel),
+      this._readUpdateCheckInterval('external'),
+    ]);
+    const now = unixNow();
+    const internalLastCheck = (data.last_check_update as number) ?? null;
+    const internalRetry = (data.update_check_retry as UpdateCheckRetry) ?? null;
+    const externalLastCheck = (data.last_check_external_update as number) ?? null;
+    const externalRetry = (data.external_update_check_retry as UpdateCheckRetry) ?? null;
+    return {
+      channel,
+      internal: {
+        checking: internalChecking,
+        lastCheck: internalLastCheck,
+        nextCheck: dueAt(
+          isSet(data[`${channel}_last_modified`]) ? internalLastCheck : null,
+          internalInterval,
+          internalRetry,
+          now
+        ),
+        retry: internalRetry,
+      },
+      external: {
+        checking: externalChecking,
+        lastCheck: externalLastCheck,
+        nextCheck: dueAt(externalLastCheck, externalInterval, externalRetry, now),
+        retry: externalRetry,
+      },
+    };
+  }
+
+  /**
    * Wraps {@link fetchResource}, calling `onProgress(true)` while any request is in flight and `onProgress(false)` when the last one ends.
    *
    * @param url - URL of the resource you want to fetch.
@@ -415,11 +542,14 @@ export class Worker {
   _checkInternalUpdates(force: boolean = false): Promise<InternalCheckResult> {
     const key = this._internalKey();
     // A queued check whose channel or host changed meanwhile joins the check for the new one
-    return this._internalChecks.run(key, force, () =>
-      key === this._internalKey()
-        ? this._runInternalCheck(force)
-        : this._checkInternalUpdates(force)
-    );
+    const run = () =>
+      this._internalChecks.run(key, force, () =>
+        key === this._internalKey()
+          ? this._runInternalCheck(force)
+          : this._checkInternalUpdates(force)
+      );
+    // A forced check downloads, so it counts as active while it waits for a running one
+    return force ? this._internalChecks.track(key, () => this._notifyUpdateStatus(), run) : run();
   }
 
   /** @internal */
@@ -437,6 +567,7 @@ export class Worker {
   async _runInternalCheck(force: boolean): Promise<InternalCheckResult> {
     const channel = this.channel;
     const host = this.networkHost[channel];
+    const key = this._internalKey();
     const storage = await this.storage.get([
       'last_check_update',
       'update_check_retry',
@@ -446,55 +577,57 @@ export class Worker {
     ]);
     let updateCheckInterval = await this._readUpdateCheckInterval(channel);
     const lastModified = storage[`${channel}_last_modified`];
-    const lastCheck = storage.last_check_update as number;
+    // A channel without a catalog is due, whenever it was last checked
+    const lastCheck = isSet(lastModified) ? (storage.last_check_update as number) : null;
     const retry = storage.update_check_retry as UpdateCheckRetry | null | undefined;
     const pendingFiles = (storage[`${channel}_pending_files`] || []) as string[];
 
     const start = unixNow();
-    // A timestamp from the future (clock moved back) makes the check due
-    const scheduled = () =>
-      isSet(lastModified) && isSet(lastCheck) && lastCheck <= start
-        ? lastCheck + updateCheckInterval
-        : 0;
-    let nextCheck = Math.max(scheduled(), retryEnd(retry, start));
+    let nextCheck = dueAt(lastCheck, updateCheckInterval, retry, start);
 
     let result: InternalCheckResult = { status: 'not-due', failed: [] };
     if (force || start >= nextCheck) {
-      if (force || !isSet(lastModified)) {
-        result = await this._updateInternalIITC(channel, storage, host);
-      } else {
-        // Without HEAD support this is a full GET, so its body is reused below
-        const head = await this._getUrl(
-          host + '/meta.json',
-          this.useFetchHeadMethod ? 'head' : 'parseJSON'
-        );
-        const meta = this.useFetchHeadMethod ? undefined : head;
-        if (head.error?.kind === 'network') {
-          result = { status: 'failed', error: head.error, failed: [] };
-        } else if (head.version === lastModified && !pendingFiles.length) {
-          result = { status: 'not-modified', failed: [] };
-        } else {
-          result = await this._updateInternalIITC(channel, storage, host, pendingFiles, meta);
-        }
-      }
+      result = await this._internalChecks.track(
+        key,
+        () => this._notifyUpdateStatus(),
+        async () => {
+          let checked: InternalCheckResult;
+          if (force || !isSet(lastModified)) {
+            checked = await this._updateInternalIITC(channel, storage, host);
+          } else {
+            // Without HEAD support this is a full GET, so its body is reused below
+            const head = await this._getUrl(
+              host + '/meta.json',
+              this.useFetchHeadMethod ? 'head' : 'parseJSON'
+            );
+            const meta = this.useFetchHeadMethod ? undefined : head;
+            if (head.error?.kind === 'network') {
+              checked = { status: 'failed', error: head.error, failed: [] };
+            } else if (head.version === lastModified && !pendingFiles.length) {
+              checked = { status: 'not-modified', failed: [] };
+            } else {
+              checked = await this._updateInternalIITC(channel, storage, host, pendingFiles, meta);
+            }
+          }
 
-      // The interval may have been changed while the check was running
-      updateCheckInterval = await this._readUpdateCheckInterval(channel);
-      // Channel changed mid-check: setChannel reset the state and reschedules
-      if (this.channel !== channel) return result;
-      // Host changed mid-check: the new host was not checked, so record nothing
-      if (this.networkHost[channel] === host) {
-        if (result.status !== 'failed') {
-          nextCheck = start + updateCheckInterval;
-          await this._save(channel, { last_check_update: start, update_check_retry: null });
-        } else {
-          const error = result.error ?? result.failed.find(f => isTransient(f.error))?.error;
-          // A channel that was never fetched has no catalog yet, so retry it sooner
-          const next = nextRetry(retry, error, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
-          nextCheck = Math.max(scheduled(), next.at);
-          await this._save(channel, { update_check_retry: next });
+          // The interval may have been changed while the check was running
+          updateCheckInterval = await this._readUpdateCheckInterval(channel);
+          // Channel changed mid-check: setChannel reset the state and reschedules.
+          // Host changed mid-check: the new host was not checked, so record nothing.
+          if (this.channel !== channel || this.networkHost[channel] !== host) return checked;
+          if (checked.status !== 'failed') {
+            nextCheck = start + updateCheckInterval;
+            await this._save(channel, { last_check_update: start, update_check_retry: null });
+          } else {
+            const error = checked.error ?? checked.failed.find(f => isTransient(f.error))?.error;
+            // A channel that was never fetched has no catalog yet, so retry it sooner
+            const next = nextRetry(retry, error, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
+            nextCheck = dueAt(lastCheck, updateCheckInterval, next, unixNow());
+            await this._save(channel, { update_check_retry: next });
+          }
+          return checked;
         }
-      }
+      );
     }
 
     if (this.channel !== channel) return result;
@@ -673,7 +806,12 @@ export class Worker {
    * @internal
    */
   _checkExternalUpdates(force: boolean = false): Promise<ExternalCheckResult> {
-    return this._externalChecks.run('external', force, () => this._runExternalCheck(force));
+    const run = () =>
+      this._externalChecks.run('external', force, () => this._runExternalCheck(force));
+    // A forced check downloads, so it counts as active while it waits for a running one
+    return force
+      ? this._externalChecks.track('external', () => this._notifyUpdateStatus(), run)
+      : run();
   }
 
   /**
@@ -691,32 +829,36 @@ export class Worker {
       'plugins_user',
     ]);
     let updateCheckInterval = await this._readUpdateCheckInterval('external');
-    const lastCheck = local.last_check_external_update as number;
+    const lastCheck = local.last_check_external_update as number | null | undefined;
     const retry = local.external_update_check_retry as UpdateCheckRetry | null | undefined;
 
     const start = unixNow();
-    const scheduled = () =>
-      isSet(lastCheck) && lastCheck <= start ? lastCheck + updateCheckInterval : 0;
-    let nextCheck = Math.max(scheduled(), retryEnd(retry, start));
+    let nextCheck = dueAt(lastCheck, updateCheckInterval, retry, start);
     let result: ExternalCheckResult = { status: 'not-due', updated: [], failed: [] };
     if (force || start >= nextCheck) {
-      const { reached, updated, failed } = await this._updateExternalPlugins(channel, local);
-      const offline =
-        !reached && failed.length > 0 && failed.every(f => f.error.kind === 'network');
-      result = { status: offline ? 'failed' : 'checked', updated, failed };
-      // The interval may have been changed while the check was running
-      updateCheckInterval = await this._readUpdateCheckInterval('external');
-      if (offline) {
-        const next = nextRetry(retry, failed[0].error);
-        nextCheck = Math.max(scheduled(), next.at);
-        await this._save(channel, { external_update_check_retry: next });
-      } else {
-        nextCheck = start + updateCheckInterval;
-        await this._save(channel, {
-          last_check_external_update: start,
-          external_update_check_retry: null,
-        });
-      }
+      result = await this._externalChecks.track(
+        'external',
+        () => this._notifyUpdateStatus(),
+        async () => {
+          const { reached, updated, failed } = await this._updateExternalPlugins(channel, local);
+          const offline =
+            !reached && failed.length > 0 && failed.every(f => f.error.kind === 'network');
+          // The interval may have been changed while the check was running
+          updateCheckInterval = await this._readUpdateCheckInterval('external');
+          if (offline) {
+            const next = nextRetry(retry, failed[0].error);
+            nextCheck = dueAt(lastCheck, updateCheckInterval, next, unixNow());
+            await this._save(channel, { external_update_check_retry: next });
+          } else {
+            nextCheck = start + updateCheckInterval;
+            await this._save(channel, {
+              last_check_external_update: start,
+              external_update_check_retry: null,
+            });
+          }
+          return { status: offline ? 'failed' : 'checked', updated, failed };
+        }
+      );
     }
 
     this._scheduleCheck('externalUpdateTimeoutId', nextCheck, updateCheckInterval, () =>

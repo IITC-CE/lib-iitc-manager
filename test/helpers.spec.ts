@@ -317,6 +317,42 @@ describe('wait', function () {
   });
 });
 
+describe('checkCustomChannelUrl', function () {
+  const fixtures = 'http://127.0.0.1:31606';
+
+  it('accepts a channel', async function () {
+    expect(await helpers.checkCustomChannelUrl(`${fixtures}/custom/`)).to.deep.equal({ ok: true });
+  });
+
+  it('names an HTTP error', async function () {
+    expect(await helpers.checkCustomChannelUrl(`${fixtures}/nonexistent`)).to.deep.equal({
+      ok: false,
+      error: { kind: 'http', status: 404 },
+    });
+  });
+
+  it('rejects a page that is not JSON, such as a Wi-Fi sign-in page', async function () {
+    expect(await helpers.checkCustomChannelUrl(`${fixtures}/html-page`)).to.deep.equal({
+      ok: false,
+      error: { kind: 'invalid' },
+    });
+  });
+
+  it('rejects JSON without plugin categories', async function () {
+    expect(await helpers.checkCustomChannelUrl(`${fixtures}/other-json`)).to.deep.equal({
+      ok: false,
+      error: { kind: 'invalid' },
+    });
+  });
+
+  it('names a network error', async function () {
+    expect(await helpers.checkCustomChannelUrl('http://127.0.0.1:1/release')).to.deep.equal({
+      ok: false,
+      error: { kind: 'network' },
+    });
+  });
+});
+
 describe('validateCustomChannelUrl', function () {
   it('returns false for empty string', async function () {
     expect(await helpers.validateCustomChannelUrl('')).to.be.false;

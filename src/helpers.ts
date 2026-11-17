@@ -5,6 +5,7 @@ import type {
   PluginMeta,
   FetchResourceOptions,
   FetchResourceResult,
+  FetchError,
   IngressDomain,
 } from './types.js';
 
@@ -162,6 +163,7 @@ export async function fetchData(
 /**
  * Checks whether a URL points to a valid IITC channel by fetching its meta.json.
  *
+ * @deprecated Use {@link checkCustomChannelUrl}, which rejects a page that is not a channel and names the error.
  * @param url - URL of the custom channel repository to validate.
  */
 export async function validateCustomChannelUrl(url: string): Promise<boolean> {
@@ -169,6 +171,26 @@ export async function validateCustomChannelUrl(url: string): Promise<boolean> {
   const metaUrl = url.endsWith('/') ? `${url}meta.json` : `${url}/meta.json`;
   const { data } = await fetchResource(metaUrl, { timeout: 1000 });
   return data !== null;
+}
+
+/**
+ * Checks whether a URL points to an IITC channel: its meta.json must be JSON with plugin categories.
+ *
+ * @param url - URL of the custom channel repository.
+ * @returns `ok`, or the error: `invalid` for a page that is not a channel, `http` or `network`.
+ */
+export async function checkCustomChannelUrl(
+  url: string
+): Promise<{ ok: true } | { ok: false; error: FetchError }> {
+  if (!url) return { ok: false, error: { kind: 'invalid' } };
+  const metaUrl = url.endsWith('/') ? `${url}meta.json` : `${url}/meta.json`;
+  const { data, error } = await fetchResource(metaUrl, { parseJSON: true });
+  if (error) return { ok: false, error };
+  const categories = (data as { categories?: unknown } | null)?.categories;
+  if (typeof categories !== 'object' || categories === null) {
+    return { ok: false, error: { kind: 'invalid' } };
+  }
+  return { ok: true };
 }
 
 /**
