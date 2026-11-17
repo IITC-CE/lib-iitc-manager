@@ -51,9 +51,11 @@ const MAX_RETRY_PAUSE = 30 * 60;
 /** Longest delay `setTimeout` accepts, in milliseconds; a longer one fires at once. */
 const MAX_TIMER_DELAY = 2 ** 31 - 1;
 
-/** End of the pause in `retry`, at most 30 min from `now` in case the clock moved back. */
-const retryEnd = (retry: UpdateCheckRetry | null | undefined, now: number): number =>
-  Math.min(retry?.at ?? 0, now + MAX_RETRY_PAUSE);
+/** End of the pause in `retry`; one ending more than 30 min from `now` (clock moved back) counts as none. */
+const retryEnd = (retry: UpdateCheckRetry | null | undefined, now: number): number => {
+  const at = retry?.at ?? 0;
+  return at > now + MAX_RETRY_PAUSE ? 0 : at;
+};
 
 /**
  * Unix time in seconds when a non-forced check becomes due: `interval` after `lastCheck`,

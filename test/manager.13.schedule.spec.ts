@@ -60,6 +60,19 @@ describe('Update check schedule', function () {
     expect(urls).to.not.be.empty;
   });
 
+  it('a pause ending more than 30 min ahead does not postpone the check', async function () {
+    storage.resetStorage();
+    await storage.set({
+      release_last_modified: 'previous',
+      last_check_update: now() - 2 * 24 * 60 * 60,
+      // The clock was moved back after the pause was set
+      update_check_retry: { failures: 3, at: now() + 2 * 60 * 60 },
+    });
+    const { manager, urls } = createManager(fixtureHost);
+    await manager.checkUpdates(false);
+    expect(urls).to.not.be.empty;
+  });
+
   describe('failed check backs off', function () {
     const lastCheck = now() - 2 * 24 * 60 * 60;
 
