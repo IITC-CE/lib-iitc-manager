@@ -649,6 +649,10 @@ export class Worker {
               throw error;
             })
         );
+      } else {
+        // Whether a pause or a last check from a moved clock counts depends on the time,
+        // so the status sent earlier may have shown this check as due
+        this._notifyUpdateStatus();
       }
     } finally {
       if (this.channel === channel) {
@@ -898,6 +902,10 @@ export class Worker {
               throw error;
             })
         );
+      } else {
+        // Whether a pause or a last check from a moved clock counts depends on the time,
+        // so the status sent earlier may have shown this check as due
+        this._notifyUpdateStatus();
       }
     } finally {
       this._scheduleCheck('externalUpdateTimeoutId', nextCheck, updateCheckInterval, () =>
