@@ -178,7 +178,7 @@
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">Manager</span></li></ul></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L27">manager.ts:27</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L26">manager.ts:26</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -192,6 +192,7 @@
 <h3 class="tsd-index-heading tsd-anchor-link" id="properties">Properties<a href="#properties" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-index-list"><a href="#activerequests" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>active<wbr/>Requests</span></a>
 <a href="#message" class="tsd-index-link deprecated tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>message?</span></a>
+<a href="#onprogress" class="tsd-index-link deprecated tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>on<wbr/>Progress?</span></a>
 <a href="#ready" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>ready</span></a>
 </div></section>
 <section class="tsd-index-section">
@@ -232,7 +233,7 @@
 <h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">Manager</a></h4><aside class="tsd-sources">
 <p>Inherited from Worker.constructor</p>
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/worker.ts#L130">worker.ts:130</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/worker.ts#L175">worker.ts:175</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -243,7 +244,7 @@
 </div><aside class="tsd-sources">
 <p>Inherited from Worker.activeRequests</p>
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/worker.ts#L106">worker.ts:106</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/worker.ts#L143">worker.ts:143</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="message"><code class="tsd-tag">Optional</code><span class="deprecated">message</span><a href="#message" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">message</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">message</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">args</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></div>
@@ -253,7 +254,17 @@
 </div></div><aside class="tsd-sources">
 <p>Inherited from Worker.message</p>
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/worker.ts#L117">worker.ts:117</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/worker.ts#L160">worker.ts:160</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-inherited">
+<h3 class="tsd-anchor-link" id="onprogress"><code class="tsd-tag">Optional</code><span class="deprecated">on<wbr/>Progress</span><a href="#onprogress" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">onProgress</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">isShow</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></div>
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-deprecated">
+<h4 class="tsd-anchor-link" id="deprecated-1">Deprecated<a href="#deprecated-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Use <code>onUpdateStatusChanged</code> and the <code>managePlugin</code> promise.</p>
+</div></div><aside class="tsd-sources">
+<p>Inherited from Worker.onProgress</p>
+<ul>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/worker.ts#L162">worker.ts:162</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="ready"><span>ready</span><a href="#ready" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">ready</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></div>
@@ -261,7 +272,7 @@
 </div><aside class="tsd-sources">
 <p>Inherited from Worker.ready</p>
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/worker.ts#L98">worker.ts:98</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/worker.ts#L135">worker.ts:135</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -282,7 +293,7 @@ Returns the dictionary of installed or updated plugins.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/PluginDict.html" class="tsd-signature-type tsd-kind-interface">PluginDict</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L404">manager.ts:404</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L407">manager.ts:407</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="checkupdates"><span>check<wbr/>Updates</span><a href="#checkupdates" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -301,7 +312,7 @@ Joins the running check of the same channel; <code>force</code> during a non-for
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/UpdateCheckResult.html" class="tsd-signature-type tsd-kind-interface">UpdateCheckResult</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Result of the update check.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L263">manager.ts:263</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L280">manager.ts:280</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getbackupdata"><span>get<wbr/>Backup<wbr/>Data</span><a href="#getbackupdata" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -318,7 +329,7 @@ Joins the running check of the same channel; <code>force</code> during a non-for
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/BackupData.html" class="tsd-signature-type tsd-kind-interface">BackupData</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L516">manager.ts:516</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L519">manager.ts:519</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getenabledplugins"><span>get<wbr/>Enabled<wbr/>Plugins</span><a href="#getenabledplugins" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -329,7 +340,7 @@ Joins the running check of the same channel; <code>force</code> during a non-for
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/PluginDict.html" class="tsd-signature-type tsd-kind-interface">PluginDict</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L168">manager.ts:168</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L185">manager.ts:185</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getplugininfo"><span>get<wbr/>Plugin<wbr/>Info</span><a href="#getplugininfo" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -346,7 +357,7 @@ Joins the running check of the same channel; <code>force</code> during a non-for
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/Plugin.html" class="tsd-signature-type tsd-kind-interface">Plugin</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L506">manager.ts:506</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L509">manager.ts:509</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getpluginsview"><span>get<wbr/>Plugins<wbr/>View</span><a href="#getpluginsview" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -358,7 +369,7 @@ Combines server catalog with local installation state and user overrides.</p>
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/PluginsView.html" class="tsd-signature-type tsd-kind-interface">PluginsView</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L131">manager.ts:131</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L148">manager.ts:148</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getupdatecheckinterval"><span>get<wbr/>Update<wbr/>Check<wbr/>Interval</span><a href="#getupdatecheckinterval" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -375,19 +386,20 @@ Combines server catalog with local installation state and user overrides.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L82">manager.ts:82</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L89">manager.ts:89</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getupdatestatus"><span>get<wbr/>Update<wbr/>Status</span><a href="#getupdatestatus" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="getupdatestatus-1"><span class="tsd-kind-call-signature">getUpdateStatus</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/UpdateStatus.html" class="tsd-signature-type tsd-kind-interface">UpdateStatus</a><span class="tsd-signature-symbol">&gt;</span><a href="#getupdatestatus-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Returns the state of update checks from storage, without network requests.</p>
+<div class="tsd-comment tsd-typography"><p>Returns the state of update checks, without network requests.</p>
 </div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/UpdateStatus.html" class="tsd-signature-type tsd-kind-interface">UpdateStatus</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Last successful check and pause after failures, for internal and external checks.</p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/UpdateStatus.html" class="tsd-signature-type tsd-kind-interface">UpdateStatus</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Whether a check is running, last successful check, when the next one is due
+and pause after failures, for internal and external checks.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L277">manager.ts:277</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L295">manager.ts:295</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="inject"><span>inject</span><a href="#inject" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -406,7 +418,7 @@ plugins can be added to <code>window.bootPlugins</code> without being started im
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L240">manager.ts:240</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L257">manager.ts:257</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="manageplugin"><span>manage<wbr/>Plugin</span><a href="#manageplugin" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -427,7 +439,7 @@ plugins can be added to <code>window.bootPlugins</code> without being started im
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/ManagePluginResult.html" class="tsd-signature-type tsd-kind-type-alias">ManagePluginResult</a><span class="tsd-signature-symbol">&gt;</span></h4><p><code>ok: false</code> if enabling failed; nothing is changed then.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L304">manager.ts:304</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L307">manager.ts:307</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="run"><span>run</span><a href="#run" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -441,7 +453,7 @@ forces the update and re-sends user plugins.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/UpdateCheckResult.html" class="tsd-signature-type tsd-kind-interface">UpdateCheckResult</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Result of the update check.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L110">manager.ts:110</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L126">manager.ts:126</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="setbackupdata"><span>set<wbr/>Backup<wbr/>Data</span><a href="#setbackupdata" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -466,7 +478,7 @@ the 'backup' module.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L557">manager.ts:557</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L560">manager.ts:560</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="setchannel"><span>set<wbr/>Channel</span><a href="#setchannel" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -484,14 +496,16 @@ the 'backup' module.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/UpdateCheckResult.html" class="tsd-signature-type tsd-kind-interface">UpdateCheckResult</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Result of the forced update check.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L34">manager.ts:34</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L33">manager.ts:33</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="setcustomchannelurl"><span>set<wbr/>Custom<wbr/>Channel<wbr/>Url</span><a href="#setcustomchannelurl" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="setcustomchannelurl-1"><span class="tsd-kind-call-signature">setCustomChannelUrl</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">url</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#setcustomchannelurl-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="setcustomchannelurl-1"><span class="tsd-kind-call-signature">setCustomChannelUrl</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">url</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/UpdateCheckResult.html" class="tsd-signature-type tsd-kind-interface">UpdateCheckResult</a><span class="tsd-signature-symbol">&gt;</span><a href="#setcustomchannelurl-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Changes the URL of the repository with IITC and plugins for the custom channel.</p>
+<div class="tsd-comment tsd-typography"><p>Changes the URL of the repository with IITC and plugins for the custom channel.
+While the custom channel is active, a new URL starts over as <code>setChannel</code> does:
+the check state is reset and the new URL is checked at once.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
@@ -499,9 +513,10 @@ the 'backup' module.</p>
 <li><span><span class="tsd-kind-parameter">url</span>: <span class="tsd-signature-type">string</span></span>
 <div class="tsd-comment tsd-typography"><p>URL of the repository.</p>
 </div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/UpdateCheckResult.html" class="tsd-signature-type tsd-kind-interface">UpdateCheckResult</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Result of the update check, forced for a new URL of the active channel.</p>
+<aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L93">manager.ts:93</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L103">manager.ts:103</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="setupdatecheckinterval"><span>set<wbr/>Update<wbr/>Check<wbr/>Interval</span><a href="#setupdatecheckinterval" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -522,7 +537,7 @@ the 'backup' module.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/UpdateCheckResult.html" class="tsd-signature-type tsd-kind-interface">UpdateCheckResult</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Result of the update check.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/5e4afc5b23e912557ef3a80566a7744750c9aea3/src/manager.ts#L65">manager.ts:65</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/IITC-CE/lib-iitc-manager/blob/3455db90b16c28d90cbbea9db56ea6ca5b1c5e9f/src/manager.ts#L68">manager.ts:68</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -541,7 +556,7 @@ the 'backup' module.</p>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
 <div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Properties</summary>
-<div><a href="#activerequests" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>active<wbr/>Requests</span></a><a href="#message" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>message</span></a><a href="#ready" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>ready</span></a></div></details>
+<div><a href="#activerequests" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>active<wbr/>Requests</span></a><a href="#message" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>message</span></a><a href="#onprogress" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>on<wbr/>Progress</span></a><a href="#ready" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>ready</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
 <div><a href="#adduserscripts"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>User<wbr/>Scripts</span></a><a href="#checkupdates"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>check<wbr/>Updates</span></a><a href="#getbackupdata"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Backup<wbr/>Data</span></a><a href="#getenabledplugins"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Enabled<wbr/>Plugins</span></a><a href="#getplugininfo"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Plugin<wbr/>Info</span></a><a href="#getpluginsview"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Plugins<wbr/>View</span></a><a href="#getupdatecheckinterval"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Update<wbr/>Check<wbr/>Interval</span></a><a href="#getupdatestatus"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Update<wbr/>Status</span></a><a href="#inject"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>inject</span></a><a href="#manageplugin"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>manage<wbr/>Plugin</span></a><a href="#run"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>run</span></a><a href="#setbackupdata"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Backup<wbr/>Data</span></a><a href="#setchannel"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Channel</span></a><a href="#setcustomchannelurl"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Custom<wbr/>Channel<wbr/>Url</span></a><a href="#setupdatecheckinterval"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Update<wbr/>Check<wbr/>Interval</span></a></div></details></div></details></div>
 <div class="site-menu">
