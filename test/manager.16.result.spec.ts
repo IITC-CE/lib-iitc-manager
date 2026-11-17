@@ -68,6 +68,17 @@ describe('Update check result and status', function () {
     expect(status.internal.retry!.failures).to.equal(1);
     expect(status.internal.retry!.error).to.deep.equal({ kind: 'network' });
   });
+
+  it('reports a meta.json without plugin categories as invalid', async function () {
+    const { manager } = createManager('http://127.0.0.1:31606/other-json');
+    const result = await manager.checkUpdates(true);
+    expect(result.ok).to.be.false;
+    expect(result.internal).to.deep.equal({
+      status: 'failed',
+      error: { kind: 'invalid' },
+      failed: [],
+    });
+  });
 });
 
 describe('One update check at a time', function () {

@@ -1,6 +1,6 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { fetchResource, getUID, isSet, parseMeta } from './helpers.js';
+import { fetchResource, getUID, isChannelMeta, isSet, parseMeta } from './helpers.js';
 import { wrapPluginCode, appendSourceUrl } from './wrapper.js';
 import { getGmApiCode } from './gm-api.js';
 import { aggregateMatchPatterns } from './matching.js';
@@ -691,8 +691,11 @@ export class Worker {
   ): Promise<InternalCheckResult> {
     const result = meta ?? (await this._getUrl(host + '/meta.json', 'parseJSON'));
     if (!result.data) return { status: 'failed', error: result.error, failed: [] };
+    if (!isChannelMeta(result.data)) {
+      return { status: 'failed', error: { kind: 'invalid' }, failed: [] };
+    }
 
-    const response = result.data as MetaJsonResponse;
+    const response = result.data;
     const lastModified = result.version;
     const only =
       pendingFiles && lastModified === local[`${channel}_last_modified`]
@@ -787,7 +790,7 @@ export class Worker {
     Object.keys(categories).forEach(cat => {
       if (cat === 'Obsolete' || cat === 'Deleted') return;
 
-      if ('plugins' in categories[cat] && categories[cat].plugins) {
+      if (categories[cat]?.plugins) {
         Object.keys(categories[cat].plugins!).forEach(id => {
           const plugin = { ...(categories[cat].plugins![id] as unknown as Plugin) };
           plugin['uid'] = getUID(plugin)!;
