@@ -7,6 +7,7 @@ import type {
   FetchResourceResult,
   FetchError,
   IngressDomain,
+  MetaJsonResponse,
 } from './types.js';
 
 export let waitTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -174,6 +175,17 @@ export async function validateCustomChannelUrl(url: string): Promise<boolean> {
 }
 
 /**
+ * Whether parsed meta.json is that of an IITC channel: an object with plugin categories.
+ *
+ * @param data - Parsed meta.json.
+ * @internal
+ */
+export function isChannelMeta(data: unknown): data is MetaJsonResponse {
+  const categories = (data as { categories?: unknown } | null)?.categories;
+  return typeof categories === 'object' && categories !== null;
+}
+
+/**
  * Checks whether a URL points to an IITC channel: its meta.json must be JSON with plugin categories.
  *
  * @param url - URL of the custom channel repository.
@@ -186,10 +198,7 @@ export async function checkCustomChannelUrl(
   const metaUrl = url.endsWith('/') ? `${url}meta.json` : `${url}/meta.json`;
   const { data, error } = await fetchResource(metaUrl, { parseJSON: true });
   if (error) return { ok: false, error };
-  const categories = (data as { categories?: unknown } | null)?.categories;
-  if (typeof categories !== 'object' || categories === null) {
-    return { ok: false, error: { kind: 'invalid' } };
-  }
+  if (!isChannelMeta(data)) return { ok: false, error: { kind: 'invalid' } };
   return { ok: true };
 }
 

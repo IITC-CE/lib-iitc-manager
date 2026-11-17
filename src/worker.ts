@@ -1,6 +1,6 @@
 // Copyright (C) 2022-2026 IITC-CE - GPL-3.0 with Store Exception - see LICENSE and COPYING.STORE
 
-import { fetchResource, getUID, isSet, parseMeta } from './helpers.js';
+import { fetchResource, getUID, isChannelMeta, isSet, parseMeta } from './helpers.js';
 import { wrapPluginCode, appendSourceUrl } from './wrapper.js';
 import { getGmApiCode } from './gm-api.js';
 import { aggregateMatchPatterns } from './matching.js';
@@ -51,9 +51,11 @@ const MAX_RETRY_PAUSE = 30 * 60;
 /** Longest delay `setTimeout` accepts, in milliseconds; a longer one fires at once. */
 const MAX_TIMER_DELAY = 2 ** 31 - 1;
 
-/** End of the pause in `retry`, at most 30 min from `now` in case the clock moved back. */
-const retryEnd = (retry: UpdateCheckRetry | null | undefined, now: number): number =>
-  Math.min(retry?.at ?? 0, now + MAX_RETRY_PAUSE);
+/** End of the pause in `retry`; one ending more than 30 min from `now` (clock moved back) counts as none. */
+const retryEnd = (retry: UpdateCheckRetry | null | undefined, now: number): number => {
+  const at = retry?.at ?? 0;
+  return at > now + MAX_RETRY_PAUSE ? 0 : at;
+};
 
 /**
  * Unix time in seconds when a non-forced check becomes due: `interval` after `lastCheck`,
@@ -70,14 +72,18 @@ const dueAt = (
     retryEnd(retry, now)
   );
 
-/** Pause after another failed check: doubles from 1 min up to `maxPause` seconds. */
+/**
+ * Pause after another failed check: doubles from 1 min up to `maxPause` seconds,
+ * but no longer than `interval`, so a failure never makes checks rarer than the interval.
+ */
 const nextRetry = (
   retry: UpdateCheckRetry | null | undefined,
   error: FetchError | undefined,
+  interval: number,
   maxPause: number = MAX_RETRY_PAUSE
 ): UpdateCheckRetry => {
   const failures = (retry?.failures ?? 0) + 1;
-  const at = unixNow() + Math.min(60 * 2 ** (failures - 1), maxPause);
+  const at = unixNow() + Math.min(60 * 2 ** (failures - 1), maxPause, interval);
   return error ? { failures, at, error } : { failures, at };
 };
 
@@ -585,61 +591,82 @@ export class Worker {
     const start = unixNow();
     let nextCheck = dueAt(lastCheck, updateCheckInterval, retry, start);
 
-    let result: InternalCheckResult = { status: 'not-due', failed: [] };
-    if (force || start >= nextCheck) {
-      result = await this._internalChecks.track(
-        key,
-        () => this._notifyUpdateStatus(),
-        async () => {
-          let checked: InternalCheckResult;
-          if (force || !isSet(lastModified)) {
-            checked = await this._updateInternalIITC(channel, storage, host);
-          } else {
-            // Without HEAD support this is a full GET, so its body is reused below
-            const head = await this._getUrl(
-              host + '/meta.json',
-              this.useFetchHeadMethod ? 'head' : 'parseJSON'
-            );
-            const meta = this.useFetchHeadMethod ? undefined : head;
-            if (head.error?.kind === 'network') {
-              checked = { status: 'failed', error: head.error, failed: [] };
-            } else if (head.version === lastModified && !pendingFiles.length) {
-              checked = { status: 'not-modified', failed: [] };
-            } else {
-              checked = await this._updateInternalIITC(channel, storage, host, pendingFiles, meta);
-            }
-          }
-
-          // The interval may have been changed while the check was running
-          updateCheckInterval = await this._readUpdateCheckInterval(channel);
-          // Channel changed mid-check: setChannel reset the state and reschedules.
-          // Host changed mid-check: the new host was not checked, so record nothing.
-          if (this.channel !== channel || this.networkHost[channel] !== host) return checked;
-          if (checked.status !== 'failed') {
-            nextCheck = start + updateCheckInterval;
-            await this._save(channel, { last_check_update: start, update_check_retry: null });
-          } else {
-            const error = checked.error ?? checked.failed.find(f => isTransient(f.error))?.error;
-            // A channel that was never fetched has no catalog yet, so retry it sooner
-            const next = nextRetry(retry, error, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
-            nextCheck = dueAt(lastCheck, updateCheckInterval, next, unixNow());
-            await this._save(channel, { update_check_retry: next });
-          }
-          return checked;
+    // A channel that was never fetched has no catalog yet, so retry it sooner
+    const maxPause = isSet(lastModified) ? MAX_RETRY_PAUSE : 60;
+    /** Moves the next check past the pause after a failed check and records the pause. */
+    const pause = (error?: FetchError): Promise<void> => {
+      const next = nextRetry(retry, error, updateCheckInterval, maxPause);
+      nextCheck = dueAt(lastCheck, updateCheckInterval, next, unixNow());
+      return this._save(channel, { update_check_retry: next });
+    };
+    const check = async (): Promise<InternalCheckResult> => {
+      let checked: InternalCheckResult;
+      if (force || !isSet(lastModified)) {
+        checked = await this._updateInternalIITC(channel, storage, host);
+      } else {
+        // Without HEAD support this is a full GET, so its body is reused below
+        const head = await this._getUrl(
+          host + '/meta.json',
+          this.useFetchHeadMethod ? 'head' : 'parseJSON'
+        );
+        const meta = this.useFetchHeadMethod ? undefined : head;
+        if (head.error?.kind === 'network') {
+          checked = { status: 'failed', error: head.error, failed: [] };
+        } else if (head.version === lastModified && !pendingFiles.length) {
+          checked = { status: 'not-modified', failed: [] };
+        } else {
+          checked = await this._updateInternalIITC(channel, storage, host, pendingFiles, meta);
         }
-      );
-    }
+      }
 
-    if (this.channel !== channel) return result;
-    this._scheduleCheck('updateTimeoutId', nextCheck, updateCheckInterval, () =>
-      this._checkInternalUpdates()
-    );
+      // The interval may have been changed while the check was running
+      updateCheckInterval = await this._readUpdateCheckInterval(channel);
+      // Channel changed mid-check: setChannel reset the state and reschedules.
+      // Host changed mid-check: the new host was not checked, so record nothing.
+      if (this.channel !== channel || this.networkHost[channel] !== host) return checked;
+      if (checked.status !== 'failed') {
+        nextCheck = start + updateCheckInterval;
+        await this._save(channel, { last_check_update: start, update_check_retry: null });
+      } else {
+        await pause(checked.error ?? checked.failed.find(f => isTransient(f.error))?.error);
+      }
+      return checked;
+    };
+
+    let result: InternalCheckResult = { status: 'not-due', failed: [] };
+    try {
+      if (force || start >= nextCheck) {
+        result = await this._internalChecks.track(
+          key,
+          () => this._notifyUpdateStatus(),
+          () =>
+            check().catch(async error => {
+              // A rejected check pauses too, so neither the daemon nor the host repeats it at once.
+              // The daemon keeps the pause even if storage fails to record it.
+              if (this.channel === channel && this.networkHost[channel] === host) {
+                await pause().catch(() => {});
+              }
+              throw error;
+            })
+        );
+      } else {
+        // Whether a pause or a last check from a moved clock counts depends on the time,
+        // so the status sent earlier may have shown this check as due
+        this._notifyUpdateStatus();
+      }
+    } finally {
+      if (this.channel === channel) {
+        this._scheduleCheck('updateTimeoutId', nextCheck, updateCheckInterval, () =>
+          this._checkInternalUpdates()
+        );
+      }
+    }
     return result;
   }
 
   /**
    * Re-arms a daemon timer to fire at `nextCheck`, but no later than `interval` from now.
-   * A rejected check never reaches its own re-arm, so it is retried after a pause.
+   * A check rejected before it re-arms the timer is retried after a pause.
    *
    * @param timer - Timer field to re-arm.
    * @param nextCheck - Unix time in seconds when the check is due.
@@ -689,8 +716,11 @@ export class Worker {
   ): Promise<InternalCheckResult> {
     const result = meta ?? (await this._getUrl(host + '/meta.json', 'parseJSON'));
     if (!result.data) return { status: 'failed', error: result.error, failed: [] };
+    if (!isChannelMeta(result.data)) {
+      return { status: 'failed', error: { kind: 'invalid' }, failed: [] };
+    }
 
-    const response = result.data as MetaJsonResponse;
+    const response = result.data;
     const lastModified = result.version;
     const only =
       pendingFiles && lastModified === local[`${channel}_last_modified`]
@@ -785,7 +815,7 @@ export class Worker {
     Object.keys(categories).forEach(cat => {
       if (cat === 'Obsolete' || cat === 'Deleted') return;
 
-      if ('plugins' in categories[cat] && categories[cat].plugins) {
+      if (categories[cat]?.plugins) {
         Object.keys(categories[cat].plugins!).forEach(id => {
           const plugin = { ...(categories[cat].plugins![id] as unknown as Plugin) };
           plugin['uid'] = getUID(plugin)!;
@@ -834,36 +864,54 @@ export class Worker {
 
     const start = unixNow();
     let nextCheck = dueAt(lastCheck, updateCheckInterval, retry, start);
+    /** Moves the next check past the pause after a failed check and records the pause. */
+    const pause = (error?: FetchError): Promise<void> => {
+      const next = nextRetry(retry, error, updateCheckInterval);
+      nextCheck = dueAt(lastCheck, updateCheckInterval, next, unixNow());
+      return this._save(channel, { external_update_check_retry: next });
+    };
+    const check = async (): Promise<ExternalCheckResult> => {
+      const { reached, updated, failed } = await this._updateExternalPlugins(channel, local);
+      const offline =
+        !reached && failed.length > 0 && failed.every(f => f.error.kind === 'network');
+      // The interval may have been changed while the check was running
+      updateCheckInterval = await this._readUpdateCheckInterval('external');
+      if (offline) {
+        await pause(failed[0].error);
+      } else {
+        nextCheck = start + updateCheckInterval;
+        await this._save(channel, {
+          last_check_external_update: start,
+          external_update_check_retry: null,
+        });
+      }
+      return { status: offline ? 'failed' : 'checked', updated, failed };
+    };
+
     let result: ExternalCheckResult = { status: 'not-due', updated: [], failed: [] };
-    if (force || start >= nextCheck) {
-      result = await this._externalChecks.track(
-        'external',
-        () => this._notifyUpdateStatus(),
-        async () => {
-          const { reached, updated, failed } = await this._updateExternalPlugins(channel, local);
-          const offline =
-            !reached && failed.length > 0 && failed.every(f => f.error.kind === 'network');
-          // The interval may have been changed while the check was running
-          updateCheckInterval = await this._readUpdateCheckInterval('external');
-          if (offline) {
-            const next = nextRetry(retry, failed[0].error);
-            nextCheck = dueAt(lastCheck, updateCheckInterval, next, unixNow());
-            await this._save(channel, { external_update_check_retry: next });
-          } else {
-            nextCheck = start + updateCheckInterval;
-            await this._save(channel, {
-              last_check_external_update: start,
-              external_update_check_retry: null,
-            });
-          }
-          return { status: offline ? 'failed' : 'checked', updated, failed };
-        }
+    try {
+      if (force || start >= nextCheck) {
+        result = await this._externalChecks.track(
+          'external',
+          () => this._notifyUpdateStatus(),
+          () =>
+            check().catch(async error => {
+              // A rejected check pauses too, so neither the daemon nor the host repeats it at once.
+              // The daemon keeps the pause even if storage fails to record it.
+              await pause().catch(() => {});
+              throw error;
+            })
+        );
+      } else {
+        // Whether a pause or a last check from a moved clock counts depends on the time,
+        // so the status sent earlier may have shown this check as due
+        this._notifyUpdateStatus();
+      }
+    } finally {
+      this._scheduleCheck('externalUpdateTimeoutId', nextCheck, updateCheckInterval, () =>
+        this._checkExternalUpdates()
       );
     }
-
-    this._scheduleCheck('externalUpdateTimeoutId', nextCheck, updateCheckInterval, () =>
-      this._checkExternalUpdates()
-    );
     return result;
   }
 

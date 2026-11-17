@@ -105,6 +105,31 @@ describe('Update status notifications', function () {
     expect(statuses).to.be.empty;
   });
 
+  it('a check found not due sends the status that changed with the time', async function () {
+    const manager = createManager(host);
+    await manager.ready;
+    const start = now();
+    // The clock was moved back: the pause counts only once it ends within 30 min
+    await storage.set({
+      release_last_modified: 'previous',
+      last_check_update: start - 3 * day,
+      update_check_retry: { failures: 3, at: start + 30 * 60 + 2 },
+      last_check_external_update: start,
+    });
+    expect((await manager.getUpdateStatus()).internal.nextCheck).to.be.at.most(start);
+
+    const realNow = Date.now;
+    Date.now = () => realNow() + 3000;
+    try {
+      expect((await manager.checkUpdates(false)).internal.status).to.equal('not-due');
+      await settle();
+      expect(statuses).to.have.lengthOf(1);
+      expect(statuses[0].internal.nextCheck).to.be.greaterThan(now());
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
   it('run sends the status even when no check is due', async function () {
     await createManager(host).checkUpdates(true);
     await settle();

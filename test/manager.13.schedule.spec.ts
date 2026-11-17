@@ -60,6 +60,49 @@ describe('Update check schedule', function () {
     expect(urls).to.not.be.empty;
   });
 
+  it('a pause ending more than 30 min ahead does not postpone the check', async function () {
+    storage.resetStorage();
+    await storage.set({
+      release_last_modified: 'previous',
+      last_check_update: now() - 2 * 24 * 60 * 60,
+      // The clock was moved back after the pause was set
+      update_check_retry: { failures: 3, at: now() + 2 * 60 * 60 },
+    });
+    const { manager, urls } = createManager(fixtureHost);
+    await manager.checkUpdates(false);
+    expect(urls).to.not.be.empty;
+  });
+
+  it('pause is no longer than the update check interval', async function () {
+    storage.resetStorage();
+    await storage.set({
+      release_last_modified: 'previous',
+      last_check_update: now() - 60,
+      release_update_check_interval: 5,
+    });
+    await createManager(offlineHost).manager.checkUpdates(false);
+    const retry = (await read('update_check_retry')) as StorageData;
+    expect((retry.at as number) - now()).to.be.within(0, 5);
+  });
+
+  it('a check that throws records a pause', async function () {
+    storage.resetStorage();
+    const { manager } = createManager(fixtureHost, {
+      get: storage.get.bind(storage),
+      set: async obj => {
+        if ('release_plugins_catalog' in obj) throw new Error('quota exceeded');
+        await storage.set(obj);
+      },
+    });
+    let error: unknown = null;
+    await manager.checkUpdates(true).catch(e => (error = e));
+    expect(error).to.be.an('error');
+
+    const { internal } = await manager.getUpdateStatus();
+    expect(internal.retry!.failures).to.equal(1);
+    expect(internal.nextCheck).to.be.greaterThan(now());
+  });
+
   describe('failed check backs off', function () {
     const lastCheck = now() - 2 * 24 * 60 * 60;
 
@@ -187,7 +230,7 @@ describe('Update check schedule', function () {
       expect(data.last_check_external_update).to.equal(lastCheck);
     });
 
-    it('a failed check called by the app keeps the daemon timer armed', async function () {
+    it('a check called by the app that throws arms the daemon timer after a pause', async function () {
       let full = false;
       const { manager } = createManager(fixtureHost, {
         get: plainStorage.get,
@@ -198,15 +241,19 @@ describe('Update check schedule', function () {
       });
       await manager.ready;
       manager.isDaemon = true;
-      let fired = false;
-      manager._scheduleCheck('externalUpdateTimeoutId', 0, 0.05, async () => {
-        fired = true;
-      });
+      const armed: number[] = [];
+      const scheduleCheck = manager._scheduleCheck.bind(manager);
+      manager._scheduleCheck = (timer, nextCheck, interval, check) => {
+        if (timer === 'externalUpdateTimeoutId') armed.push(nextCheck);
+        scheduleCheck(timer, nextCheck, interval, check);
+      };
       full = true;
       const failure = await manager._checkExternalUpdates(true).catch((e: Error) => e);
+      clearTimeout(manager.externalUpdateTimeoutId!);
       expect(failure).to.be.an('error').with.property('message', 'quota exceeded');
-      await sleep(100);
-      expect(fired).to.be.true;
+      // Storage could not record the pause, yet the daemon keeps it
+      expect(armed).to.have.lengthOf(1);
+      expect(armed[0]).to.be.greaterThan(now());
     });
   });
 });
