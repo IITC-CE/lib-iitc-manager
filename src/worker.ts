@@ -72,14 +72,18 @@ const dueAt = (
     retryEnd(retry, now)
   );
 
-/** Pause after another failed check: doubles from 1 min up to `maxPause` seconds. */
+/**
+ * Pause after another failed check: doubles from 1 min up to `maxPause` seconds,
+ * but no longer than `interval`, so a failure never makes checks rarer than the interval.
+ */
 const nextRetry = (
   retry: UpdateCheckRetry | null | undefined,
   error: FetchError | undefined,
+  interval: number,
   maxPause: number = MAX_RETRY_PAUSE
 ): UpdateCheckRetry => {
   const failures = (retry?.failures ?? 0) + 1;
-  const at = unixNow() + Math.min(60 * 2 ** (failures - 1), maxPause);
+  const at = unixNow() + Math.min(60 * 2 ** (failures - 1), maxPause, interval);
   return error ? { failures, at, error } : { failures, at };
 };
 
@@ -623,7 +627,12 @@ export class Worker {
           } else {
             const error = checked.error ?? checked.failed.find(f => isTransient(f.error))?.error;
             // A channel that was never fetched has no catalog yet, so retry it sooner
-            const next = nextRetry(retry, error, isSet(lastModified) ? MAX_RETRY_PAUSE : 60);
+            const next = nextRetry(
+              retry,
+              error,
+              updateCheckInterval,
+              isSet(lastModified) ? MAX_RETRY_PAUSE : 60
+            );
             nextCheck = dueAt(lastCheck, updateCheckInterval, next, unixNow());
             await this._save(channel, { update_check_retry: next });
           }
@@ -851,7 +860,7 @@ export class Worker {
           // The interval may have been changed while the check was running
           updateCheckInterval = await this._readUpdateCheckInterval('external');
           if (offline) {
-            const next = nextRetry(retry, failed[0].error);
+            const next = nextRetry(retry, failed[0].error, updateCheckInterval);
             nextCheck = dueAt(lastCheck, updateCheckInterval, next, unixNow());
             await this._save(channel, { external_update_check_retry: next });
           } else {

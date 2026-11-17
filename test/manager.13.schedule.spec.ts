@@ -73,6 +73,18 @@ describe('Update check schedule', function () {
     expect(urls).to.not.be.empty;
   });
 
+  it('pause is no longer than the update check interval', async function () {
+    storage.resetStorage();
+    await storage.set({
+      release_last_modified: 'previous',
+      last_check_update: now() - 60,
+      release_update_check_interval: 5,
+    });
+    await createManager(offlineHost).manager.checkUpdates(false);
+    const retry = (await read('update_check_retry')) as StorageData;
+    expect((retry.at as number) - now()).to.be.within(0, 5);
+  });
+
   describe('failed check backs off', function () {
     const lastCheck = now() - 2 * 24 * 60 * 60;
 
